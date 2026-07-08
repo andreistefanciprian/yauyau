@@ -1,0 +1,45 @@
+{{define "index"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YauYau Tracker</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js"></script>
+</head>
+<body>
+  <main>
+    <h1>{{.Baby.Name}}</h1>
+
+    <form hx-post="/nappies" hx-target="#nappy-list" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) this.reset()">
+      <fieldset>
+        <legend>Log a nappy change</legend>
+        <label><input type="radio" name="kind" value="wet" required> Wet</label>
+        <label><input type="radio" name="kind" value="poo"> Poo</label>
+        <label><input type="radio" name="kind" value="both"> Both</label>
+      </fieldset>
+
+      <label class="colour-label">
+        Colour (optional)
+        <input type="text" name="colour" placeholder="e.g. mustard yellow">
+      </label>
+
+      <label class="time-label">
+        Time
+        <input type="time" name="time" value="{{.NowTime}}" required>
+      </label>
+
+      <button type="submit">Save</button>
+    </form>
+
+    <section>
+      <h2>Recent nappy changes</h2>
+      <div id="nappy-list">
+        {{template "nappy_list" .Nappies}}
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+{{end}}
