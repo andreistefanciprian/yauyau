@@ -7,161 +7,171 @@
   <title>YauYau Tracker</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/htmx.min.js"></script>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js" defer></script>
 </head>
 <body>
   <main>
-    <h1>{{.Baby.Name}}</h1>
+    <header class="page-header">
+      <h1>{{.Baby.Name}}</h1>
+    </header>
 
-    <form hx-post="/nappies" hx-target="#nappy-list" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) resetFormKeepingNow(this)">
-      <fieldset>
-        <legend>Log a nappy change</legend>
-        <label><input type="radio" name="kind" value="wet" required> Wet</label>
-        <label><input type="radio" name="kind" value="poo"> Poo</label>
-        <label><input type="radio" name="kind" value="both"> Both</label>
-      </fieldset>
-
-      <label class="field-label">
-        Colour (optional)
-        <input type="text" name="colour" placeholder="e.g. mustard yellow">
-      </label>
-
-      <label class="field-label">
-        Date
-        <input type="date" name="date" value="{{.NowDate}}" required>
-      </label>
-
-      <label class="field-label">
-        Time
-        <input type="time" name="time" value="{{.NowTime}}" required>
-      </label>
-
-      <button type="submit">Save</button>
-    </form>
-
-    <section>
-      <h2>Recent nappy changes</h2>
-      <div id="nappy-list">
-        {{template "nappy_list" .Nappies}}
-      </div>
+    <section id="timeline" class="timeline-section" aria-live="polite">
+      {{template "timeline" .Timeline}}
     </section>
 
-    <form hx-post="/feeds" hx-target="#feed-list" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) resetFormKeepingNow(this)">
-      <fieldset>
-        <legend>Log a feed</legend>
-        <label><input type="radio" name="type" value="breast" required> Breast</label>
-        <label><input type="radio" name="type" value="formula"> Formula</label>
-        <label><input type="radio" name="type" value="expressed"> Expressed</label>
-      </fieldset>
+    <button type="button" class="fab" id="add-event-button" aria-haspopup="dialog" aria-controls="add-event-dialog">
+      <span class="fab-plus" aria-hidden="true">+</span>
+      <span>Add Event</span>
+    </button>
 
-      <label class="field-label">
-        Amount (ml, optional)
-        <input type="number" name="amount_ml" min="0" placeholder="e.g. 70">
-      </label>
-
-      <label class="field-label">
-        Duration (minutes, optional)
-        <input type="number" name="duration_minutes" min="0" placeholder="e.g. 15">
-      </label>
-
-      <label class="field-label">
-        Date
-        <input type="date" name="date" value="{{.NowDate}}" required>
-      </label>
-
-      <label class="field-label">
-        Time
-        <input type="time" name="time" value="{{.NowTime}}" required>
-      </label>
-
-      <button type="submit">Save</button>
-    </form>
-
-    <section>
-      <h2>Recent feeds</h2>
-      <div id="feed-list">
-        {{template "feed_list" .Feeds}}
+    <dialog id="add-event-dialog" aria-labelledby="add-event-title">
+      <div class="dialog-content">
+      <div class="dialog-header">
+        <button type="button" class="back-button" id="add-event-back" hidden>&larr; Back</button>
+        <h2 id="add-event-title">Add event</h2>
+        <button type="button" class="icon-button" id="add-event-close" aria-label="Close">&times;</button>
       </div>
-    </section>
 
-    <form hx-post="/baths" hx-target="#bath-list" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) resetFormKeepingNow(this)">
-      <fieldset>
-        <legend>Log a bath</legend>
-        <label><input type="radio" name="type" value="whole_body" required> Whole body</label>
-        <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
-      </fieldset>
-
-      <label class="field-label">
-        Notes (optional)
-        <input type="text" name="notes" placeholder="e.g. used baby shampoo">
-      </label>
-
-      <label class="field-label">
-        Duration (minutes, optional)
-        <input type="number" name="duration_minutes" min="0" placeholder="e.g. 10">
-      </label>
-
-      <label class="field-label">
-        Date
-        <input type="date" name="date" value="{{.NowDate}}" required>
-      </label>
-
-      <label class="field-label">
-        Time
-        <input type="time" name="time" value="{{.NowTime}}" required>
-      </label>
-
-      <button type="submit">Save</button>
-    </form>
-
-    <section>
-      <h2>Recent baths</h2>
-      <div id="bath-list">
-        {{template "bath_list" .Baths}}
+      <div id="event-type-picker" class="event-type-picker">
+        <button type="button" class="type-choice type-choice-nappy" data-type="nappy">
+          <span class="type-choice-icon" aria-hidden="true">💩</span>
+          <span>Nappy</span>
+        </button>
+        <button type="button" class="type-choice type-choice-feed" data-type="feed">
+          <span class="type-choice-icon" aria-hidden="true">🍼</span>
+          <span>Feed</span>
+        </button>
+        <button type="button" class="type-choice type-choice-bath" data-type="bath">
+          <span class="type-choice-icon" aria-hidden="true">🛁</span>
+          <span>Bath</span>
+        </button>
+        <button type="button" class="type-choice type-choice-observation" data-type="observation">
+          <span class="type-choice-icon" aria-hidden="true">📝</span>
+          <span>Observation</span>
+        </button>
       </div>
-    </section>
 
-    <form hx-post="/observations" hx-target="#observation-list" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) resetFormKeepingNow(this)">
-      <h3>Log an observation</h3>
+      <form class="event-form" data-type="nappy" hx-post="/nappies" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <fieldset>
+          <legend>Kind</legend>
+          <label><input type="radio" name="kind" value="wet" required> Wet</label>
+          <label><input type="radio" name="kind" value="poo"> Poo</label>
+          <label><input type="radio" name="kind" value="both"> Both</label>
+        </fieldset>
 
-      <label class="field-label">
-        Note
-        <textarea name="text" required placeholder="What did you notice?"></textarea>
-      </label>
+        <label class="field-label">
+          Colour (optional)
+          <input type="text" name="colour" placeholder="e.g. mustard yellow">
+        </label>
 
-      <label class="field-label">
-        Category (optional)
-        <input type="text" name="category" list="observation-categories" placeholder="general">
-        <datalist id="observation-categories">
-          <option value="general">
-          <option value="behaviour">
-          <option value="feeding">
-          <option value="sleep">
-          <option value="health">
-          <option value="doctor">
-          <option value="milestone">
-        </datalist>
-      </label>
+        <label class="field-label">
+          Date
+          <input type="date" name="date" value="{{.NowDate}}" required>
+        </label>
 
-      <label class="field-label">
-        Date
-        <input type="date" name="date" value="{{.NowDate}}" required>
-      </label>
+        <label class="field-label">
+          Time
+          <input type="time" name="time" value="{{.NowTime}}" required>
+        </label>
 
-      <label class="field-label">
-        Time
-        <input type="time" name="time" value="{{.NowTime}}" required>
-      </label>
+        <button type="submit">Save</button>
+      </form>
 
-      <button type="submit">Save</button>
-    </form>
+      <form class="event-form" data-type="feed" hx-post="/feeds" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <fieldset>
+          <legend>Type</legend>
+          <label><input type="radio" name="type" value="breast" required> Breast</label>
+          <label><input type="radio" name="type" value="formula"> Formula</label>
+          <label><input type="radio" name="type" value="expressed"> Expressed</label>
+        </fieldset>
 
-    <section>
-      <h2>Recent observations</h2>
-      <div id="observation-list">
-        {{template "observation_list" .Observations}}
+        <label class="field-label">
+          Amount (ml, optional)
+          <input type="number" name="amount_ml" min="0" placeholder="e.g. 70">
+        </label>
+
+        <label class="field-label">
+          Duration (minutes, optional)
+          <input type="number" name="duration_minutes" min="0" placeholder="e.g. 15">
+        </label>
+
+        <label class="field-label">
+          Date
+          <input type="date" name="date" value="{{.NowDate}}" required>
+        </label>
+
+        <label class="field-label">
+          Time
+          <input type="time" name="time" value="{{.NowTime}}" required>
+        </label>
+
+        <button type="submit">Save</button>
+      </form>
+
+      <form class="event-form" data-type="bath" hx-post="/baths" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <fieldset>
+          <legend>Type</legend>
+          <label><input type="radio" name="type" value="whole_body" required> Whole body</label>
+          <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
+        </fieldset>
+
+        <label class="field-label">
+          Notes (optional)
+          <input type="text" name="notes" placeholder="e.g. used baby shampoo">
+        </label>
+
+        <label class="field-label">
+          Duration (minutes, optional)
+          <input type="number" name="duration_minutes" min="0" placeholder="e.g. 10">
+        </label>
+
+        <label class="field-label">
+          Date
+          <input type="date" name="date" value="{{.NowDate}}" required>
+        </label>
+
+        <label class="field-label">
+          Time
+          <input type="time" name="time" value="{{.NowTime}}" required>
+        </label>
+
+        <button type="submit">Save</button>
+      </form>
+
+      <form class="event-form" data-type="observation" hx-post="/observations" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <label class="field-label">
+          Note
+          <textarea name="text" required placeholder="What did you notice?"></textarea>
+        </label>
+
+        <label class="field-label">
+          Category (optional)
+          <input type="text" name="category" list="observation-categories" placeholder="general">
+          <datalist id="observation-categories">
+            <option value="general">
+            <option value="behaviour">
+            <option value="feeding">
+            <option value="sleep">
+            <option value="health">
+            <option value="doctor">
+            <option value="milestone">
+          </datalist>
+        </label>
+
+        <label class="field-label">
+          Date
+          <input type="date" name="date" value="{{.NowDate}}" required>
+        </label>
+
+        <label class="field-label">
+          Time
+          <input type="time" name="time" value="{{.NowTime}}" required>
+        </label>
+
+        <button type="submit">Save</button>
+      </form>
       </div>
-    </section>
+    </dialog>
   </main>
 </body>
 </html>

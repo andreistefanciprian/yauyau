@@ -6,8 +6,11 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
+	"unicode"
 
 	// Alpine's base image has no OS tzdata; embed the IANA database in the
 	// binary so time.LoadLocation works regardless of the host.
@@ -43,6 +46,21 @@ func New(backend Backend, templates *template.Template) *Handlers {
 	return &Handlers{Backend: backend, Templates: templates}
 }
 
+// TimelineEvent is the single presentation shape every event type (nappy,
+// feed, bath, observation) is flattened into, so the timeline can render one
+// kind of card and sort one kind of slice regardless of how many event types
+// exist.
+type TimelineEvent struct {
+	CSSClass  string // "nappy", "feed", "bath", "observation" — drives card colour
+	Icon      string
+	TypeLabel string
+	Subtitle  string // only observations use this, for the category
+	Detail    string
+	Time      string // pre-formatted for display, e.g. "11:15 AM" or "Jan 2, 11:15 AM"
+
+	occurredAt time.Time // sort key only; not rendered directly
+}
+
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 	baby, loc, err := h.currentBabyLocation(r.Context())
 	if err != nil {
@@ -51,51 +69,24 @@ func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var nappies []backendclient.Nappy
-	if err := h.Backend.ListEvents(r.Context(), "nappies", &nappies); err != nil {
-		log.Printf("list nappies: %v", err)
-		http.Error(w, "failed to load nappy events", http.StatusBadGateway)
-		return
-	}
-
-	var feeds []backendclient.Feed
-	if err := h.Backend.ListEvents(r.Context(), "feeds", &feeds); err != nil {
-		log.Printf("list feeds: %v", err)
-		http.Error(w, "failed to load feed events", http.StatusBadGateway)
-		return
-	}
-
-	var baths []backendclient.Bath
-	if err := h.Backend.ListEvents(r.Context(), "baths", &baths); err != nil {
-		log.Printf("list baths: %v", err)
-		http.Error(w, "failed to load bath events", http.StatusBadGateway)
-		return
-	}
-
-	var observations []backendclient.Observation
-	if err := h.Backend.ListEvents(r.Context(), "observations", &observations); err != nil {
-		log.Printf("list observations: %v", err)
-		http.Error(w, "failed to load observation events", http.StatusBadGateway)
+	timeline, err := h.loadTimeline(r.Context(), loc)
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load events", http.StatusBadGateway)
 		return
 	}
 
 	now := time.Now().In(loc)
 	data := struct {
-		Baby         backendclient.Baby
-		Nappies      []backendclient.Nappy
-		Feeds        []backendclient.Feed
-		Baths        []backendclient.Bath
-		Observations []backendclient.Observation
-		NowDate      string
-		NowTime      string
+		Baby     backendclient.Baby
+		Timeline []TimelineEvent
+		NowDate  string
+		NowTime  string
 	}{
-		Baby:         baby,
-		Nappies:      inLocation(nappies, loc, nappyOccurredAt),
-		Feeds:        inLocation(feeds, loc, feedOccurredAt),
-		Baths:        inLocation(baths, loc, bathOccurredAt),
-		Observations: inLocation(observations, loc, observationOccurredAt),
-		NowDate:      now.Format(dateFieldLayout),
-		NowTime:      now.Format(timeFieldLayout),
+		Baby:     baby,
+		Timeline: timeline,
+		NowDate:  now.Format(dateFieldLayout),
+		NowTime:  now.Format(timeFieldLayout),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -135,17 +126,7 @@ func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var nappies []backendclient.Nappy
-	if err := h.Backend.ListEvents(r.Context(), "nappies", &nappies); err != nil {
-		log.Printf("list nappies: %v", err)
-		http.Error(w, "failed to load nappy events", http.StatusBadGateway)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.Templates.ExecuteTemplate(w, "nappy_list", inLocation(nappies, loc, nappyOccurredAt)); err != nil {
-		log.Printf("render nappy_list template: %v", err)
-	}
+	h.renderTimeline(w, r.Context(), loc)
 }
 
 func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
@@ -192,17 +173,7 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var feeds []backendclient.Feed
-	if err := h.Backend.ListEvents(r.Context(), "feeds", &feeds); err != nil {
-		log.Printf("list feeds: %v", err)
-		http.Error(w, "failed to load feed events", http.StatusBadGateway)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.Templates.ExecuteTemplate(w, "feed_list", inLocation(feeds, loc, feedOccurredAt)); err != nil {
-		log.Printf("render feed_list template: %v", err)
-	}
+	h.renderTimeline(w, r.Context(), loc)
 }
 
 func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
@@ -243,17 +214,7 @@ func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var baths []backendclient.Bath
-	if err := h.Backend.ListEvents(r.Context(), "baths", &baths); err != nil {
-		log.Printf("list baths: %v", err)
-		http.Error(w, "failed to load bath events", http.StatusBadGateway)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.Templates.ExecuteTemplate(w, "bath_list", inLocation(baths, loc, bathOccurredAt)); err != nil {
-		log.Printf("render bath_list template: %v", err)
-	}
+	h.renderTimeline(w, r.Context(), loc)
 }
 
 func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
@@ -287,17 +248,169 @@ func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var observations []backendclient.Observation
-	if err := h.Backend.ListEvents(r.Context(), "observations", &observations); err != nil {
-		log.Printf("list observations: %v", err)
-		http.Error(w, "failed to load observation events", http.StatusBadGateway)
+	h.renderTimeline(w, r.Context(), loc)
+}
+
+// renderTimeline re-fetches every event type and writes the combined,
+// sorted timeline partial. It's the shared tail of every Create* handler,
+// since all four forms target the same #timeline container.
+func (h *Handlers) renderTimeline(w http.ResponseWriter, ctx context.Context, loc *time.Location) {
+	timeline, err := h.loadTimeline(ctx, loc)
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load events", http.StatusBadGateway)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.Templates.ExecuteTemplate(w, "observation_list", inLocation(observations, loc, observationOccurredAt)); err != nil {
-		log.Printf("render observation_list template: %v", err)
+	if err := h.Templates.ExecuteTemplate(w, "timeline", timeline); err != nil {
+		log.Printf("render timeline template: %v", err)
 	}
+}
+
+// loadTimeline fetches the recent events of every type, flattens them into
+// TimelineEvent, and returns them sorted newest-first.
+func (h *Handlers) loadTimeline(ctx context.Context, loc *time.Location) ([]TimelineEvent, error) {
+	var nappies []backendclient.Nappy
+	if err := h.Backend.ListEvents(ctx, "nappies", &nappies); err != nil {
+		return nil, fmt.Errorf("list nappies: %w", err)
+	}
+
+	var feeds []backendclient.Feed
+	if err := h.Backend.ListEvents(ctx, "feeds", &feeds); err != nil {
+		return nil, fmt.Errorf("list feeds: %w", err)
+	}
+
+	var baths []backendclient.Bath
+	if err := h.Backend.ListEvents(ctx, "baths", &baths); err != nil {
+		return nil, fmt.Errorf("list baths: %w", err)
+	}
+
+	var observations []backendclient.Observation
+	if err := h.Backend.ListEvents(ctx, "observations", &observations); err != nil {
+		return nil, fmt.Errorf("list observations: %w", err)
+	}
+
+	now := time.Now().In(loc)
+	timeline := make([]TimelineEvent, 0, len(nappies)+len(feeds)+len(baths)+len(observations))
+	for _, n := range nappies {
+		timeline = append(timeline, nappyTimelineEvent(n, loc, now))
+	}
+	for _, f := range feeds {
+		timeline = append(timeline, feedTimelineEvent(f, loc, now))
+	}
+	for _, b := range baths {
+		timeline = append(timeline, bathTimelineEvent(b, loc, now))
+	}
+	for _, o := range observations {
+		timeline = append(timeline, observationTimelineEvent(o, loc, now))
+	}
+
+	sort.Slice(timeline, func(i, j int) bool {
+		return timeline[i].occurredAt.After(timeline[j].occurredAt)
+	})
+
+	return timeline, nil
+}
+
+func nappyTimelineEvent(n backendclient.Nappy, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := n.OccurredAt.In(loc)
+
+	detail := titleCase(n.Kind)
+	if n.Colour != "" {
+		detail += ", " + n.Colour
+	}
+
+	return TimelineEvent{
+		CSSClass:   "nappy",
+		Icon:       "💩",
+		TypeLabel:  "Nappy",
+		Detail:     detail,
+		Time:       formatEventTime(occurredAt, now),
+		occurredAt: occurredAt,
+	}
+}
+
+func feedTimelineEvent(f backendclient.Feed, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := f.OccurredAt.In(loc)
+
+	var detail string
+	if f.HasAmount() {
+		detail = fmt.Sprintf("%d ml %s", f.Amount(), f.Type)
+	} else {
+		detail = f.Type
+	}
+	detail = titleCase(detail)
+	if f.HasDuration() {
+		detail += fmt.Sprintf(" · %d min", f.Duration())
+	}
+
+	return TimelineEvent{
+		CSSClass:   "feed",
+		Icon:       "🍼",
+		TypeLabel:  "Feed",
+		Detail:     detail,
+		Time:       formatEventTime(occurredAt, now),
+		occurredAt: occurredAt,
+	}
+}
+
+func bathTimelineEvent(b backendclient.Bath, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := b.OccurredAt.In(loc)
+
+	detail := titleCase(b.Type)
+	if b.Notes != "" {
+		detail += ", " + b.Notes
+	}
+	if b.DurationMinutes != nil {
+		detail += fmt.Sprintf(" · %d min", *b.DurationMinutes)
+	}
+
+	return TimelineEvent{
+		CSSClass:   "bath",
+		Icon:       "🛁",
+		TypeLabel:  "Bath",
+		Detail:     detail,
+		Time:       formatEventTime(occurredAt, now),
+		occurredAt: occurredAt,
+	}
+}
+
+func observationTimelineEvent(o backendclient.Observation, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := o.OccurredAt.In(loc)
+
+	return TimelineEvent{
+		CSSClass:   "observation",
+		Icon:       "📝",
+		TypeLabel:  "Observation",
+		Subtitle:   titleCase(o.Category),
+		Detail:     o.Text,
+		Time:       formatEventTime(occurredAt, now),
+		occurredAt: occurredAt,
+	}
+}
+
+// titleCase turns a snake_case or lowercase value (e.g. "whole_body", "poo",
+// or free-text like a user-typed observation category) into display text
+// ("Whole body", "Poo"). Slices by rune, not byte, so a leading multi-byte
+// character (e.g. "über") isn't split mid-encoding.
+func titleCase(s string) string {
+	s = strings.ReplaceAll(s, "_", " ")
+	if s == "" {
+		return s
+	}
+	r := []rune(s)
+	return string(unicode.ToUpper(r[0])) + string(r[1:])
+}
+
+// formatEventTime renders occurredAt as a bare time ("11:15 AM") when it
+// falls on the same day as now, or with a date prefix otherwise, so older
+// timeline entries stay unambiguous.
+func formatEventTime(occurredAt, now time.Time) string {
+	if occurredAt.Year() == now.Year() && occurredAt.YearDay() == now.YearDay() {
+		return occurredAt.Format("3:04 PM")
+	}
+	return occurredAt.Format("Jan 2, 3:04 PM")
 }
 
 // currentBabyLocation fetches the current baby and resolves its IANA
@@ -339,22 +452,3 @@ func parseOptionalInt(raw string) (*int, error) {
 	}
 	return &v, nil
 }
-
-// inLocation returns a copy of items with each element's OccurredAt (as
-// located by the occurredAt accessor) converted to loc, so recent-events
-// lists display the baby's local time instead of UTC. One generic helper
-// replaces a hand-written copy per event type.
-func inLocation[T any](items []T, loc *time.Location, occurredAt func(*T) *time.Time) []T {
-	converted := make([]T, len(items))
-	copy(converted, items)
-	for i := range converted {
-		t := occurredAt(&converted[i])
-		*t = t.In(loc)
-	}
-	return converted
-}
-
-func nappyOccurredAt(n *backendclient.Nappy) *time.Time             { return &n.OccurredAt }
-func feedOccurredAt(f *backendclient.Feed) *time.Time               { return &f.OccurredAt }
-func bathOccurredAt(b *backendclient.Bath) *time.Time               { return &b.OccurredAt }
-func observationOccurredAt(o *backendclient.Observation) *time.Time { return &o.OccurredAt }

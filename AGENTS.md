@@ -244,6 +244,115 @@ Use PostgreSQL JSONB for event-specific attributes where appropriate.
 
 ---
 
+# API Endpoint Structure (current implementation)
+
+This section documents how the code is actually laid out today, so the
+pattern is easy to follow when adding the next event type. The Event Model
+section above is the long-term vision (feed/nappy/sleep/pump/etc. as a
+generalized model); this section is the concrete backend-api + frontend
+wiring that implements it.
+
+## backend-api routes
+
+All routes are mounted under `/api/v1/babies/current` in
+`backend-api/cmd/server/main.go`:
+
+* `GET /healthz`
+* `GET /api/v1/babies/current` → `GetCurrentBaby`
+* Per event type, nested under its plural resource name (`/nappies`,
+  `/feeds`, `/baths`, `/observations`, ...):
+  * `POST /api/v1/babies/current/<resource>` → `Create<Type>`
+  * `GET /api/v1/babies/current/<resource>` → `List<Type>`
+
+## The generic event store
+
+There is one `events` table (`event_type TEXT`, `attributes JSONB`,
+`occurred_at`, plus id/baby_id/created_at). `store.PostgresStore` exposes
+only two event methods, shared by every event type:
+
+* `CreateEvent(ctx, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error)`
+* `ListEvents(ctx, eventType string, limit int) ([]Event, error)`
+
+No event-type-specific SQL exists anywhere — a new event type never touches
+`store/postgres.go`.
+
+## Per-event-type handler file (backend-api)
+
+Each event type is one file in `backend-api/internal/handlers/` (`nappy.go`,
+`feed.go`, `bath.go`, `observation.go`) containing, and nothing else:
+
+1. A `const eventType<X> = "<x>"` string.
+2. Any enum-like type for constrained fields (e.g. `NappyKind`, `FeedType`)
+   with a `Valid()` method — only where the field genuinely has a fixed set
+   of values. Free-text fields (like observation's `category`) skip this.
+3. `create<X>Request` — the JSON body shape.
+4. `<x>Response` — the JSON response shape.
+5. `<x>FromEvent(ev store.Event) <x>Response` — maps `ev.Attributes` back to
+   the typed response, doing any type coercion (see `attributeInt` in
+   `feed.go`, reused by `bath.go`, for the JSONB int/float64 quirk).
+6. `Create<X>` handler: decode request → validate/trim → build
+   `map[string]any` attributes → call the shared
+   `createAndRespond(w, r, h, eventType<X>, attributes, occurredAt, <x>FromEvent)`.
+7. `List<X>` handler: one line, `listAndRespond(w, r, h, eventType<X>, <x>FromEvent)`.
+
+`createAndRespond`/`listAndRespond` (generic helpers in `handlers.go`) own
+the actual `Store.CreateEvent`/`ListEvents` call, error logging, and JSON
+response — per-type handlers never call the store directly.
+
+**To add a new event type on the backend:** create the new handler file
+following the 7 steps above, register its two routes in
+`cmd/server/main.go`, and add a migration only if the event needs no schema
+changes beyond `attributes` (usually it doesn't — JSONB absorbs new fields
+without a migration).
+
+## Frontend wiring
+
+`frontend/internal/backendclient` has no per-event-type methods — just
+generic `ListEvents(ctx, resource string, out any)` and
+`CreateEvent(ctx, resource string, payload map[string]any)` against
+`/api/v1/babies/current/<resource>`. Per-event-type typed *view* structs
+(`Baby`, `Nappy`, `Feed`, `Bath`, `Observation`) live in
+`backendclient.go` purely for decoding the JSON response.
+
+The UI is a single merged, chronological timeline (not one list per event
+type) fed by a single "Add Event" dialog (not one form per event type).
+`frontend/internal/handlers/handlers.go`:
+
+* Every event type is flattened into one presentation shape,
+  `TimelineEvent` (`CSSClass`, `Icon`, `TypeLabel`, `Subtitle`, `Detail`,
+  `Time`, plus an unexported `occurredAt` sort key). A `<x>TimelineEvent(x,
+  loc, now)` function builds one from each typed view struct — this is
+  where per-type display text (e.g. feed's "70 ml formula" vs "Breast") is
+  decided.
+* `loadTimeline(ctx, loc)` calls `ListEvents` for every resource, converts
+  each item to a `TimelineEvent` via its `<x>TimelineEvent` builder, and
+  returns them all merged and sorted newest-first.
+* `Index` calls `loadTimeline` and renders the full page.
+* Each `Create<X>` handler parses the HTML form, builds a `map[string]any`
+  payload (plus `occurred_at` via `parseEventTime`), calls
+  `Backend.CreateEvent(ctx, "<resource>", payload)`, then calls the shared
+  `renderTimeline` (itself `loadTimeline` + render), so every form's htmx
+  response is the same re-sorted, all-types timeline partial
+  (`templates/timeline.html`) swapped into `#timeline` — never a per-type
+  partial.
+
+On the client, `frontend/static/app.js` drives the "Add Event" dialog: a
+type-picker step (four buttons, one per event type) followed by a
+form-fields step showing only the chosen type's `<form class="event-form"
+data-type="...">` block from `templates/index.html`. Each form still posts
+straight to its own existing endpoint (`/nappies`, `/feeds`, ...); the
+dialog only changes what's *shown*, not the request shape.
+
+**To add a new event type on the frontend:** add the typed view struct to
+`backendclient.go`; add a `<x>TimelineEvent` builder in `handlers.go` and
+one call to it in `loadTimeline`; add a `Create<X>` handler ending in
+`h.renderTimeline(...)`; add a `<x>` type-choice button and its `.event-form
+data-type="<x>"` block in `index.html`; add a `<x>: "Log a <x>"` entry to
+`typeLabels` in `app.js`; wire the two routes in `cmd/server/main.go`; and
+give the new card colour a light/dark pair in `style.css`.
+
+---
+
 # Authentication
 
 OAuth 2.1 Authorization Code Flow with PKCE.

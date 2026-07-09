@@ -1,0 +1,19 @@
+{{define "timeline"}}
+{{if .}}
+<div class="timeline">
+  {{range .}}
+  <article class="event-card event-{{.CSSClass}}">
+    <div class="event-card-header">
+      <span class="event-icon" aria-hidden="true">{{.Icon}}</span>
+      <span class="event-type">{{.TypeLabel}}</span>
+    </div>
+    {{if .Subtitle}}<div class="event-subtitle">{{.Subtitle}}</div>{{end}}
+    <div class="event-detail">{{.Detail}}</div>
+    <div class="event-time">{{.Time}}</div>
+  </article>
+  {{end}}
+</div>
+{{else}}
+<p class="empty">No events logged yet. Tap "Add Event" to log the first one.</p>
+{{end}}
+{{end}}
