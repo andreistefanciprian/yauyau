@@ -112,36 +112,6 @@ func (s *PostgresStore) CreateEvent(ctx context.Context, eventType string, attri
 	}, nil
 }
 
-func (s *PostgresStore) ListEvents(ctx context.Context, eventType string, limit int) ([]Event, error) {
-	const query = `
-		SELECT id, baby_id, event_type, attributes, occurred_at, created_at
-		FROM events
-		WHERE baby_id = $1 AND event_type = $2
-		ORDER BY occurred_at DESC
-		LIMIT $3
-	`
-
-	rows, err := s.pool.Query(ctx, query, BabyID, eventType, limit)
-	if err != nil {
-		return nil, fmt.Errorf("querying %s events: %w", eventType, err)
-	}
-	defer rows.Close()
-
-	var results []Event
-	for rows.Next() {
-		var ev Event
-		if err := rows.Scan(&ev.ID, &ev.BabyID, &ev.EventType, &ev.Attributes, &ev.OccurredAt, &ev.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scanning %s event: %w", eventType, err)
-		}
-		results = append(results, ev)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating %s events: %w", eventType, err)
-	}
-
-	return results, nil
-}
-
 // DeleteEvent removes a single event belonging to the current baby.
 // ErrNotFound is returned if no matching row exists (already deleted, wrong
 // id, or belongs to a different baby), so callers can tell that apart from a

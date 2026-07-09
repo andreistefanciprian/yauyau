@@ -1,6 +1,6 @@
 // Drives the single "Add Event" dialog: step 1 picks an event type, step 2
 // shows only that type's form. Each form posts straight to its existing
-// endpoint (/nappies, /feeds, /baths, /observations) via htmx and swaps in
+// endpoint (/nappies, /feeds, /baths, /sleeps, /observations) via htmx and swaps in
 // the refreshed #timeline on success.
 
 const dialog = document.getElementById("add-event-dialog");
@@ -15,6 +15,7 @@ const typeLabels = {
   nappy: "Log a nappy",
   feed: "Log a feed",
   bath: "Log a bath",
+  sleep: "Log sleep",
   observation: "Log an observation",
 };
 

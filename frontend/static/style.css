@@ -36,6 +36,7 @@
   --card-bg-nappy: color-mix(in srgb, var(--color-event-nappy) 18%, white);
   --card-bg-feed: color-mix(in srgb, var(--color-event-feed) 18%, white);
   --card-bg-bath: color-mix(in srgb, var(--color-event-bath) 18%, white);
+  --card-bg-sleep: color-mix(in srgb, var(--color-event-sleep) 18%, white);
   --card-bg-observation: color-mix(in srgb, var(--color-event-observation) 18%, white);
 
   --navbar-bg: rgba(255, 255, 255, 0.72);
@@ -58,6 +59,7 @@
     --card-bg-nappy: color-mix(in srgb, var(--color-event-nappy) 28%, #14181a);
     --card-bg-feed: color-mix(in srgb, var(--color-event-feed) 28%, #14181a);
     --card-bg-bath: color-mix(in srgb, var(--color-event-bath) 28%, #14181a);
+    --card-bg-sleep: color-mix(in srgb, var(--color-event-sleep) 28%, #14181a);
     --card-bg-observation: color-mix(in srgb, var(--color-event-observation) 28%, #14181a);
 
     --navbar-bg: rgba(20, 20, 22, 0.72);
@@ -239,6 +241,10 @@ h2 {
 
 .event-bath {
   background: var(--card-bg-bath);
+}
+
+.event-sleep {
+  background: var(--card-bg-sleep);
 }
 
 .event-observation {
@@ -445,6 +451,10 @@ dialog#confirm-dialog::backdrop {
 
 .type-choice-bath {
   background: var(--card-bg-bath);
+}
+
+.type-choice-sleep {
+  background: var(--card-bg-sleep);
 }
 
 .type-choice-observation {

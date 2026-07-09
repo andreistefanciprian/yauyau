@@ -55,6 +55,10 @@
           <span class="type-choice-icon" aria-hidden="true">🛁</span>
           <span>Bath</span>
         </button>
+        <button type="button" class="type-choice type-choice-sleep" data-type="sleep">
+          <span class="type-choice-icon" aria-hidden="true">😴</span>
+          <span>Sleep</span>
+        </button>
         <button type="button" class="type-choice type-choice-observation" data-type="observation">
           <span class="type-choice-icon" aria-hidden="true">📝</span>
           <span>Observation</span>
@@ -133,6 +137,36 @@
         <label class="field-label">
           Duration (minutes, optional)
           <input type="number" name="duration_minutes" min="0" placeholder="e.g. 10">
+        </label>
+
+        <label class="field-label">
+          Date
+          <input type="date" name="date" value="{{.NowDate}}" required>
+        </label>
+
+        <label class="field-label">
+          Time
+          <input type="time" name="time" value="{{.NowTime}}" required>
+        </label>
+
+        <button type="submit">Save</button>
+      </form>
+
+      <form class="event-form" data-type="sleep" hx-post="/sleeps" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <fieldset>
+          <legend>Type</legend>
+          <label><input type="radio" name="type" value="nap" required> Nap</label>
+          <label><input type="radio" name="type" value="night"> Night sleep</label>
+        </fieldset>
+
+        <label class="field-label">
+          Notes (optional)
+          <input type="text" name="notes" placeholder="e.g. settled easily">
+        </label>
+
+        <label class="field-label">
+          Duration (minutes, optional)
+          <input type="number" name="duration_minutes" min="0" placeholder="e.g. 90">
         </label>
 
         <label class="field-label">

@@ -78,10 +78,6 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 	createAndRespond(w, r, h, eventTypeFeed, attributes, occurredAt, feedFromEvent)
 }
 
-func (h *Handlers) ListFeeds(w http.ResponseWriter, r *http.Request) {
-	listAndRespond(w, r, h, eventTypeFeed, feedFromEvent)
-}
-
 func feedFromEvent(ev store.Event) feedResponse {
 	resp := feedResponse{ID: ev.ID, BabyID: ev.BabyID, OccurredAt: ev.OccurredAt, CreatedAt: ev.CreatedAt}
 	if t, ok := ev.Attributes["type"].(string); ok {

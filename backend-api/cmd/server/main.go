@@ -53,19 +53,18 @@ func main() {
 		})
 		r.Route("/nappies", func(r chi.Router) {
 			r.Post("/", h.CreateNappy)
-			r.Get("/", h.ListNappies)
 		})
 		r.Route("/feeds", func(r chi.Router) {
 			r.Post("/", h.CreateFeed)
-			r.Get("/", h.ListFeeds)
 		})
 		r.Route("/baths", func(r chi.Router) {
 			r.Post("/", h.CreateBath)
-			r.Get("/", h.ListBaths)
+		})
+		r.Route("/sleeps", func(r chi.Router) {
+			r.Post("/", h.CreateSleep)
 		})
 		r.Route("/observations", func(r chi.Router) {
 			r.Post("/", h.CreateObservation)
-			r.Get("/", h.ListObservations)
 		})
 	})
 

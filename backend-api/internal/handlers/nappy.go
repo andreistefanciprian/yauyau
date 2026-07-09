@@ -73,10 +73,6 @@ func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
 	createAndRespond(w, r, h, eventTypeNappy, attributes, occurredAt, nappyFromEvent)
 }
 
-func (h *Handlers) ListNappies(w http.ResponseWriter, r *http.Request) {
-	listAndRespond(w, r, h, eventTypeNappy, nappyFromEvent)
-}
-
 func nappyFromEvent(ev store.Event) nappyResponse {
 	resp := nappyResponse{ID: ev.ID, BabyID: ev.BabyID, OccurredAt: ev.OccurredAt, CreatedAt: ev.CreatedAt}
 	if kind, ok := ev.Attributes["kind"].(string); ok {

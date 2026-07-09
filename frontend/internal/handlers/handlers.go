@@ -49,8 +49,8 @@ func New(backend Backend, templates *template.Template) *Handlers {
 }
 
 // TimelineEvent is the single presentation shape every event type (nappy,
-// feed, bath, observation) is flattened into, so the timeline can render one
-// kind of card regardless of how many event types exist.
+// feed, bath, sleep, observation) is flattened into, so the timeline can
+// render one kind of card regardless of how many event types exist.
 type TimelineEvent struct {
 	ID        string
 	CSSClass  string // "nappy", "feed", "bath", "observation" — drives card colour
@@ -217,6 +217,47 @@ func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
 	h.renderTimeline(w, r.Context(), loc)
 }
 
+func (h *Handlers) CreateSleep(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load baby", http.StatusBadGateway)
+		return
+	}
+
+	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
+	if err != nil {
+		log.Printf("parse sleep time: %v", err)
+		http.Error(w, "invalid date/time", http.StatusBadRequest)
+		return
+	}
+
+	durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
+	if err != nil {
+		http.Error(w, "invalid duration", http.StatusBadRequest)
+		return
+	}
+
+	payload := map[string]any{
+		"type":             r.FormValue("type"),
+		"notes":            r.FormValue("notes"),
+		"duration_minutes": durationMinutes,
+		"occurred_at":      occurredAt.Format(time.RFC3339),
+	}
+	if err := h.Backend.CreateEvent(r.Context(), "sleeps", payload); err != nil {
+		log.Printf("create sleep: %v", err)
+		http.Error(w, "failed to save sleep event", http.StatusBadGateway)
+		return
+	}
+
+	h.renderTimeline(w, r.Context(), loc)
+}
+
 func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form", http.StatusBadRequest)
@@ -324,6 +365,8 @@ func timelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) (T
 		te = feedTimelineEvent(ev, loc, now)
 	case "bath":
 		te = bathTimelineEvent(ev, loc, now)
+	case "sleep":
+		te = sleepTimelineEvent(ev, loc, now)
 	case "observation":
 		te = observationTimelineEvent(ev, loc, now)
 	default:
@@ -376,6 +419,27 @@ func bathTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time
 		CSSClass:  "bath",
 		Icon:      "🛁",
 		TypeLabel: "Bath",
+		Kind:      titleCase(attributeString(ev.Attributes, "type")),
+		Detail:    detail,
+		Time:      formatEventTime(occurredAt, now),
+	}
+}
+
+func sleepTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := ev.OccurredAt.In(loc)
+
+	detail := attributeString(ev.Attributes, "notes")
+	if durationMinutes, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+		if detail != "" {
+			detail += " · "
+		}
+		detail += fmt.Sprintf("%d min", durationMinutes)
+	}
+
+	return TimelineEvent{
+		CSSClass:  "sleep",
+		Icon:      "😴",
+		TypeLabel: "Sleep",
 		Kind:      titleCase(attributeString(ev.Attributes, "type")),
 		Detail:    detail,
 		Time:      formatEventTime(occurredAt, now),

@@ -10,53 +10,53 @@ import (
 	"yauyau/backend-api/internal/store"
 )
 
-const eventTypeBath = "bath"
+const eventTypeSleep = "sleep"
 
-// BathType is the set of valid bath types.
-type BathType string
+// SleepType is the set of valid sleep types.
+type SleepType string
 
 const (
-	BathTypeWholeBody  BathType = "whole_body"
-	BathTypeBottomPart BathType = "bottom_part"
+	SleepTypeNap   SleepType = "nap"
+	SleepTypeNight SleepType = "night"
 )
 
-func (t BathType) Valid() bool {
+func (t SleepType) Valid() bool {
 	switch t {
-	case BathTypeWholeBody, BathTypeBottomPart:
+	case SleepTypeNap, SleepTypeNight:
 		return true
 	default:
 		return false
 	}
 }
 
-type createBathRequest struct {
+type createSleepRequest struct {
 	Type            string `json:"type"`
 	Notes           string `json:"notes"`
 	DurationMinutes *int   `json:"duration_minutes"`
 	OccurredAt      string `json:"occurred_at"`
 }
 
-// bathResponse is a bath event as returned to API consumers.
-type bathResponse struct {
+// sleepResponse is a sleep event as returned to API consumers.
+type sleepResponse struct {
 	ID              uuid.UUID `json:"id"`
 	BabyID          uuid.UUID `json:"baby_id"`
-	Type            BathType  `json:"type"`
+	Type            SleepType `json:"type"`
 	Notes           string    `json:"notes,omitempty"`
 	DurationMinutes *int      `json:"duration_minutes,omitempty"`
 	OccurredAt      time.Time `json:"occurred_at"`
 	CreatedAt       time.Time `json:"created_at"`
 }
 
-func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
-	var req createBathRequest
+func (h *Handlers) CreateSleep(w http.ResponseWriter, r *http.Request) {
+	var req createSleepRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 
-	bathType := BathType(req.Type)
-	if !bathType.Valid() {
-		writeError(w, http.StatusBadRequest, "type must be one of: whole_body, bottom_part")
+	sleepType := SleepType(req.Type)
+	if !sleepType.Valid() {
+		writeError(w, http.StatusBadRequest, "type must be one of: nap, night")
 		return
 	}
 
@@ -66,7 +66,7 @@ func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	attributes := map[string]any{"type": string(bathType)}
+	attributes := map[string]any{"type": string(sleepType)}
 	if req.Notes != "" {
 		attributes["notes"] = req.Notes
 	}
@@ -74,13 +74,13 @@ func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
 		attributes["duration_minutes"] = *req.DurationMinutes
 	}
 
-	createAndRespond(w, r, h, eventTypeBath, attributes, occurredAt, bathFromEvent)
+	createAndRespond(w, r, h, eventTypeSleep, attributes, occurredAt, sleepFromEvent)
 }
 
-func bathFromEvent(ev store.Event) bathResponse {
-	resp := bathResponse{ID: ev.ID, BabyID: ev.BabyID, OccurredAt: ev.OccurredAt, CreatedAt: ev.CreatedAt}
+func sleepFromEvent(ev store.Event) sleepResponse {
+	resp := sleepResponse{ID: ev.ID, BabyID: ev.BabyID, OccurredAt: ev.OccurredAt, CreatedAt: ev.CreatedAt}
 	if t, ok := ev.Attributes["type"].(string); ok {
-		resp.Type = BathType(t)
+		resp.Type = SleepType(t)
 	}
 	if notes, ok := ev.Attributes["notes"].(string); ok {
 		resp.Notes = notes

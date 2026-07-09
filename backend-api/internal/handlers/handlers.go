@@ -24,7 +24,6 @@ import (
 type Store interface {
 	GetCurrentBaby(ctx context.Context) (store.Baby, error)
 	CreateEvent(ctx context.Context, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
-	ListEvents(ctx context.Context, eventType string, limit int) ([]store.Event, error)
 	ListAllEvents(ctx context.Context, limit int) ([]store.Event, error)
 	DeleteEvent(ctx context.Context, id uuid.UUID) error
 }
@@ -143,23 +142,6 @@ func createAndRespond[T any](w http.ResponseWriter, r *http.Request, h *Handlers
 	}
 
 	writeJSON(w, http.StatusCreated, fromEvent(ev))
-}
-
-// listAndRespond is the shared tail of every List<X> handler.
-func listAndRespond[T any](w http.ResponseWriter, r *http.Request, h *Handlers, eventType string, fromEvent func(store.Event) T) {
-	events, err := h.Store.ListEvents(r.Context(), eventType, 20)
-	if err != nil {
-		log.Printf("list %s events: %v", eventType, err)
-		writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to load %s events", eventType))
-		return
-	}
-
-	mapped := make([]T, len(events))
-	for i, ev := range events {
-		mapped[i] = fromEvent(ev)
-	}
-
-	writeJSON(w, http.StatusOK, mapped)
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

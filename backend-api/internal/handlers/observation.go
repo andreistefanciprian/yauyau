@@ -64,10 +64,6 @@ func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
 	createAndRespond(w, r, h, eventTypeObservation, attributes, occurredAt, observationFromEvent)
 }
 
-func (h *Handlers) ListObservations(w http.ResponseWriter, r *http.Request) {
-	listAndRespond(w, r, h, eventTypeObservation, observationFromEvent)
-}
-
 func observationFromEvent(ev store.Event) observationResponse {
 	resp := observationResponse{ID: ev.ID, BabyID: ev.BabyID, OccurredAt: ev.OccurredAt, CreatedAt: ev.CreatedAt}
 	if text, ok := ev.Attributes["text"].(string); ok {
