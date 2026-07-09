@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
@@ -75,30 +74,11 @@ func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
 		attributes["duration_minutes"] = *req.DurationMinutes
 	}
 
-	ev, err := h.Store.CreateEvent(r.Context(), eventTypeBath, attributes, occurredAt)
-	if err != nil {
-		log.Printf("create bath event: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to save bath event")
-		return
-	}
-
-	writeJSON(w, http.StatusCreated, bathFromEvent(ev))
+	createAndRespond(w, r, h, eventTypeBath, attributes, occurredAt, bathFromEvent)
 }
 
 func (h *Handlers) ListBaths(w http.ResponseWriter, r *http.Request) {
-	events, err := h.Store.ListEvents(r.Context(), eventTypeBath, 20)
-	if err != nil {
-		log.Printf("list bath events: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to load bath events")
-		return
-	}
-
-	baths := make([]bathResponse, len(events))
-	for i, ev := range events {
-		baths[i] = bathFromEvent(ev)
-	}
-
-	writeJSON(w, http.StatusOK, baths)
+	listAndRespond(w, r, h, eventTypeBath, bathFromEvent)
 }
 
 func bathFromEvent(ev store.Event) bathResponse {

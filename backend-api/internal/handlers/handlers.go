@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -57,6 +58,39 @@ func parseOccurredAt(raw string) (time.Time, error) {
 		return time.Now(), nil
 	}
 	return time.Parse(time.RFC3339, raw)
+}
+
+// createAndRespond is the shared tail of every Create<X> handler: persist
+// attributes as an event of eventType via the generic store, then respond
+// with the caller's typed view of it. Decoding the request, validating it,
+// and building attributes stays in each event-specific file since that part
+// genuinely differs per event type.
+func createAndRespond[T any](w http.ResponseWriter, r *http.Request, h *Handlers, eventType string, attributes map[string]any, occurredAt time.Time, fromEvent func(store.Event) T) {
+	ev, err := h.Store.CreateEvent(r.Context(), eventType, attributes, occurredAt)
+	if err != nil {
+		log.Printf("create %s event: %v", eventType, err)
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save %s event", eventType))
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, fromEvent(ev))
+}
+
+// listAndRespond is the shared tail of every List<X> handler.
+func listAndRespond[T any](w http.ResponseWriter, r *http.Request, h *Handlers, eventType string, fromEvent func(store.Event) T) {
+	events, err := h.Store.ListEvents(r.Context(), eventType, 20)
+	if err != nil {
+		log.Printf("list %s events: %v", eventType, err)
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to load %s events", eventType))
+		return
+	}
+
+	mapped := make([]T, len(events))
+	for i, ev := range events {
+		mapped[i] = fromEvent(ev)
+	}
+
+	writeJSON(w, http.StatusOK, mapped)
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

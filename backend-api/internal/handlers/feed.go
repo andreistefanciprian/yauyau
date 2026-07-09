@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
@@ -76,30 +75,11 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 		attributes["duration_minutes"] = *req.DurationMinutes
 	}
 
-	ev, err := h.Store.CreateEvent(r.Context(), eventTypeFeed, attributes, occurredAt)
-	if err != nil {
-		log.Printf("create feed event: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to save feed event")
-		return
-	}
-
-	writeJSON(w, http.StatusCreated, feedFromEvent(ev))
+	createAndRespond(w, r, h, eventTypeFeed, attributes, occurredAt, feedFromEvent)
 }
 
 func (h *Handlers) ListFeeds(w http.ResponseWriter, r *http.Request) {
-	events, err := h.Store.ListEvents(r.Context(), eventTypeFeed, 20)
-	if err != nil {
-		log.Printf("list feed events: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to load feed events")
-		return
-	}
-
-	feeds := make([]feedResponse, len(events))
-	for i, ev := range events {
-		feeds[i] = feedFromEvent(ev)
-	}
-
-	writeJSON(w, http.StatusOK, feeds)
+	listAndRespond(w, r, h, eventTypeFeed, feedFromEvent)
 }
 
 func feedFromEvent(ev store.Event) feedResponse {

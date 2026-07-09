@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,12 +42,13 @@ func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Text == "" {
+	text := strings.TrimSpace(req.Text)
+	if text == "" {
 		writeError(w, http.StatusBadRequest, "text is required")
 		return
 	}
 
-	category := req.Category
+	category := strings.TrimSpace(req.Category)
 	if category == "" {
 		category = defaultObservationCategory
 	}
@@ -58,32 +59,13 @@ func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	attributes := map[string]any{"text": req.Text, "category": category}
+	attributes := map[string]any{"text": text, "category": category}
 
-	ev, err := h.Store.CreateEvent(r.Context(), eventTypeObservation, attributes, occurredAt)
-	if err != nil {
-		log.Printf("create observation event: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to save observation event")
-		return
-	}
-
-	writeJSON(w, http.StatusCreated, observationFromEvent(ev))
+	createAndRespond(w, r, h, eventTypeObservation, attributes, occurredAt, observationFromEvent)
 }
 
 func (h *Handlers) ListObservations(w http.ResponseWriter, r *http.Request) {
-	events, err := h.Store.ListEvents(r.Context(), eventTypeObservation, 20)
-	if err != nil {
-		log.Printf("list observation events: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to load observation events")
-		return
-	}
-
-	observations := make([]observationResponse, len(events))
-	for i, ev := range events {
-		observations[i] = observationFromEvent(ev)
-	}
-
-	writeJSON(w, http.StatusOK, observations)
+	listAndRespond(w, r, h, eventTypeObservation, observationFromEvent)
 }
 
 func observationFromEvent(ev store.Event) observationResponse {

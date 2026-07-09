@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
@@ -71,30 +70,11 @@ func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
 		attributes["colour"] = req.Colour
 	}
 
-	ev, err := h.Store.CreateEvent(r.Context(), eventTypeNappy, attributes, occurredAt)
-	if err != nil {
-		log.Printf("create nappy event: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to save nappy event")
-		return
-	}
-
-	writeJSON(w, http.StatusCreated, nappyFromEvent(ev))
+	createAndRespond(w, r, h, eventTypeNappy, attributes, occurredAt, nappyFromEvent)
 }
 
 func (h *Handlers) ListNappies(w http.ResponseWriter, r *http.Request) {
-	events, err := h.Store.ListEvents(r.Context(), eventTypeNappy, 20)
-	if err != nil {
-		log.Printf("list nappy events: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to load nappy events")
-		return
-	}
-
-	nappies := make([]nappyResponse, len(events))
-	for i, ev := range events {
-		nappies[i] = nappyFromEvent(ev)
-	}
-
-	writeJSON(w, http.StatusOK, nappies)
+	listAndRespond(w, r, h, eventTypeNappy, nappyFromEvent)
 }
 
 func nappyFromEvent(ev store.Event) nappyResponse {

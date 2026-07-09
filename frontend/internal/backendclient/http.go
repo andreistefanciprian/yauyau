@@ -32,70 +32,18 @@ func (c *HTTPClient) GetCurrentBaby(ctx context.Context) (Baby, error) {
 	return baby, nil
 }
 
-func (c *HTTPClient) ListNappies(ctx context.Context) ([]Nappy, error) {
-	var nappies []Nappy
-	if err := c.getJSON(ctx, "/api/v1/babies/current/nappies", &nappies); err != nil {
-		return nil, err
-	}
-	return nappies, nil
+// ListEvents fetches the recent events for the given resource (the plural
+// URL segment: "nappies", "feeds", "baths", "observations", ...) into out,
+// which must be a pointer to a slice of the caller's typed view of that
+// resource (e.g. *[]Nappy).
+func (c *HTTPClient) ListEvents(ctx context.Context, resource string, out any) error {
+	return c.getJSON(ctx, "/api/v1/babies/current/"+resource, out)
 }
 
-func (c *HTTPClient) CreateNappy(ctx context.Context, kind, colour string, occurredAt time.Time) error {
-	return c.postJSON(ctx, "/api/v1/babies/current/nappies", map[string]string{
-		"kind":        kind,
-		"colour":      colour,
-		"occurred_at": occurredAt.Format(time.RFC3339),
-	})
-}
-
-func (c *HTTPClient) ListFeeds(ctx context.Context) ([]Feed, error) {
-	var feeds []Feed
-	if err := c.getJSON(ctx, "/api/v1/babies/current/feeds", &feeds); err != nil {
-		return nil, err
-	}
-	return feeds, nil
-}
-
-func (c *HTTPClient) CreateFeed(ctx context.Context, feedType string, amountMl, durationMinutes *int, occurredAt time.Time) error {
-	return c.postJSON(ctx, "/api/v1/babies/current/feeds", map[string]any{
-		"type":             feedType,
-		"amount_ml":        amountMl,
-		"duration_minutes": durationMinutes,
-		"occurred_at":      occurredAt.Format(time.RFC3339),
-	})
-}
-
-func (c *HTTPClient) ListBaths(ctx context.Context) ([]Bath, error) {
-	var baths []Bath
-	if err := c.getJSON(ctx, "/api/v1/babies/current/baths", &baths); err != nil {
-		return nil, err
-	}
-	return baths, nil
-}
-
-func (c *HTTPClient) CreateBath(ctx context.Context, bathType, notes string, durationMinutes *int, occurredAt time.Time) error {
-	return c.postJSON(ctx, "/api/v1/babies/current/baths", map[string]any{
-		"type":             bathType,
-		"notes":            notes,
-		"duration_minutes": durationMinutes,
-		"occurred_at":      occurredAt.Format(time.RFC3339),
-	})
-}
-
-func (c *HTTPClient) ListObservations(ctx context.Context) ([]Observation, error) {
-	var observations []Observation
-	if err := c.getJSON(ctx, "/api/v1/babies/current/observations", &observations); err != nil {
-		return nil, err
-	}
-	return observations, nil
-}
-
-func (c *HTTPClient) CreateObservation(ctx context.Context, text, category string, occurredAt time.Time) error {
-	return c.postJSON(ctx, "/api/v1/babies/current/observations", map[string]string{
-		"text":        text,
-		"category":    category,
-		"occurred_at": occurredAt.Format(time.RFC3339),
-	})
+// CreateEvent posts payload (form fields plus "occurred_at") to the given
+// resource's create endpoint.
+func (c *HTTPClient) CreateEvent(ctx context.Context, resource string, payload map[string]any) error {
+	return c.postJSON(ctx, "/api/v1/babies/current/"+resource, payload)
 }
 
 // do builds and executes an HTTP request against backend-api, returning an
