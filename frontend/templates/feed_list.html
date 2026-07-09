@@ -1,0 +1,16 @@
+{{define "feed_list"}}
+{{if .}}
+<ul class="feed-list">
+  {{range .}}
+  <li>
+    <span class="kind kind-{{.Type}}">{{.Type}}</span>
+    {{if .HasAmount}}<span class="amount">{{.Amount}}ml</span>{{end}}
+    {{if .HasDuration}}<span class="duration">{{.Duration}}min</span>{{end}}
+    <span class="time">{{.OccurredAt.Format "Mon 15:04"}}</span>
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<p class="empty">No feeds logged yet.</p>
+{{end}}
+{{end}}

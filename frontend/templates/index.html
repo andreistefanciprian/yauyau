@@ -20,12 +20,17 @@
         <label><input type="radio" name="kind" value="both"> Both</label>
       </fieldset>
 
-      <label class="colour-label">
+      <label class="field-label">
         Colour (optional)
         <input type="text" name="colour" placeholder="e.g. mustard yellow">
       </label>
 
-      <label class="time-label">
+      <label class="field-label">
+        Date
+        <input type="date" name="date" value="{{.NowDate}}" required>
+      </label>
+
+      <label class="field-label">
         Time
         <input type="time" name="time" value="{{.NowTime}}" required>
       </label>
@@ -37,6 +42,81 @@
       <h2>Recent nappy changes</h2>
       <div id="nappy-list">
         {{template "nappy_list" .Nappies}}
+      </div>
+    </section>
+
+    <form hx-post="/feeds" hx-target="#feed-list" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) this.reset()">
+      <fieldset>
+        <legend>Log a feed</legend>
+        <label><input type="radio" name="type" value="breast" required> Breast</label>
+        <label><input type="radio" name="type" value="formula"> Formula</label>
+        <label><input type="radio" name="type" value="expressed"> Expressed</label>
+      </fieldset>
+
+      <label class="field-label">
+        Amount (ml, optional)
+        <input type="number" name="amount_ml" min="0" placeholder="e.g. 70">
+      </label>
+
+      <label class="field-label">
+        Duration (minutes, optional)
+        <input type="number" name="duration_minutes" min="0" placeholder="e.g. 15">
+      </label>
+
+      <label class="field-label">
+        Date
+        <input type="date" name="date" value="{{.NowDate}}" required>
+      </label>
+
+      <label class="field-label">
+        Time
+        <input type="time" name="time" value="{{.NowTime}}" required>
+      </label>
+
+      <button type="submit">Save</button>
+    </form>
+
+    <section>
+      <h2>Recent feeds</h2>
+      <div id="feed-list">
+        {{template "feed_list" .Feeds}}
+      </div>
+    </section>
+
+    <form hx-post="/baths" hx-target="#bath-list" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) this.reset()">
+      <fieldset>
+        <legend>Log a bath</legend>
+        <label><input type="radio" name="type" value="whole_body" required> Whole body</label>
+        <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
+      </fieldset>
+
+      <label class="field-label">
+        Notes (optional)
+        <input type="text" name="notes" placeholder="e.g. used baby shampoo">
+      </label>
+
+      <label class="field-label">
+        Duration (minutes, optional)
+        <input type="number" name="duration_minutes" min="0" placeholder="e.g. 10">
+      </label>
+
+      <label class="field-label">
+        Date
+        <input type="date" name="date" value="{{.NowDate}}" required>
+      </label>
+
+      <label class="field-label">
+        Time
+        <input type="time" name="time" value="{{.NowTime}}" required>
+      </label>
+
+      <button type="submit">Save</button>
+    </form>
+
+    <section>
+      <h2>Recent baths</h2>
+      <div id="bath-list">
+        {{template "bath_list" .Baths}}
       </div>
     </section>
   </main>

@@ -51,6 +51,14 @@ func main() {
 			r.Post("/", h.CreateNappy)
 			r.Get("/", h.ListNappies)
 		})
+		r.Route("/feeds", func(r chi.Router) {
+			r.Post("/", h.CreateFeed)
+			r.Get("/", h.ListFeeds)
+		})
+		r.Route("/baths", func(r chi.Router) {
+			r.Post("/", h.CreateBath)
+			r.Get("/", h.ListBaths)
+		})
 	})
 
 	log.Printf("backend-api listening on :%s", port)

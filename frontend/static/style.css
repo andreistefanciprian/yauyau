@@ -39,14 +39,15 @@ fieldset label {
   gap: 0.35rem;
 }
 
-.colour-label,
-.time-label {
+.field-label {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
 input[type="text"],
+input[type="number"],
+input[type="date"],
 input[type="time"] {
   padding: 0.5rem;
   font-size: 1rem;
@@ -68,7 +69,9 @@ button:active {
   background: #1d4ed8;
 }
 
-.nappy-list {
+.nappy-list,
+.feed-list,
+.bath-list {
   list-style: none;
   padding: 0;
   display: flex;
@@ -76,7 +79,9 @@ button:active {
   gap: 0.5rem;
 }
 
-.nappy-list li {
+.nappy-list li,
+.feed-list li,
+.bath-list li {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -90,7 +95,10 @@ button:active {
   text-transform: capitalize;
 }
 
-.colour {
+.colour,
+.amount,
+.duration,
+.notes {
   color: #666;
 }
 

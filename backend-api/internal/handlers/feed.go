@@ -1,0 +1,132 @@
+package handlers
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/google/uuid"
+
+	"yauyau/backend-api/internal/store"
+)
+
+const eventTypeFeed = "feed"
+
+// FeedType is the set of valid feed types.
+type FeedType string
+
+const (
+	FeedTypeBreast    FeedType = "breast"
+	FeedTypeFormula   FeedType = "formula"
+	FeedTypeExpressed FeedType = "expressed"
+)
+
+func (t FeedType) Valid() bool {
+	switch t {
+	case FeedTypeBreast, FeedTypeFormula, FeedTypeExpressed:
+		return true
+	default:
+		return false
+	}
+}
+
+type createFeedRequest struct {
+	Type            string `json:"type"`
+	AmountMl        *int   `json:"amount_ml"`
+	DurationMinutes *int   `json:"duration_minutes"`
+	OccurredAt      string `json:"occurred_at"`
+}
+
+// feedResponse is a feed event as returned to API consumers.
+type feedResponse struct {
+	ID              uuid.UUID `json:"id"`
+	BabyID          uuid.UUID `json:"baby_id"`
+	Type            FeedType  `json:"type"`
+	AmountMl        *int      `json:"amount_ml,omitempty"`
+	DurationMinutes *int      `json:"duration_minutes,omitempty"`
+	OccurredAt      time.Time `json:"occurred_at"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
+	var req createFeedRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	feedType := FeedType(req.Type)
+	if !feedType.Valid() {
+		writeError(w, http.StatusBadRequest, "type must be one of: breast, formula, expressed")
+		return
+	}
+
+	occurredAt, err := parseOccurredAt(req.OccurredAt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "occurred_at must be RFC3339 formatted")
+		return
+	}
+
+	attributes := map[string]any{"type": string(feedType)}
+	if req.AmountMl != nil {
+		attributes["amount_ml"] = *req.AmountMl
+	}
+	if req.DurationMinutes != nil {
+		attributes["duration_minutes"] = *req.DurationMinutes
+	}
+
+	ev, err := h.Store.CreateEvent(r.Context(), eventTypeFeed, attributes, occurredAt)
+	if err != nil {
+		log.Printf("create feed event: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to save feed event")
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, feedFromEvent(ev))
+}
+
+func (h *Handlers) ListFeeds(w http.ResponseWriter, r *http.Request) {
+	events, err := h.Store.ListEvents(r.Context(), eventTypeFeed, 20)
+	if err != nil {
+		log.Printf("list feed events: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load feed events")
+		return
+	}
+
+	feeds := make([]feedResponse, len(events))
+	for i, ev := range events {
+		feeds[i] = feedFromEvent(ev)
+	}
+
+	writeJSON(w, http.StatusOK, feeds)
+}
+
+func feedFromEvent(ev store.Event) feedResponse {
+	resp := feedResponse{ID: ev.ID, BabyID: ev.BabyID, OccurredAt: ev.OccurredAt, CreatedAt: ev.CreatedAt}
+	if t, ok := ev.Attributes["type"].(string); ok {
+		resp.Type = FeedType(t)
+	}
+	if v, ok := attributeInt(ev.Attributes, "amount_ml"); ok {
+		resp.AmountMl = &v
+	}
+	if v, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+		resp.DurationMinutes = &v
+	}
+	return resp
+}
+
+// attributeInt reads an int out of an events.attributes map. The value is a
+// native Go int right after CreateEvent builds the map in-process, but a
+// float64 once it round-trips through Postgres JSONB and back (pgx decodes
+// JSON numbers as float64), so both forms have to be handled.
+func attributeInt(attributes map[string]any, key string) (int, bool) {
+	switch v := attributes[key].(type) {
+	case float64:
+		return int(v), true
+	case int:
+		return v, true
+	default:
+		return 0, false
+	}
+}

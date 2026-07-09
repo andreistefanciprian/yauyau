@@ -87,13 +87,8 @@ func (s *PostgresStore) GetCurrentBaby(ctx context.Context) (Baby, error) {
 	return baby, nil
 }
 
-func (s *PostgresStore) CreateNappy(ctx context.Context, kind NappyKind, colour string, occurredAt time.Time) (NappyEvent, error) {
+func (s *PostgresStore) CreateEvent(ctx context.Context, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error) {
 	id := uuid.New()
-
-	attributes := map[string]any{"kind": string(kind)}
-	if colour != "" {
-		attributes["colour"] = colour
-	}
 
 	const query = `
 		INSERT INTO events (id, family_id, baby_id, event_type, occurred_at, attributes, source)
@@ -102,57 +97,46 @@ func (s *PostgresStore) CreateNappy(ctx context.Context, kind NappyKind, colour 
 	`
 
 	var createdAt time.Time
-	err := s.pool.QueryRow(ctx, query, id, FamilyID, BabyID, EventTypeNappy, occurredAt, attributes).Scan(&createdAt)
+	err := s.pool.QueryRow(ctx, query, id, FamilyID, BabyID, eventType, occurredAt, attributes).Scan(&createdAt)
 	if err != nil {
-		return NappyEvent{}, fmt.Errorf("inserting nappy event: %w", err)
+		return Event{}, fmt.Errorf("inserting %s event: %w", eventType, err)
 	}
 
-	return NappyEvent{
+	return Event{
 		ID:         id,
 		BabyID:     BabyID,
-		Kind:       kind,
-		Colour:     colour,
+		EventType:  eventType,
 		OccurredAt: occurredAt,
 		CreatedAt:  createdAt,
+		Attributes: attributes,
 	}, nil
 }
 
-func (s *PostgresStore) ListRecentNappies(ctx context.Context, limit int) ([]NappyEvent, error) {
+func (s *PostgresStore) ListEvents(ctx context.Context, eventType string, limit int) ([]Event, error) {
 	const query = `
-		SELECT id, baby_id, attributes, occurred_at, created_at
+		SELECT id, baby_id, event_type, attributes, occurred_at, created_at
 		FROM events
 		WHERE baby_id = $1 AND event_type = $2
 		ORDER BY occurred_at DESC
 		LIMIT $3
 	`
 
-	rows, err := s.pool.Query(ctx, query, BabyID, EventTypeNappy, limit)
+	rows, err := s.pool.Query(ctx, query, BabyID, eventType, limit)
 	if err != nil {
-		return nil, fmt.Errorf("querying nappy events: %w", err)
+		return nil, fmt.Errorf("querying %s events: %w", eventType, err)
 	}
 	defer rows.Close()
 
-	var results []NappyEvent
+	var results []Event
 	for rows.Next() {
-		var (
-			ev         NappyEvent
-			attributes map[string]any
-		)
-		if err := rows.Scan(&ev.ID, &ev.BabyID, &attributes, &ev.OccurredAt, &ev.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scanning nappy event: %w", err)
+		var ev Event
+		if err := rows.Scan(&ev.ID, &ev.BabyID, &ev.EventType, &ev.Attributes, &ev.OccurredAt, &ev.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scanning %s event: %w", eventType, err)
 		}
-
-		if kind, ok := attributes["kind"].(string); ok {
-			ev.Kind = NappyKind(kind)
-		}
-		if colour, ok := attributes["colour"].(string); ok {
-			ev.Colour = colour
-		}
-
 		results = append(results, ev)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating nappy events: %w", err)
+		return nil, fmt.Errorf("iterating %s events: %w", eventType, err)
 	}
 
 	return results, nil

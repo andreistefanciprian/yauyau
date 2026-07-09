@@ -14,11 +14,13 @@ import (
 // Store is the persistence boundary this package needs. Defined here (the
 // consumer) rather than in internal/store (the producer) so it stays a
 // minimal, purpose-built contract instead of growing to match whatever the
-// Postgres implementation happens to expose.
+// Postgres implementation happens to expose. It is deliberately generic over
+// event type (nappy, feed, ...); interpreting Attributes is this package's
+// job, not the store's.
 type Store interface {
 	GetCurrentBaby(ctx context.Context) (store.Baby, error)
-	CreateNappy(ctx context.Context, kind store.NappyKind, colour string, occurredAt time.Time) (store.NappyEvent, error)
-	ListRecentNappies(ctx context.Context, limit int) ([]store.NappyEvent, error)
+	CreateEvent(ctx context.Context, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
+	ListEvents(ctx context.Context, eventType string, limit int) ([]store.Event, error)
 }
 
 type Handlers struct {
@@ -48,58 +50,13 @@ func (h *Handlers) GetCurrentBaby(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, baby)
 }
 
-type createNappyRequest struct {
-	Kind       string `json:"kind"`
-	Colour     string `json:"colour"`
-	OccurredAt string `json:"occurred_at"`
-}
-
-func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
-	var req createNappyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
-		return
+// parseOccurredAt parses an optional RFC3339 timestamp from a request body,
+// defaulting to the current server time when raw is empty.
+func parseOccurredAt(raw string) (time.Time, error) {
+	if raw == "" {
+		return time.Now(), nil
 	}
-
-	kind := store.NappyKind(req.Kind)
-	if !kind.Valid() {
-		writeError(w, http.StatusBadRequest, "kind must be one of: wet, poo, both")
-		return
-	}
-
-	occurredAt := time.Now()
-	if req.OccurredAt != "" {
-		parsed, err := time.Parse(time.RFC3339, req.OccurredAt)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "occurred_at must be RFC3339 formatted")
-			return
-		}
-		occurredAt = parsed
-	}
-
-	nappy, err := h.Store.CreateNappy(r.Context(), kind, req.Colour, occurredAt)
-	if err != nil {
-		log.Printf("create nappy event: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to save nappy event")
-		return
-	}
-
-	writeJSON(w, http.StatusCreated, nappy)
-}
-
-func (h *Handlers) ListNappies(w http.ResponseWriter, r *http.Request) {
-	nappies, err := h.Store.ListRecentNappies(r.Context(), 20)
-	if err != nil {
-		log.Printf("list nappy events: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to load nappy events")
-		return
-	}
-
-	if nappies == nil {
-		nappies = []store.NappyEvent{}
-	}
-
-	writeJSON(w, http.StatusOK, nappies)
+	return time.Parse(time.RFC3339, raw)
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

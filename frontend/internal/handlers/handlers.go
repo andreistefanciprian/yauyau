@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	// Alpine's base image has no OS tzdata; embed the IANA database in the
@@ -15,7 +16,12 @@ import (
 	"yauyau/frontend/internal/backendclient"
 )
 
-const timeFieldLayout = "15:04"
+// dateFieldLayout and timeFieldLayout match the value formats of
+// <input type="date"> and <input type="time"> respectively.
+const (
+	dateFieldLayout = "2006-01-02"
+	timeFieldLayout = "15:04"
+)
 
 // Backend is the backend-api boundary this package needs. Defined here (the
 // consumer) rather than in internal/backendclient (the producer) so it stays
@@ -25,6 +31,10 @@ type Backend interface {
 	GetCurrentBaby(ctx context.Context) (backendclient.Baby, error)
 	ListNappies(ctx context.Context) ([]backendclient.Nappy, error)
 	CreateNappy(ctx context.Context, kind, colour string, occurredAt time.Time) error
+	ListFeeds(ctx context.Context) ([]backendclient.Feed, error)
+	CreateFeed(ctx context.Context, feedType string, amountMl, durationMinutes *int, occurredAt time.Time) error
+	ListBaths(ctx context.Context) ([]backendclient.Bath, error)
+	CreateBath(ctx context.Context, bathType, notes string, durationMinutes *int, occurredAt time.Time) error
 }
 
 type Handlers struct {
@@ -37,16 +47,9 @@ func New(backend Backend, templates *template.Template) *Handlers {
 }
 
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
-	baby, err := h.Backend.GetCurrentBaby(r.Context())
+	baby, loc, err := h.currentBabyLocation(r.Context())
 	if err != nil {
-		log.Printf("get current baby: %v", err)
-		http.Error(w, "failed to load baby", http.StatusBadGateway)
-		return
-	}
-
-	loc, err := time.LoadLocation(baby.Timezone)
-	if err != nil {
-		log.Printf("load baby timezone: %v", err)
+		log.Printf("%v", err)
 		http.Error(w, "failed to load baby", http.StatusBadGateway)
 		return
 	}
@@ -58,11 +61,36 @@ func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	feeds, err := h.Backend.ListFeeds(r.Context())
+	if err != nil {
+		log.Printf("list feeds: %v", err)
+		http.Error(w, "failed to load feed events", http.StatusBadGateway)
+		return
+	}
+
+	baths, err := h.Backend.ListBaths(r.Context())
+	if err != nil {
+		log.Printf("list baths: %v", err)
+		http.Error(w, "failed to load bath events", http.StatusBadGateway)
+		return
+	}
+
+	now := time.Now().In(loc)
 	data := struct {
 		Baby    backendclient.Baby
 		Nappies []backendclient.Nappy
+		Feeds   []backendclient.Feed
+		Baths   []backendclient.Bath
+		NowDate string
 		NowTime string
-	}{Baby: baby, Nappies: inLocation(nappies, loc), NowTime: time.Now().In(loc).Format(timeFieldLayout)}
+	}{
+		Baby:    baby,
+		Nappies: inLocation(nappies, loc),
+		Feeds:   feedsInLocation(feeds, loc),
+		Baths:   bathsInLocation(baths, loc),
+		NowDate: now.Format(dateFieldLayout),
+		NowTime: now.Format(timeFieldLayout),
+	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.Templates.ExecuteTemplate(w, "index", data); err != nil {
@@ -76,24 +104,17 @@ func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	baby, err := h.Backend.GetCurrentBaby(r.Context())
+	_, loc, err := h.currentBabyLocation(r.Context())
 	if err != nil {
-		log.Printf("get current baby: %v", err)
+		log.Printf("%v", err)
 		http.Error(w, "failed to load baby", http.StatusBadGateway)
 		return
 	}
 
-	loc, err := time.LoadLocation(baby.Timezone)
-	if err != nil {
-		log.Printf("load baby timezone: %v", err)
-		http.Error(w, "failed to load baby", http.StatusBadGateway)
-		return
-	}
-
-	occurredAt, err := todayAt(loc, r.FormValue("time"))
+	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
 	if err != nil {
 		log.Printf("parse nappy time: %v", err)
-		http.Error(w, "invalid time", http.StatusBadRequest)
+		http.Error(w, "invalid date/time", http.StatusBadRequest)
 		return
 	}
 
@@ -116,17 +137,140 @@ func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// todayAt combines an "HH:MM" form value with today's date in loc, so the
-// nappy event is recorded at the chosen hour rather than the moment the
-// request happened to hit the server.
-func todayAt(loc *time.Location, hhmm string) (time.Time, error) {
-	parsed, err := time.ParseInLocation(timeFieldLayout, hhmm, loc)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("parsing time %q: %w", hhmm, err)
+func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
 	}
 
-	now := time.Now().In(loc)
-	return time.Date(now.Year(), now.Month(), now.Day(), parsed.Hour(), parsed.Minute(), 0, 0, loc), nil
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load baby", http.StatusBadGateway)
+		return
+	}
+
+	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
+	if err != nil {
+		log.Printf("parse feed time: %v", err)
+		http.Error(w, "invalid date/time", http.StatusBadRequest)
+		return
+	}
+
+	amountMl, err := parseOptionalInt(r.FormValue("amount_ml"))
+	if err != nil {
+		http.Error(w, "invalid amount", http.StatusBadRequest)
+		return
+	}
+
+	durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
+	if err != nil {
+		http.Error(w, "invalid duration", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Backend.CreateFeed(r.Context(), r.FormValue("type"), amountMl, durationMinutes, occurredAt); err != nil {
+		log.Printf("create feed: %v", err)
+		http.Error(w, "failed to save feed event", http.StatusBadGateway)
+		return
+	}
+
+	feeds, err := h.Backend.ListFeeds(r.Context())
+	if err != nil {
+		log.Printf("list feeds: %v", err)
+		http.Error(w, "failed to load feed events", http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.Templates.ExecuteTemplate(w, "feed_list", feedsInLocation(feeds, loc)); err != nil {
+		log.Printf("render feed_list template: %v", err)
+	}
+}
+
+func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load baby", http.StatusBadGateway)
+		return
+	}
+
+	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
+	if err != nil {
+		log.Printf("parse bath time: %v", err)
+		http.Error(w, "invalid date/time", http.StatusBadRequest)
+		return
+	}
+
+	durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
+	if err != nil {
+		http.Error(w, "invalid duration", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Backend.CreateBath(r.Context(), r.FormValue("type"), r.FormValue("notes"), durationMinutes, occurredAt); err != nil {
+		log.Printf("create bath: %v", err)
+		http.Error(w, "failed to save bath event", http.StatusBadGateway)
+		return
+	}
+
+	baths, err := h.Backend.ListBaths(r.Context())
+	if err != nil {
+		log.Printf("list baths: %v", err)
+		http.Error(w, "failed to load bath events", http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.Templates.ExecuteTemplate(w, "bath_list", bathsInLocation(baths, loc)); err != nil {
+		log.Printf("render bath_list template: %v", err)
+	}
+}
+
+// currentBabyLocation fetches the current baby and resolves its IANA
+// timezone in one call, since every handler that needs one needs the other.
+func (h *Handlers) currentBabyLocation(ctx context.Context) (backendclient.Baby, *time.Location, error) {
+	baby, err := h.Backend.GetCurrentBaby(ctx)
+	if err != nil {
+		return backendclient.Baby{}, nil, fmt.Errorf("get current baby: %w", err)
+	}
+
+	loc, err := time.LoadLocation(baby.Timezone)
+	if err != nil {
+		return backendclient.Baby{}, nil, fmt.Errorf("load baby timezone: %w", err)
+	}
+
+	return baby, loc, nil
+}
+
+// parseEventTime combines a "date" ("2006-01-02") and "time" ("15:04") form
+// value in loc, so the event is recorded at the chosen date and time rather
+// than the moment the request happened to hit the server.
+func parseEventTime(loc *time.Location, date, hhmm string) (time.Time, error) {
+	parsed, err := time.ParseInLocation(dateFieldLayout+" "+timeFieldLayout, date+" "+hhmm, loc)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("parsing date %q time %q: %w", date, hhmm, err)
+	}
+	return parsed, nil
+}
+
+// parseOptionalInt parses a form field that may be blank, returning nil
+// rather than an error when it is.
+func parseOptionalInt(raw string) (*int, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return nil, fmt.Errorf("parsing int %q: %w", raw, err)
+	}
+	return &v, nil
 }
 
 // inLocation returns a copy of nappies with OccurredAt converted to loc, so
@@ -136,6 +280,26 @@ func inLocation(nappies []backendclient.Nappy, loc *time.Location) []backendclie
 	for i, n := range nappies {
 		n.OccurredAt = n.OccurredAt.In(loc)
 		converted[i] = n
+	}
+	return converted
+}
+
+// feedsInLocation is inLocation's counterpart for feeds.
+func feedsInLocation(feeds []backendclient.Feed, loc *time.Location) []backendclient.Feed {
+	converted := make([]backendclient.Feed, len(feeds))
+	for i, f := range feeds {
+		f.OccurredAt = f.OccurredAt.In(loc)
+		converted[i] = f
+	}
+	return converted
+}
+
+// bathsInLocation is inLocation's counterpart for baths.
+func bathsInLocation(baths []backendclient.Bath, loc *time.Location) []backendclient.Bath {
+	converted := make([]backendclient.Bath, len(baths))
+	for i, b := range baths {
+		b.OccurredAt = b.OccurredAt.In(loc)
+		converted[i] = b
 	}
 	return converted
 }

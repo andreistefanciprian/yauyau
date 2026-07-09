@@ -18,26 +18,6 @@ var (
 // not-found error.
 var ErrNotFound = errors.New("not found")
 
-// NappyKind is the set of valid nappy change kinds.
-type NappyKind string
-
-const (
-	NappyKindWet  NappyKind = "wet"
-	NappyKindPoo  NappyKind = "poo"
-	NappyKindBoth NappyKind = "both"
-)
-
-func (k NappyKind) Valid() bool {
-	switch k {
-	case NappyKindWet, NappyKindPoo, NappyKindBoth:
-		return true
-	default:
-		return false
-	}
-}
-
-const EventTypeNappy = "nappy"
-
 // Baby is the hardcoded baby record as returned to API consumers.
 type Baby struct {
 	ID       uuid.UUID `json:"id"`
@@ -46,12 +26,15 @@ type Baby struct {
 	Timezone string    `json:"timezone"`
 }
 
-// NappyEvent is a nappy-change event as returned to API consumers.
-type NappyEvent struct {
-	ID         uuid.UUID `json:"id"`
-	BabyID     uuid.UUID `json:"baby_id"`
-	Kind       NappyKind `json:"kind"`
-	Colour     string    `json:"colour,omitempty"`
-	OccurredAt time.Time `json:"occurred_at"`
-	CreatedAt  time.Time `json:"created_at"`
+// Event is a generic append-only event: nappy, feed, sleep, etc. all live in
+// the same table, distinguished by EventType, with type-specific fields kept
+// in Attributes. Interpreting Attributes is the handlers package's job, not
+// this package's — store stays domain-agnostic.
+type Event struct {
+	ID         uuid.UUID      `json:"id"`
+	BabyID     uuid.UUID      `json:"baby_id"`
+	EventType  string         `json:"event_type"`
+	OccurredAt time.Time      `json:"occurred_at"`
+	CreatedAt  time.Time      `json:"created_at"`
+	Attributes map[string]any `json:"attributes"`
 }
