@@ -46,6 +46,17 @@ func (c *HTTPClient) CreateEvent(ctx context.Context, resource string, payload m
 	return c.postJSON(ctx, "/api/v1/babies/current/"+resource, payload)
 }
 
+// DeleteEvent removes a single event by id via the combined /events
+// endpoint, regardless of which resource it was created under.
+func (c *HTTPClient) DeleteEvent(ctx context.Context, id string) error {
+	resp, err := c.do(ctx, http.MethodDelete, "/api/v1/babies/current/events/"+id, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
 // do builds and executes an HTTP request against backend-api, returning an
 // error for any transport failure or non-2xx response. Callers own closing
 // resp.Body on success.

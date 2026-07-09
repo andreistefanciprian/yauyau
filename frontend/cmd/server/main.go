@@ -40,6 +40,7 @@ func main() {
 	r.Post("/feeds", h.CreateFeed)
 	r.Post("/baths", h.CreateBath)
 	r.Post("/observations", h.CreateObservation)
+	r.Delete("/events/{id}", h.DeleteEvent)
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	log.Printf("frontend listening on :%s", port)

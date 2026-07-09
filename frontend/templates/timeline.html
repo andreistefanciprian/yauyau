@@ -7,6 +7,9 @@
       <span class="event-icon" aria-hidden="true">{{.Icon}}</span>
       <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">({{.Kind}})</span>{{end}}</span>
       <span class="event-time">{{.Time}}</span>
+      <button type="button" class="event-delete" aria-label="Delete event"
+        hx-delete="/events/{{.ID}}" hx-target="#timeline" hx-swap="innerHTML"
+        hx-confirm="Delete this event?">&times;</button>
     </div>
     {{if .Detail}}<div class="event-detail">{{.Detail}}</div>{{end}}
   </article>

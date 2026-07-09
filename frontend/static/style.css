@@ -76,6 +76,24 @@ h2 {
   opacity: 0.7;
 }
 
+.event-delete {
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.1rem 0.3rem;
+  margin-left: 0.25rem;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.event-delete:hover,
+.event-delete:active {
+  opacity: 1;
+  color: #dc2626;
+}
+
 .event-nappy {
   background: #fdf3d4;
 }

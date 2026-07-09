@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"yauyau/backend-api/internal/store"
@@ -25,6 +26,7 @@ type Store interface {
 	CreateEvent(ctx context.Context, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
 	ListEvents(ctx context.Context, eventType string, limit int) ([]store.Event, error)
 	ListAllEvents(ctx context.Context, limit int) ([]store.Event, error)
+	DeleteEvent(ctx context.Context, id uuid.UUID) error
 }
 
 // allEventsLimit caps the combined /events endpoint. It's set higher than
@@ -68,6 +70,27 @@ func (h *Handlers) ListAllEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, mapped)
+}
+
+// DeleteEvent removes a single event by id, regardless of its event_type.
+func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid event id")
+		return
+	}
+
+	if err := h.Store.DeleteEvent(r.Context(), id); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
+		log.Printf("delete event: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to delete event")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 type Handlers struct {

@@ -142,6 +142,24 @@ func (s *PostgresStore) ListEvents(ctx context.Context, eventType string, limit 
 	return results, nil
 }
 
+// DeleteEvent removes a single event belonging to the current baby.
+// ErrNotFound is returned if no matching row exists (already deleted, wrong
+// id, or belongs to a different baby), so callers can tell that apart from a
+// real database error.
+func (s *PostgresStore) DeleteEvent(ctx context.Context, id uuid.UUID) error {
+	const query = `DELETE FROM events WHERE id = $1 AND baby_id = $2`
+
+	tag, err := s.pool.Exec(ctx, query, id, BabyID)
+	if err != nil {
+		return fmt.Errorf("deleting event: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
 // ListAllEvents returns the most recent events across every event type,
 // ordered newest-first, for consumers (the frontend timeline) that need a
 // single merged view instead of one list per type.

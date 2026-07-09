@@ -47,7 +47,10 @@ func main() {
 	r.Get("/healthz", h.Healthz)
 	r.Route("/api/v1/babies/current", func(r chi.Router) {
 		r.Get("/", h.GetCurrentBaby)
-		r.Get("/events", h.ListAllEvents)
+		r.Route("/events", func(r chi.Router) {
+			r.Get("/", h.ListAllEvents)
+			r.Delete("/{id}", h.DeleteEvent)
+		})
 		r.Route("/nappies", func(r chi.Router) {
 			r.Post("/", h.CreateNappy)
 			r.Get("/", h.ListNappies)

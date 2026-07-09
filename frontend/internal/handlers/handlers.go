@@ -15,6 +15,8 @@ import (
 	// binary so time.LoadLocation works regardless of the host.
 	_ "time/tzdata"
 
+	"github.com/go-chi/chi/v5"
+
 	"yauyau/frontend/internal/backendclient"
 )
 
@@ -34,6 +36,7 @@ type Backend interface {
 	GetCurrentBaby(ctx context.Context) (backendclient.Baby, error)
 	ListEvents(ctx context.Context, resource string, out any) error
 	CreateEvent(ctx context.Context, resource string, payload map[string]any) error
+	DeleteEvent(ctx context.Context, id string) error
 }
 
 type Handlers struct {
@@ -49,6 +52,7 @@ func New(backend Backend, templates *template.Template) *Handlers {
 // feed, bath, observation) is flattened into, so the timeline can render one
 // kind of card regardless of how many event types exist.
 type TimelineEvent struct {
+	ID        string
 	CSSClass  string // "nappy", "feed", "bath", "observation" — drives card colour
 	Icon      string
 	TypeLabel string
@@ -247,6 +251,27 @@ func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
 	h.renderTimeline(w, r.Context(), loc)
 }
 
+// DeleteEvent removes a single event, regardless of its type, and re-renders
+// the timeline — the same shared tail as every Create* handler.
+func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load baby", http.StatusBadGateway)
+		return
+	}
+
+	if err := h.Backend.DeleteEvent(r.Context(), id); err != nil {
+		log.Printf("delete event: %v", err)
+		http.Error(w, "failed to delete event", http.StatusBadGateway)
+		return
+	}
+
+	h.renderTimeline(w, r.Context(), loc)
+}
+
 // renderTimeline re-fetches every event type and writes the combined,
 // sorted timeline partial. It's the shared tail of every Create* handler,
 // since all four forms target the same #timeline container.
@@ -291,18 +316,21 @@ func (h *Handlers) loadTimeline(ctx context.Context, loc *time.Location) ([]Time
 // is false for an event_type this frontend doesn't know how to render (e.g.
 // a new type added to backend-api before the frontend picks it up).
 func timelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) (TimelineEvent, bool) {
+	var te TimelineEvent
 	switch ev.EventType {
 	case "nappy":
-		return nappyTimelineEvent(ev, loc, now), true
+		te = nappyTimelineEvent(ev, loc, now)
 	case "feed":
-		return feedTimelineEvent(ev, loc, now), true
+		te = feedTimelineEvent(ev, loc, now)
 	case "bath":
-		return bathTimelineEvent(ev, loc, now), true
+		te = bathTimelineEvent(ev, loc, now)
 	case "observation":
-		return observationTimelineEvent(ev, loc, now), true
+		te = observationTimelineEvent(ev, loc, now)
 	default:
 		return TimelineEvent{}, false
 	}
+	te.ID = ev.ID
+	return te, true
 }
 
 func nappyTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
