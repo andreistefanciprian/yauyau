@@ -1,0 +1,17 @@
+version: "3"
+
+tasks:
+  up:
+    desc: Build and start postgres, backend-api and frontend
+    cmds:
+      - docker compose up --build
+
+  down:
+    desc: Stop containers (keeps volumes and network)
+    cmds:
+      - docker compose down
+
+  cleanup:
+    desc: Stop containers and remove volumes, network and orphans (deletes local Postgres data)
+    cmds:
+      - docker compose down --volumes --remove-orphans

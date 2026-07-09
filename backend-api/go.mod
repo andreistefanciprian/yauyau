@@ -1,4 +1,4 @@
-module yauyau/backend-api
+module github.com/andreistefanciprian/yauli/backend-api
 
 go 1.26.1
 

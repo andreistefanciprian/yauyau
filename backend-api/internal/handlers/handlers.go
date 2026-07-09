@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"yauyau/backend-api/internal/store"
+	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
 // Store is the persistence boundary this package needs. Defined here (the

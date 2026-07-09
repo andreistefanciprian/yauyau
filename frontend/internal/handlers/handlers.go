@@ -17,7 +17,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"yauyau/frontend/internal/backendclient"
+	"github.com/andreistefanciprian/yauli/frontend/internal/backendclient"
 )
 
 // dateFieldLayout and timeFieldLayout match the value formats of
