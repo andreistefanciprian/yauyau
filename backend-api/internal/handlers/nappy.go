@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"yauyau/backend-api/internal/store"
+	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
 const eventTypeNappy = "nappy"

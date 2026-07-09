@@ -10,8 +10,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"yauyau/backend-api/internal/handlers"
-	"yauyau/backend-api/internal/store"
+	"github.com/andreistefanciprian/yauli/backend-api/internal/handlers"
+	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
 func main() {

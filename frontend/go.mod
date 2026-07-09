@@ -1,4 +1,4 @@
-module yauyau/frontend
+module github.com/andreistefanciprian/yauli/frontend
 
 go 1.26.1
 
