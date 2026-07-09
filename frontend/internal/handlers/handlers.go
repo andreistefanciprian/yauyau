@@ -6,7 +6,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -48,8 +47,7 @@ func New(backend Backend, templates *template.Template) *Handlers {
 
 // TimelineEvent is the single presentation shape every event type (nappy,
 // feed, bath, observation) is flattened into, so the timeline can render one
-// kind of card and sort one kind of slice regardless of how many event types
-// exist.
+// kind of card regardless of how many event types exist.
 type TimelineEvent struct {
 	CSSClass  string // "nappy", "feed", "bath", "observation" — drives card colour
 	Icon      string
@@ -57,8 +55,6 @@ type TimelineEvent struct {
 	Subtitle  string // only observations use this, for the category
 	Detail    string
 	Time      string // pre-formatted for display, e.g. "11:15 AM" or "Jan 2, 11:15 AM"
-
-	occurredAt time.Time // sort key only; not rendered directly
 }
 
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
@@ -268,126 +264,139 @@ func (h *Handlers) renderTimeline(w http.ResponseWriter, ctx context.Context, lo
 	}
 }
 
-// loadTimeline fetches the recent events of every type, flattens them into
-// TimelineEvent, and returns them sorted newest-first.
+// loadTimeline fetches the most recent events across every type from
+// backend-api's combined /events endpoint — already merged and ordered
+// newest-first by the store — and flattens each into a TimelineEvent.
 func (h *Handlers) loadTimeline(ctx context.Context, loc *time.Location) ([]TimelineEvent, error) {
-	var nappies []backendclient.Nappy
-	if err := h.Backend.ListEvents(ctx, "nappies", &nappies); err != nil {
-		return nil, fmt.Errorf("list nappies: %w", err)
-	}
-
-	var feeds []backendclient.Feed
-	if err := h.Backend.ListEvents(ctx, "feeds", &feeds); err != nil {
-		return nil, fmt.Errorf("list feeds: %w", err)
-	}
-
-	var baths []backendclient.Bath
-	if err := h.Backend.ListEvents(ctx, "baths", &baths); err != nil {
-		return nil, fmt.Errorf("list baths: %w", err)
-	}
-
-	var observations []backendclient.Observation
-	if err := h.Backend.ListEvents(ctx, "observations", &observations); err != nil {
-		return nil, fmt.Errorf("list observations: %w", err)
+	var events []backendclient.Event
+	if err := h.Backend.ListEvents(ctx, "events", &events); err != nil {
+		return nil, fmt.Errorf("list events: %w", err)
 	}
 
 	now := time.Now().In(loc)
-	timeline := make([]TimelineEvent, 0, len(nappies)+len(feeds)+len(baths)+len(observations))
-	for _, n := range nappies {
-		timeline = append(timeline, nappyTimelineEvent(n, loc, now))
+	timeline := make([]TimelineEvent, 0, len(events))
+	for _, ev := range events {
+		te, ok := timelineEvent(ev, loc, now)
+		if !ok {
+			log.Printf("skipping event %s: unknown event_type %q", ev.ID, ev.EventType)
+			continue
+		}
+		timeline = append(timeline, te)
 	}
-	for _, f := range feeds {
-		timeline = append(timeline, feedTimelineEvent(f, loc, now))
-	}
-	for _, b := range baths {
-		timeline = append(timeline, bathTimelineEvent(b, loc, now))
-	}
-	for _, o := range observations {
-		timeline = append(timeline, observationTimelineEvent(o, loc, now))
-	}
-
-	sort.Slice(timeline, func(i, j int) bool {
-		return timeline[i].occurredAt.After(timeline[j].occurredAt)
-	})
 
 	return timeline, nil
 }
 
-func nappyTimelineEvent(n backendclient.Nappy, loc *time.Location, now time.Time) TimelineEvent {
-	occurredAt := n.OccurredAt.In(loc)
-
-	detail := titleCase(n.Kind)
-	if n.Colour != "" {
-		detail += ", " + n.Colour
-	}
-
-	return TimelineEvent{
-		CSSClass:   "nappy",
-		Icon:       "💩",
-		TypeLabel:  "Nappy",
-		Detail:     detail,
-		Time:       formatEventTime(occurredAt, now),
-		occurredAt: occurredAt,
+// timelineEvent dispatches a generic Event to the builder for its type. ok
+// is false for an event_type this frontend doesn't know how to render (e.g.
+// a new type added to backend-api before the frontend picks it up).
+func timelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) (TimelineEvent, bool) {
+	switch ev.EventType {
+	case "nappy":
+		return nappyTimelineEvent(ev, loc, now), true
+	case "feed":
+		return feedTimelineEvent(ev, loc, now), true
+	case "bath":
+		return bathTimelineEvent(ev, loc, now), true
+	case "observation":
+		return observationTimelineEvent(ev, loc, now), true
+	default:
+		return TimelineEvent{}, false
 	}
 }
 
-func feedTimelineEvent(f backendclient.Feed, loc *time.Location, now time.Time) TimelineEvent {
-	occurredAt := f.OccurredAt.In(loc)
+func nappyTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := ev.OccurredAt.In(loc)
 
+	detail := titleCase(attributeString(ev.Attributes, "kind"))
+	if colour := attributeString(ev.Attributes, "colour"); colour != "" {
+		detail += ", " + colour
+	}
+
+	return TimelineEvent{
+		CSSClass:  "nappy",
+		Icon:      "💩",
+		TypeLabel: "Nappy",
+		Detail:    detail,
+		Time:      formatEventTime(occurredAt, now),
+	}
+}
+
+func feedTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := ev.OccurredAt.In(loc)
+
+	feedType := attributeString(ev.Attributes, "type")
 	var detail string
-	if f.HasAmount() {
-		detail = fmt.Sprintf("%d ml %s", f.Amount(), f.Type)
+	if amountMl, ok := attributeInt(ev.Attributes, "amount_ml"); ok {
+		detail = fmt.Sprintf("%d ml %s", amountMl, feedType)
 	} else {
-		detail = f.Type
+		detail = feedType
 	}
 	detail = titleCase(detail)
-	if f.HasDuration() {
-		detail += fmt.Sprintf(" · %d min", f.Duration())
+	if durationMinutes, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+		detail += fmt.Sprintf(" · %d min", durationMinutes)
 	}
 
 	return TimelineEvent{
-		CSSClass:   "feed",
-		Icon:       "🍼",
-		TypeLabel:  "Feed",
-		Detail:     detail,
-		Time:       formatEventTime(occurredAt, now),
-		occurredAt: occurredAt,
+		CSSClass:  "feed",
+		Icon:      "🍼",
+		TypeLabel: "Feed",
+		Detail:    detail,
+		Time:      formatEventTime(occurredAt, now),
 	}
 }
 
-func bathTimelineEvent(b backendclient.Bath, loc *time.Location, now time.Time) TimelineEvent {
-	occurredAt := b.OccurredAt.In(loc)
+func bathTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := ev.OccurredAt.In(loc)
 
-	detail := titleCase(b.Type)
-	if b.Notes != "" {
-		detail += ", " + b.Notes
+	detail := titleCase(attributeString(ev.Attributes, "type"))
+	if notes := attributeString(ev.Attributes, "notes"); notes != "" {
+		detail += ", " + notes
 	}
-	if b.DurationMinutes != nil {
-		detail += fmt.Sprintf(" · %d min", *b.DurationMinutes)
+	if durationMinutes, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+		detail += fmt.Sprintf(" · %d min", durationMinutes)
 	}
 
 	return TimelineEvent{
-		CSSClass:   "bath",
-		Icon:       "🛁",
-		TypeLabel:  "Bath",
-		Detail:     detail,
-		Time:       formatEventTime(occurredAt, now),
-		occurredAt: occurredAt,
+		CSSClass:  "bath",
+		Icon:      "🛁",
+		TypeLabel: "Bath",
+		Detail:    detail,
+		Time:      formatEventTime(occurredAt, now),
 	}
 }
 
-func observationTimelineEvent(o backendclient.Observation, loc *time.Location, now time.Time) TimelineEvent {
-	occurredAt := o.OccurredAt.In(loc)
+func observationTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := ev.OccurredAt.In(loc)
 
 	return TimelineEvent{
-		CSSClass:   "observation",
-		Icon:       "📝",
-		TypeLabel:  "Observation",
-		Subtitle:   titleCase(o.Category),
-		Detail:     o.Text,
-		Time:       formatEventTime(occurredAt, now),
-		occurredAt: occurredAt,
+		CSSClass:  "observation",
+		Icon:      "📝",
+		TypeLabel: "Observation",
+		Subtitle:  titleCase(attributeString(ev.Attributes, "category")),
+		Detail:    attributeString(ev.Attributes, "text"),
+		Time:      formatEventTime(occurredAt, now),
 	}
+}
+
+// attributeString reads a string field out of an event's attributes map,
+// returning "" if the key is absent (an optional field, like nappy colour
+// or bath notes, that wasn't recorded).
+func attributeString(attributes map[string]any, key string) string {
+	s, _ := attributes[key].(string)
+	return s
+}
+
+// attributeInt reads an int field out of an event's attributes map. JSON
+// numbers decode into map[string]any as float64, so that's the only
+// numeric type checked; ok is false when the key is absent (an optional
+// field like amount_ml or duration_minutes that wasn't recorded).
+func attributeInt(attributes map[string]any, key string) (int, bool) {
+	v, ok := attributes[key].(float64)
+	if !ok {
+		return 0, false
+	}
+	return int(v), true
 }
 
 // titleCase turns a snake_case or lowercase value (e.g. "whole_body", "poo",

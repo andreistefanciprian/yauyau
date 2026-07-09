@@ -12,59 +12,15 @@ type Baby struct {
 	Timezone string `json:"timezone"`
 }
 
-type Nappy struct {
-	ID         string    `json:"id"`
-	BabyID     string    `json:"baby_id"`
-	Kind       string    `json:"kind"`
-	Colour     string    `json:"colour"`
-	OccurredAt time.Time `json:"occurred_at"`
-	CreatedAt  time.Time `json:"created_at"`
-}
-
-type Feed struct {
-	ID              string    `json:"id"`
-	BabyID          string    `json:"baby_id"`
-	Type            string    `json:"type"`
-	AmountMl        *int      `json:"amount_ml,omitempty"`
-	DurationMinutes *int      `json:"duration_minutes,omitempty"`
-	OccurredAt      time.Time `json:"occurred_at"`
-	CreatedAt       time.Time `json:"created_at"`
-}
-
-// HasAmount and Amount let templates render AmountMl without printing a raw
-// pointer (Go's text/template prints *int as a hex address, not its value).
-func (f Feed) HasAmount() bool { return f.AmountMl != nil }
-func (f Feed) Amount() int {
-	if f.AmountMl == nil {
-		return 0
-	}
-	return *f.AmountMl
-}
-
-// HasDuration and Duration are Amount's counterpart for DurationMinutes.
-func (f Feed) HasDuration() bool { return f.DurationMinutes != nil }
-func (f Feed) Duration() int {
-	if f.DurationMinutes == nil {
-		return 0
-	}
-	return *f.DurationMinutes
-}
-
-type Bath struct {
-	ID              string    `json:"id"`
-	BabyID          string    `json:"baby_id"`
-	Type            string    `json:"type"`
-	Notes           string    `json:"notes"`
-	DurationMinutes *int      `json:"duration_minutes,omitempty"`
-	OccurredAt      time.Time `json:"occurred_at"`
-	CreatedAt       time.Time `json:"created_at"`
-}
-
-type Observation struct {
-	ID         string    `json:"id"`
-	BabyID     string    `json:"baby_id"`
-	Text       string    `json:"text"`
-	Category   string    `json:"category"`
-	OccurredAt time.Time `json:"occurred_at"`
-	CreatedAt  time.Time `json:"created_at"`
+// Event is a generic event exactly as backend-api's combined /events
+// endpoint returns it: event_type plus its type-specific attributes, not a
+// typed per-event shape. Interpreting Attributes is internal/handlers' job,
+// same division of responsibility as backend-api's own store.Event.
+type Event struct {
+	ID         string         `json:"id"`
+	BabyID     string         `json:"baby_id"`
+	EventType  string         `json:"event_type"`
+	Attributes map[string]any `json:"attributes"`
+	OccurredAt time.Time      `json:"occurred_at"`
+	CreatedAt  time.Time      `json:"created_at"`
 }

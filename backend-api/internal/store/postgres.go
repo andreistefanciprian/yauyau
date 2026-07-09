@@ -141,3 +141,36 @@ func (s *PostgresStore) ListEvents(ctx context.Context, eventType string, limit 
 
 	return results, nil
 }
+
+// ListAllEvents returns the most recent events across every event type,
+// ordered newest-first, for consumers (the frontend timeline) that need a
+// single merged view instead of one list per type.
+func (s *PostgresStore) ListAllEvents(ctx context.Context, limit int) ([]Event, error) {
+	const query = `
+		SELECT id, baby_id, event_type, attributes, occurred_at, created_at
+		FROM events
+		WHERE baby_id = $1
+		ORDER BY occurred_at DESC
+		LIMIT $2
+	`
+
+	rows, err := s.pool.Query(ctx, query, BabyID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("querying events: %w", err)
+	}
+	defer rows.Close()
+
+	var results []Event
+	for rows.Next() {
+		var ev Event
+		if err := rows.Scan(&ev.ID, &ev.BabyID, &ev.EventType, &ev.Attributes, &ev.OccurredAt, &ev.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scanning event: %w", err)
+		}
+		results = append(results, ev)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating events: %w", err)
+	}
+
+	return results, nil
+}

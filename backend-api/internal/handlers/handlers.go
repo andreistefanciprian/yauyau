@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+
 	"yauyau/backend-api/internal/store"
 )
 
@@ -22,6 +24,50 @@ type Store interface {
 	GetCurrentBaby(ctx context.Context) (store.Baby, error)
 	CreateEvent(ctx context.Context, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
 	ListEvents(ctx context.Context, eventType string, limit int) ([]store.Event, error)
+	ListAllEvents(ctx context.Context, limit int) ([]store.Event, error)
+}
+
+// allEventsLimit caps the combined /events endpoint. It's set higher than
+// each per-type List<X> endpoint's limit (20) since this one is shared
+// across every event type rather than counted per type.
+const allEventsLimit = 40
+
+// eventResponse is a generic event exactly as stored (event_type +
+// attributes, not a typed per-event shape), for consumers that need every
+// event type ordered together by occurred_at rather than filtered to one.
+type eventResponse struct {
+	ID         uuid.UUID      `json:"id"`
+	BabyID     uuid.UUID      `json:"baby_id"`
+	EventType  string         `json:"event_type"`
+	Attributes map[string]any `json:"attributes"`
+	OccurredAt time.Time      `json:"occurred_at"`
+	CreatedAt  time.Time      `json:"created_at"`
+}
+
+// ListAllEvents returns the most recent events across every event type,
+// merged and ordered newest-first by the store, for a single combined
+// timeline instead of one list call per event type.
+func (h *Handlers) ListAllEvents(w http.ResponseWriter, r *http.Request) {
+	events, err := h.Store.ListAllEvents(r.Context(), allEventsLimit)
+	if err != nil {
+		log.Printf("list all events: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load events")
+		return
+	}
+
+	mapped := make([]eventResponse, len(events))
+	for i, ev := range events {
+		mapped[i] = eventResponse{
+			ID:         ev.ID,
+			BabyID:     ev.BabyID,
+			EventType:  ev.EventType,
+			Attributes: ev.Attributes,
+			OccurredAt: ev.OccurredAt,
+			CreatedAt:  ev.CreatedAt,
+		}
+	}
+
+	writeJSON(w, http.StatusOK, mapped)
 }
 
 type Handlers struct {
