@@ -38,7 +38,7 @@ type requestMagicLinkRequest struct {
 }
 
 // RequestMagicLink upserts the user via backend-api, issues a magic link,
-// and (in local dev) logs it to stdout instead of emailing it — see PR14
+// and (in local dev) logs it to stdout instead of emailing it — see PR12
 // for the real Mailgun send. The response is identical whether or not the
 // email already had an account, so this endpoint never reveals which
 // emails are registered.

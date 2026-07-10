@@ -38,7 +38,7 @@ type Handlers struct {
 
 // New wires up Handlers. frontendURL is used only to build the magic link
 // logged to stdout in local dev (Auth->>Email in the design doc's sequence
-// diagram) — the real send-a-real-email path lands in PR14.
+// diagram) — the real send-a-real-email path lands in PR12.
 func New(s Store, b BackendClient, frontendURL string) *Handlers {
 	return &Handlers{Store: s, Backend: b, FrontendURL: frontendURL}
 }

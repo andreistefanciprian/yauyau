@@ -200,7 +200,7 @@ func TestActivateInvitedMembership(t *testing.T) {
 		execCleanup(t, s, `DELETE FROM users WHERE id = ANY($1)`, []uuid.UUID{owner.ID, invitee.ID})
 	})
 
-	// Simulate an invite (PR13 will do this via a real invite endpoint):
+	// Simulate an invite (PR11 will do this via a real invite endpoint):
 	// a pending family_members row for a user who hasn't logged in yet.
 	if _, err := s.pool.Exec(ctx, `INSERT INTO family_members (family_id, user_id, role, status) VALUES ($1, $2, $3, $4)`,
 		familyID, invitee.ID, MembershipRoleMember, MembershipStatusInvited); err != nil {

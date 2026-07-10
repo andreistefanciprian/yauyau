@@ -4,11 +4,9 @@ Tracks the PR-by-PR rollout of magic-link auth described in
 [`auth-magic-link.md`](auth-magic-link.md). PR1–6 are merged; this file
 covers what's left (PR7–12).
 
-Renumbered from an earlier 14-PR breakdown: former PR7+PR8 merged into PR7
-(both land JWT minting and the frontend login pages that consume it —
-splitting them left PR8 unusable on its own), and former PR9+PR10 merged
-into PR8 (session gating and onboarding are similarly interdependent). The
-former PR11–14 shift down to PR9–12 unchanged in content.
+Renumbered from an earlier 14-PR breakdown: former PR7+PR8 merged into PR7,
+and former PR9+PR10 merged into PR8 (see Sequencing notes below for why).
+The former PR11–14 shift down to PR9–12 unchanged in content.
 
 ## Done
 
@@ -37,9 +35,7 @@ right after onboarding's "add your baby" step returns a family_id).
 / `auth-verify.html`. Sets `yauli_session` cookie (HttpOnly, Secure in
 prod, SameSite=Lax). **Verify page must not consume the token on a bare
 `GET`** — only an explicit confirm button/POST does (anti-prefetch
-hardening). Dashboard stays open in this PR — only the login path is added,
-so the frontend has somewhere to call the auth-service endpoints landing
-in the same PR rather than shipping either half alone.
+hardening). Dashboard stays open in this PR — only the login path is added.
 
 Two additional hardening details land in the frontend half: the request
 logger must not log the raw query string on `/auth/verify` (redact it,
@@ -78,10 +74,7 @@ left behind.
 template: a single "add your baby" form (no family step shown) → `POST
 /api/v1/babies` (via backend-api client, PR4) → backend-api's response
 carries `family_id` → frontend calls auth-service's attach-family with it
-→ re-mint token → redirect to dashboard. Bundled with session gating in
-the same PR because gating is what actually routes a family-less session
-into this form in the first place — landing one without the other leaves
-either dead code or an unreachable redirect target.
+→ re-mint token → redirect to dashboard.
 
 **Verify:** no cookie → `/login`; fresh signup → `/onboarding`; a
 membership with a family → dashboard. Restart the frontend container
@@ -175,12 +168,14 @@ the received link round-trips through the normal verify flow.
   the same reason: gating is the only thing that routes a session into the
   onboarding form, so shipping either alone leaves the other unreachable.
 
-## Overall verification (after PR10)
+## Overall verification (after PR11)
 
-Full loop: `docker compose up` → frontend → `/login` → enter email → copy
-magic link from `docker compose logs auth-service` → confirm on the verify
-page → "add your baby" → dashboard → create a nappy/feed event → see it in
-the timeline → log out → confirm dashboard now redirects to `/login`.
-Separately: invite a second email to help with the baby, confirm their
-first login skips the "add your baby" step entirely and lands them
-straight on the shared dashboard.
+Full loop (testable once PR10 lands): `docker compose up` → frontend →
+`/login` → enter email → copy magic link from `docker compose logs
+auth-service` → confirm on the verify page → "add your baby" → dashboard →
+create a nappy/feed event → see it in the timeline → log out → confirm
+dashboard now redirects to `/login`.
+
+Separately (requires PR11): invite a second email to help with the baby,
+confirm their first login skips the "add your baby" step entirely and
+lands them straight on the shared dashboard.
