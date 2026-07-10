@@ -25,6 +25,11 @@ func main() {
 		log.Fatal("AUTH_SERVICE_URL is required")
 	}
 
+	authServiceSecret := os.Getenv("FRONTEND_AUTH_SECRET")
+	if authServiceSecret == "" {
+		log.Fatal("FRONTEND_AUTH_SECRET is required")
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -37,7 +42,7 @@ func main() {
 		log.Fatalf("parse templates: %v", err)
 	}
 
-	h := handlers.New(backendclient.New(backendURL), authclient.New(authServiceURL), templates, secureCookies)
+	h := handlers.New(backendclient.New(backendURL), authclient.New(authServiceURL, authServiceSecret), templates, secureCookies)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -55,18 +60,23 @@ func main() {
 
 		r.Get("/login", h.ShowLogin)
 		r.Post("/login", h.RequestMagicLink)
-		r.Post("/auth/verify", h.ConfirmVerify)
 		r.Post("/logout", h.Logout)
+
+		r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	})
 
-	// GET /auth/verify carries the raw magic-link token in its query string
-	// and is deliberately kept out of the r.Use(middleware.Logger) group
-	// above — that logger would otherwise write the token straight into
-	// access logs (see docs/auth-magic-link.md's "Token exposure in the
-	// URL" hardening note).
+	// /auth/verify (both GET, which carries the raw magic-link token in its
+	// query string, and POST, which a malformed or malicious client could
+	// still send with the token in the query string even though
+	// ConfirmVerify reads it from the body via PostFormValue) is
+	// deliberately kept out of the r.Use(middleware.Logger) group above —
+	// that logger writes the full request URI including any query string,
+	// which would otherwise put the token straight into access logs
+	// regardless of what the handler itself reads (see
+	// docs/auth-magic-link.md's "Token exposure in the URL" hardening
+	// note).
 	r.With(logRedactedVerifyRequest).Get("/auth/verify", h.ShowVerify)
-
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	r.With(logRedactedVerifyRequest).Post("/auth/verify", h.ConfirmVerify)
 
 	log.Printf("frontend listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
@@ -74,11 +84,11 @@ func main() {
 	}
 }
 
-// logRedactedVerifyRequest stands in for middleware.Logger on GET
-// /auth/verify only, logging the route without its query string.
+// logRedactedVerifyRequest stands in for middleware.Logger on /auth/verify
+// only, logging the method and path without any query string.
 func logRedactedVerifyRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("GET %s (query redacted)", r.URL.Path)
+		log.Printf("%s %s (query redacted)", r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
 }

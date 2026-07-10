@@ -12,15 +12,18 @@ import (
 
 // HTTPClient is the HTTP-backed implementation of the auth-service calls
 // that internal/handlers.AuthClient expects. Mirrors
-// frontend/internal/backendclient/http.go's shape.
+// frontend/internal/backendclient/http.go's shape, with the addition of the
+// X-Internal-Secret header every auth-service /internal/auth route requires.
 type HTTPClient struct {
 	baseURL string
+	secret  string
 	http    *http.Client
 }
 
-func New(baseURL string) *HTTPClient {
+func New(baseURL, secret string) *HTTPClient {
 	return &HTTPClient{
 		baseURL: baseURL,
+		secret:  secret,
 		http:    &http.Client{Timeout: 5 * time.Second},
 	}
 }
@@ -30,14 +33,14 @@ func New(baseURL string) *HTTPClient {
 // not the email already has an account, so this never reveals which emails
 // are registered.
 func (c *HTTPClient) RequestMagicLink(ctx context.Context, email string) error {
-	return c.postJSON(ctx, "/internal/auth/request", map[string]string{"email": email}, nil)
+	return c.postJSON(ctx, "/internal/auth/request", map[string]string{"email": email})
 }
 
 // VerifyMagicLink consumes token exactly once and returns the session it
 // opened.
 func (c *HTTPClient) VerifyMagicLink(ctx context.Context, token string) (VerifyResult, error) {
 	var result VerifyResult
-	if err := c.postJSON(ctx, "/internal/auth/verify", map[string]string{"token": token}, &result); err != nil {
+	if err := c.postJSONDecode(ctx, "/internal/auth/verify", map[string]string{"token": token}, &result); err != nil {
 		return VerifyResult{}, err
 	}
 	return result, nil
@@ -46,10 +49,11 @@ func (c *HTTPClient) VerifyMagicLink(ctx context.Context, token string) (VerifyR
 // Logout revokes sessionID. Idempotent on auth-service's side — logging out
 // an already-revoked or unknown session still returns success.
 func (c *HTTPClient) Logout(ctx context.Context, sessionID string) error {
-	return c.postJSON(ctx, "/internal/auth/logout", map[string]string{"session_id": sessionID}, nil)
+	return c.postJSON(ctx, "/internal/auth/logout", map[string]string{"session_id": sessionID})
 }
 
-// do builds and executes an HTTP request against auth-service, returning an
+// do builds and executes an HTTP request against auth-service, attaching
+// the shared secret every /internal/auth route requires, and returning an
 // error for any transport failure or non-2xx response. Callers own closing
 // resp.Body on success.
 func (c *HTTPClient) do(ctx context.Context, method, path string, body io.Reader) (*http.Response, error) {
@@ -57,6 +61,7 @@ func (c *HTTPClient) do(ctx context.Context, method, path string, body io.Reader
 	if err != nil {
 		return nil, fmt.Errorf("building request: %w", err)
 	}
+	req.Header.Set("X-Internal-Secret", c.secret)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -74,26 +79,38 @@ func (c *HTTPClient) do(ctx context.Context, method, path string, body io.Reader
 	return resp, nil
 }
 
-// postJSON POSTs payload as JSON and, if out is non-nil, decodes the
-// response body into it.
-func (c *HTTPClient) postJSON(ctx context.Context, path string, payload any, out any) error {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("encoding request: %w", err)
-	}
-
-	resp, err := c.do(ctx, http.MethodPost, path, bytes.NewReader(body))
+// postJSON POSTs payload as JSON and discards the response body.
+func (c *HTTPClient) postJSON(ctx context.Context, path string, payload any) error {
+	resp, err := c.doJSON(ctx, path, payload)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	if out == nil {
-		return nil
+	return nil
+}
+
+// postJSONDecode POSTs payload as JSON and decodes the response body into
+// out.
+func (c *HTTPClient) postJSONDecode(ctx context.Context, path string, payload any, out any) error {
+	resp, err := c.doJSON(ctx, path, payload)
+	if err != nil {
+		return err
 	}
+	defer resp.Body.Close()
+
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
 		return fmt.Errorf("decoding response: %w", err)
 	}
 
 	return nil
+}
+
+func (c *HTTPClient) doJSON(ctx context.Context, path string, payload any) (*http.Response, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("encoding request: %w", err)
+	}
+
+	return c.do(ctx, http.MethodPost, path, bytes.NewReader(body))
 }

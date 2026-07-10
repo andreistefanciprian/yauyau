@@ -64,18 +64,7 @@ func (h *Handlers) MintToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := jwtClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   userID.String(),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(accessTokenTTL)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
-	if familyID != nil {
-		claims.FamilyID = familyID.String()
-	}
-
-	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(h.JWTSecret)
+	accessToken, err := signAccessToken(userID, familyID, h.JWTSecret)
 	if err != nil {
 		log.Printf("sign access token: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to mint token")
@@ -83,6 +72,29 @@ func (h *Handlers) MintToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, mintTokenResponse{AccessToken: accessToken, FamilyID: familyID})
+}
+
+// signAccessToken builds and signs the JWT MintToken hands back — pulled
+// out of the handler as a pure function so token_test.go can lock down the
+// exact wire shape (claim names/types) without needing a Store/BackendClient
+// mock. That wire shape is a cross-service contract with backend-api's
+// authctx.go decoder (backend-api/internal/authctx/authctx.go), which has
+// no compiler link to this package — a rename or type change on either side
+// only surfaces at runtime otherwise, so keep the two in sync deliberately.
+func signAccessToken(userID uuid.UUID, familyID *uuid.UUID, secret []byte) (string, error) {
+	now := time.Now()
+	claims := jwtClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   userID.String(),
+			ExpiresAt: jwt.NewNumericDate(now.Add(accessTokenTTL)),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+	}
+	if familyID != nil {
+		claims.FamilyID = familyID.String()
+	}
+
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(secret)
 }
 
 type logoutRequest struct {
@@ -148,7 +160,11 @@ func (h *Handlers) AttachFamily(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.Store.AttachFamily(r.Context(), sessionID, familyID); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			writeError(w, http.StatusNotFound, "session not found or already has a family")
+			writeError(w, http.StatusNotFound, "session not found")
+			return
+		}
+		if errors.Is(err, store.ErrAlreadyAttached) {
+			writeError(w, http.StatusConflict, "session already has a family")
 			return
 		}
 		log.Printf("attach family: %v", err)

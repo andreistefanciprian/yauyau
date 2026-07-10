@@ -11,8 +11,26 @@ import (
 // browser (see docs/auth-magic-link.md).
 const sessionCookieName = "yauli_session"
 
+// sessionCookieTTL matches auth-service's session expiry (see
+// docs/auth-magic-link.md's "Session TTL").
+const sessionCookieTTL = 30 * 24 * time.Hour
+
+// loginPageData is the login page/partial's template data — named instead
+// of an inline anonymous struct since it's shared by ShowLogin, the two
+// renderLogin error paths in RequestMagicLink, and renderLogin's own
+// parameter, so every call site is guaranteed to agree on its shape.
+type loginPageData struct {
+	Email, Error string
+}
+
+// verifyPageData is the verify page's template data, named for the same
+// reason as loginPageData.
+type verifyPageData struct {
+	Token, Error string
+}
+
 func (h *Handlers) ShowLogin(w http.ResponseWriter, r *http.Request) {
-	h.renderLogin(w, struct{ Email, Error string }{})
+	h.renderLogin(w, loginPageData{})
 }
 
 // RequestMagicLink asks auth-service to send a magic link, then always
@@ -26,13 +44,13 @@ func (h *Handlers) RequestMagicLink(w http.ResponseWriter, r *http.Request) {
 	}
 	email := r.FormValue("email")
 	if email == "" {
-		h.renderLogin(w, struct{ Email, Error string }{Error: "Email is required."})
+		h.renderLogin(w, loginPageData{Error: "Email is required."})
 		return
 	}
 
 	if err := h.Auth.RequestMagicLink(r.Context(), email); err != nil {
 		log.Printf("request magic link: %v", err)
-		h.renderLogin(w, struct{ Email, Error string }{Email: email, Error: "Something went wrong. Please try again."})
+		h.renderLogin(w, loginPageData{Email: email, Error: "Something went wrong. Please try again."})
 		return
 	}
 
@@ -42,7 +60,7 @@ func (h *Handlers) RequestMagicLink(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handlers) renderLogin(w http.ResponseWriter, data struct{ Email, Error string }) {
+func (h *Handlers) renderLogin(w http.ResponseWriter, data loginPageData) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.Templates.ExecuteTemplate(w, "login", data); err != nil {
 		log.Printf("render login template: %v", err)
@@ -57,10 +75,10 @@ func (h *Handlers) renderLogin(w http.ResponseWriter, data struct{ Email, Error 
 func (h *Handlers) ShowVerify(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if token == "" {
-		h.renderVerify(w, struct{ Token, Error string }{Error: "This link is missing its token."})
+		h.renderVerify(w, verifyPageData{Error: "This link is missing its token."})
 		return
 	}
-	h.renderVerify(w, struct{ Token, Error string }{Token: token})
+	h.renderVerify(w, verifyPageData{Token: token})
 }
 
 // ConfirmVerify consumes the token, opens the yauli_session cookie from the
@@ -72,33 +90,32 @@ func (h *Handlers) ConfirmVerify(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
 	}
-	token := r.FormValue("token")
+	// PostFormValue, not FormValue: FormValue falls back to the URL query
+	// string, which would let a POST /auth/verify?token=... consume the
+	// token via the query string instead of the hidden form field it's
+	// supposed to come from. cmd/server/main.go additionally keeps this
+	// whole route out of the standard logger regardless, since a query
+	// string can be present on the request even when this handler ignores
+	// it.
+	token := r.PostFormValue("token")
 	if token == "" {
-		h.renderVerify(w, struct{ Token, Error string }{Error: "This link is missing its token."})
+		h.renderVerify(w, verifyPageData{Error: "This link is missing its token."})
 		return
 	}
 
 	result, err := h.Auth.VerifyMagicLink(r.Context(), token)
 	if err != nil {
 		log.Printf("verify magic link: %v", err)
-		h.renderVerify(w, struct{ Token, Error string }{Error: "This link is invalid or has expired."})
+		h.renderVerify(w, verifyPageData{Error: "This link is invalid or has expired."})
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    result.SessionID,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   h.SecureCookies,
-		SameSite: http.SameSiteLaxMode,
-		Expires:  time.Now().Add(30 * 24 * time.Hour),
-	})
+	http.SetCookie(w, h.sessionCookie(result.SessionID, sessionCookieTTL))
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-func (h *Handlers) renderVerify(w http.ResponseWriter, data struct{ Token, Error string }) {
+func (h *Handlers) renderVerify(w http.ResponseWriter, data verifyPageData) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.Templates.ExecuteTemplate(w, "auth-verify", data); err != nil {
 		log.Printf("render auth-verify template: %v", err)
@@ -115,15 +132,29 @@ func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, h.sessionCookie("", -1))
+
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+// sessionCookie builds the yauli_session cookie, the single point of truth
+// for its Path/HttpOnly/Secure/SameSite attributes so ConfirmVerify's set
+// and Logout's clear can never drift out of sync with each other. A
+// negative ttl clears the cookie (MaxAge=-1); otherwise it expires ttl from
+// now.
+func (h *Handlers) sessionCookie(value string, ttl time.Duration) *http.Cookie {
+	cookie := &http.Cookie{
 		Name:     sessionCookieName,
-		Value:    "",
+		Value:    value,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   h.SecureCookies,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   -1,
-	})
-
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	}
+	if ttl < 0 {
+		cookie.MaxAge = -1
+	} else {
+		cookie.Expires = time.Now().Add(ttl)
+	}
+	return cookie
 }

@@ -200,22 +200,35 @@ func (s *PostgresStore) RevokeSession(ctx context.Context, sessionID uuid.UUID) 
 // after onboarding's "add your baby" step creates a family. Only succeeds
 // while family_id is still NULL: sessions.family_id is fixed per session by
 // design (docs/auth-magic-link.md), so this is a one-time transition, not a
-// general update. ErrNotFound covers "no such session" and "already has a
-// family" alike; the caller only ever hits the latter on a buggy retry.
+// general update. When the UPDATE matches no rows, a follow-up read tells
+// ErrNotFound ("no such session") apart from ErrAlreadyAttached ("a
+// previous attach-family call already succeeded") — a network retry after
+// a timed-out-but-actually-succeeded first attempt is a harmless collision,
+// not the same failure as a garbage session id.
 func (s *PostgresStore) AttachFamily(ctx context.Context, sessionID, familyID uuid.UUID) error {
-	const query = `
+	const updateQuery = `
 		UPDATE sessions
 		SET family_id = $1
 		WHERE id = $2 AND family_id IS NULL
 	`
 
-	tag, err := s.pool.Exec(ctx, query, familyID, sessionID)
+	tag, err := s.pool.Exec(ctx, updateQuery, familyID, sessionID)
 	if err != nil {
 		return fmt.Errorf("attaching family to session: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
+	if tag.RowsAffected() > 0 {
+		return nil
 	}
 
-	return nil
+	const existsQuery = `SELECT 1 FROM sessions WHERE id = $1`
+	var exists int
+	err = s.pool.QueryRow(ctx, existsQuery, sessionID).Scan(&exists)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("checking session existence: %w", err)
+	}
+
+	return ErrAlreadyAttached
 }

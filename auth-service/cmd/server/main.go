@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"log"
 	"net/http"
 	"os"
@@ -46,6 +47,11 @@ func main() {
 		log.Fatal("JWT_SIGNING_SECRET is required")
 	}
 
+	frontendAuthSecret := os.Getenv("FRONTEND_AUTH_SECRET")
+	if frontendAuthSecret == "" {
+		log.Fatal("FRONTEND_AUTH_SECRET is required")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -67,6 +73,7 @@ func main() {
 
 	r.Get("/healthz", h.Healthz)
 	r.Route("/internal/auth", func(r chi.Router) {
+		r.Use(requireFrontendSecret(frontendAuthSecret))
 		r.Post("/request", h.RequestMagicLink)
 		r.Post("/verify", h.VerifyMagicLink)
 		r.Post("/token", h.MintToken)
@@ -77,5 +84,27 @@ func main() {
 	log.Printf("auth-service listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatalf("server error: %v", err)
+	}
+}
+
+// requireFrontendSecret gates the frontend-facing API behind a single
+// static shared secret, set as the same env var value on both services —
+// mirrors backend-api's identical requireInternalSecret. Without this,
+// anyone with network reach to auth-service could mint access tokens or
+// revoke sessions for any known session_id with no credential check at all.
+// ConstantTimeCompare avoids leaking the secret's value one byte at a time
+// through response-timing differences.
+func requireFrontendSecret(secret string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			given := r.Header.Get("X-Internal-Secret")
+			if subtle.ConstantTimeCompare([]byte(given), []byte(secret)) != 1 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte(`{"error":"forbidden"}`))
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
 }
