@@ -54,6 +54,15 @@ func TestMailgunSendMagicLink(t *testing.T) {
 	if !strings.Contains(gotForm.Get("html"), "https://app.example.com/auth/verify?token=abc") {
 		t.Fatalf("html body did not contain magic link: %q", gotForm.Get("html"))
 	}
+	if !strings.Contains(gotForm.Get("html"), "Your parenting companion, from day one.") {
+		t.Fatalf("html body did not contain tagline: %q", gotForm.Get("html"))
+	}
+	if !strings.Contains(gotForm.Get("html"), "#74C7C3") {
+		t.Fatalf("html body did not contain Yauli teal button color: %q", gotForm.Get("html"))
+	}
+	if !strings.Contains(gotForm.Get("html"), "user@example.com") {
+		t.Fatalf("html body did not contain recipient email: %q", gotForm.Get("html"))
+	}
 }
 
 func TestMailgunSendMagicLinkReturnsErrorOnNon2xx(t *testing.T) {
