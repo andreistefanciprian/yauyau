@@ -246,6 +246,105 @@
       </div>
     </dialog>
 
+    <dialog id="edit-event-dialog" aria-labelledby="edit-event-title">
+      <div class="dialog-content">
+      <div class="dialog-header">
+        <h2 id="edit-event-title">Edit event</h2>
+        <button type="button" class="icon-button" id="edit-event-close" aria-label="Close">&times;</button>
+      </div>
+
+      <form id="edit-event-form" class="event-form" hx-patch="/events/__event_id__" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventEdited()">
+        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
+        <input type="hidden" name="event_type" id="edit-event-type">
+
+        <div class="edit-event-fields" data-edit-type="nappy">
+          <fieldset>
+            <legend>Kind</legend>
+            <label><input type="radio" name="kind" value="wet"> Wet</label>
+            <label><input type="radio" name="kind" value="poo"> Poo</label>
+            <label><input type="radio" name="kind" value="both"> Both</label>
+          </fieldset>
+          <label class="field-label">
+            Colour (optional)
+            <input type="text" name="colour" placeholder="e.g. mustard yellow">
+          </label>
+        </div>
+
+        <div class="edit-event-fields" data-edit-type="feed">
+          <fieldset>
+            <legend>Type</legend>
+            <label><input type="radio" name="type" value="breast"> Breast</label>
+            <label><input type="radio" name="type" value="formula"> Formula</label>
+            <label><input type="radio" name="type" value="expressed"> Expressed</label>
+          </fieldset>
+          <label class="field-label">
+            Amount (ml, optional)
+            <input type="number" name="amount_ml" min="0" placeholder="e.g. 70">
+          </label>
+          <label class="field-label">
+            Duration (minutes, optional)
+            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 15">
+          </label>
+        </div>
+
+        <div class="edit-event-fields" data-edit-type="bath">
+          <fieldset>
+            <legend>Type</legend>
+            <label><input type="radio" name="type" value="whole_body"> Whole body</label>
+            <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
+          </fieldset>
+          <label class="field-label">
+            Notes (optional)
+            <input type="text" name="notes" placeholder="e.g. used baby shampoo">
+          </label>
+          <label class="field-label">
+            Duration (minutes, optional)
+            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 10">
+          </label>
+        </div>
+
+        <div class="edit-event-fields" data-edit-type="sleep">
+          <fieldset>
+            <legend>Type</legend>
+            <label><input type="radio" name="type" value="nap"> Nap</label>
+            <label><input type="radio" name="type" value="night"> Night sleep</label>
+          </fieldset>
+          <label class="field-label">
+            Notes (optional)
+            <input type="text" name="notes" placeholder="e.g. settled easily">
+          </label>
+          <label class="field-label">
+            Duration (minutes, optional)
+            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 90">
+          </label>
+        </div>
+
+        <div class="edit-event-fields" data-edit-type="observation">
+          <label class="field-label">
+            Note
+            <textarea name="text" required placeholder="What did you notice?"></textarea>
+          </label>
+          <label class="field-label">
+            Category (optional)
+            <input type="text" name="category" list="observation-categories" placeholder="general">
+          </label>
+        </div>
+
+        <label class="field-label">
+          Date
+          <input type="date" name="date" required>
+        </label>
+
+        <label class="field-label">
+          Time
+          <input type="time" name="time" required>
+        </label>
+
+        <button type="submit">Save changes</button>
+      </form>
+      </div>
+    </dialog>
+
     <dialog id="confirm-dialog" aria-labelledby="confirm-dialog-title">
       <div class="dialog-content confirm-dialog-content">
         <h2 id="confirm-dialog-title">Delete event</h2>

@@ -92,6 +92,11 @@ func (c *HTTPClient) CreateEvent(ctx context.Context, resource string, payload m
 	return c.postJSON(ctx, "/api/v1/babies/current/"+resource, payload)
 }
 
+// UpdateEvent edits a single event by id via the combined /events endpoint.
+func (c *HTTPClient) UpdateEvent(ctx context.Context, id string, payload map[string]any) error {
+	return c.patchJSON(ctx, "/api/v1/babies/current/events/"+url.PathEscape(id), payload)
+}
+
 // DeleteEvent removes a single event by id via the combined /events
 // endpoint, regardless of which resource it was created under.
 func (c *HTTPClient) DeleteEvent(ctx context.Context, id string) error {

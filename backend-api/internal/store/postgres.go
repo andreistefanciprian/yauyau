@@ -213,6 +213,37 @@ func (s *PostgresStore) CreateEvent(ctx context.Context, familyID, babyID uuid.U
 	}, nil
 }
 
+// UpdateEvent replaces the editable fields of an existing event that belongs
+// to the current baby. eventType is part of the WHERE clause so callers
+// cannot accidentally transform a nappy into a feed by posting mismatched
+// form data.
+func (s *PostgresStore) UpdateEvent(ctx context.Context, familyID, babyID, id uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error) {
+	const query = `
+		UPDATE events
+		SET attributes = $1, occurred_at = $2
+		WHERE id = $3 AND family_id = $4 AND baby_id = $5 AND event_type = $6
+		RETURNING created_at
+	`
+
+	var createdAt time.Time
+	err := s.pool.QueryRow(ctx, query, attributes, occurredAt, id, familyID, babyID, eventType).Scan(&createdAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Event{}, ErrNotFound
+	}
+	if err != nil {
+		return Event{}, fmt.Errorf("updating event: %w", err)
+	}
+
+	return Event{
+		ID:         id,
+		BabyID:     babyID,
+		EventType:  eventType,
+		OccurredAt: occurredAt,
+		CreatedAt:  createdAt,
+		Attributes: attributes,
+	}, nil
+}
+
 // DeleteEvent removes a single event belonging to the current baby.
 // ErrNotFound is returned if no matching row exists (already deleted, wrong
 // id, or belongs to a different baby), so callers can tell that apart from a

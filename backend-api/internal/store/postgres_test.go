@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -625,6 +626,7 @@ func TestCreateBaby(t *testing.T) {
 		t.Fatalf("create family: %v", err)
 	}
 	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM events WHERE family_id = $1`, familyID)
 		execCleanup(t, s, `DELETE FROM babies WHERE family_id = $1`, familyID)
 		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
 		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
@@ -659,6 +661,7 @@ func TestGetBaby(t *testing.T) {
 		t.Fatalf("create family: %v", err)
 	}
 	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM events WHERE family_id = $1`, familyID)
 		execCleanup(t, s, `DELETE FROM babies WHERE family_id = $1`, familyID)
 		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
 		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
@@ -808,5 +811,52 @@ func TestArchiveBabyHidesCurrentBaby(t *testing.T) {
 	}
 	if _, err := s.GetBaby(ctx, baby.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected archived baby to be hidden from direct lookup, got %v", err)
+	}
+}
+
+func TestUpdateEvent(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+
+	owner, err := s.UpsertUserByEmail(ctx, testEmail(t))
+	if err != nil {
+		t.Fatalf("upsert owner: %v", err)
+	}
+	familyID, err := s.CreateFamilyWithOwner(ctx, owner.ID, "test family")
+	if err != nil {
+		t.Fatalf("create family: %v", err)
+	}
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM events WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM babies WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE id = $1`, owner.ID)
+	})
+
+	baby, err := s.CreateBaby(ctx, familyID, "YauYau", "Australia/Adelaide")
+	if err != nil {
+		t.Fatalf("create baby: %v", err)
+	}
+	createdAt := time.Date(2026, 7, 10, 9, 0, 0, 0, time.UTC)
+	ev, err := s.CreateEvent(ctx, familyID, baby.ID, "nappy", map[string]any{"kind": "wet"}, createdAt)
+	if err != nil {
+		t.Fatalf("create event: %v", err)
+	}
+
+	updatedAt := createdAt.Add(30 * time.Minute)
+	updated, err := s.UpdateEvent(ctx, familyID, baby.ID, ev.ID, "nappy", map[string]any{"kind": "poo", "colour": "mustard"}, updatedAt)
+	if err != nil {
+		t.Fatalf("update event: %v", err)
+	}
+	if updated.EventType != "nappy" || updated.OccurredAt != updatedAt {
+		t.Fatalf("unexpected updated event: %+v", updated)
+	}
+	if updated.Attributes["kind"] != "poo" || updated.Attributes["colour"] != "mustard" {
+		t.Fatalf("expected updated attributes, got %+v", updated.Attributes)
+	}
+
+	if _, err := s.UpdateEvent(ctx, familyID, baby.ID, ev.ID, "feed", map[string]any{"type": "breast"}, updatedAt); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected event_type mismatch to return ErrNotFound, got %v", err)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	// backend-api runs from a scratch image with no OS timezone database.
@@ -32,6 +33,7 @@ type Store interface {
 	UpdateBaby(ctx context.Context, familyID, babyID uuid.UUID, name, timezone string) (store.Baby, error)
 	ArchiveBaby(ctx context.Context, familyID, babyID uuid.UUID) error
 	CreateEvent(ctx context.Context, familyID, babyID uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
+	UpdateEvent(ctx context.Context, familyID, babyID, id uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
 	ListAllEvents(ctx context.Context, familyID, babyID uuid.UUID, from, to time.Time, limit int) ([]store.Event, error)
 	DeleteEvent(ctx context.Context, familyID, babyID, id uuid.UUID) error
 }
@@ -83,6 +85,12 @@ type eventResponse struct {
 	Attributes map[string]any `json:"attributes"`
 	OccurredAt time.Time      `json:"occurred_at"`
 	CreatedAt  time.Time      `json:"created_at"`
+}
+
+type updateEventRequest struct {
+	EventType  string         `json:"event_type"`
+	Attributes map[string]any `json:"attributes"`
+	OccurredAt string         `json:"occurred_at"`
 }
 
 // ListAllEvents returns the most recent events across every event type,
@@ -159,6 +167,57 @@ func timelineRangeFor(rawRange, timezone string) (timelineRangeWindow, error) {
 	}
 }
 
+// UpdateEvent edits a single event by id, regardless of its event_type.
+func (h *Handlers) UpdateEvent(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid event id")
+		return
+	}
+
+	var req updateEventRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	attributes, ok := normalizeEventAttributes(w, req.EventType, req.Attributes)
+	if !ok {
+		return
+	}
+
+	occurredAt, err := parseOccurredAt(req.OccurredAt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "occurred_at must be RFC3339 formatted")
+		return
+	}
+
+	baby, ok := h.currentBabyForRequest(w, r)
+	if !ok {
+		return
+	}
+
+	ev, err := h.Store.UpdateEvent(r.Context(), baby.FamilyID, baby.ID, id, req.EventType, attributes, occurredAt)
+	if errors.Is(err, store.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "event not found")
+		return
+	}
+	if err != nil {
+		log.Printf("update event: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to update event")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, eventResponse{
+		ID:         ev.ID,
+		BabyID:     ev.BabyID,
+		EventType:  ev.EventType,
+		Attributes: ev.Attributes,
+		OccurredAt: ev.OccurredAt,
+		CreatedAt:  ev.CreatedAt,
+	})
+}
+
 // DeleteEvent removes a single event by id, regardless of its event_type.
 func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
@@ -212,6 +271,100 @@ func parseOccurredAt(raw string) (time.Time, error) {
 		return time.Now(), nil
 	}
 	return time.Parse(time.RFC3339, raw)
+}
+
+func normalizeEventAttributes(w http.ResponseWriter, eventType string, raw map[string]any) (map[string]any, bool) {
+	switch eventType {
+	case eventTypeNappy:
+		kind := NappyKind(attributeString(raw, "kind"))
+		if !kind.Valid() {
+			writeError(w, http.StatusBadRequest, "kind must be one of: wet, poo, both")
+			return nil, false
+		}
+		attributes := map[string]any{"kind": string(kind)}
+		if colour := strings.TrimSpace(attributeString(raw, "colour")); colour != "" {
+			attributes["colour"] = colour
+		}
+		return attributes, true
+	case eventTypeFeed:
+		feedType := FeedType(attributeString(raw, "type"))
+		if !feedType.Valid() {
+			writeError(w, http.StatusBadRequest, "type must be one of: breast, formula, expressed")
+			return nil, false
+		}
+		attributes := map[string]any{"type": string(feedType)}
+		if amountMl, ok := attributeOptionalInt(raw, "amount_ml"); ok {
+			attributes["amount_ml"] = amountMl
+		}
+		if durationMinutes, ok := attributeOptionalInt(raw, "duration_minutes"); ok {
+			attributes["duration_minutes"] = durationMinutes
+		}
+		return attributes, true
+	case eventTypeBath:
+		bathType := BathType(attributeString(raw, "type"))
+		if !bathType.Valid() {
+			writeError(w, http.StatusBadRequest, "type must be one of: whole_body, bottom_part")
+			return nil, false
+		}
+		attributes := map[string]any{"type": string(bathType)}
+		if notes := strings.TrimSpace(attributeString(raw, "notes")); notes != "" {
+			attributes["notes"] = notes
+		}
+		if durationMinutes, ok := attributeOptionalInt(raw, "duration_minutes"); ok {
+			attributes["duration_minutes"] = durationMinutes
+		}
+		return attributes, true
+	case eventTypeSleep:
+		sleepType := SleepType(attributeString(raw, "type"))
+		if !sleepType.Valid() {
+			writeError(w, http.StatusBadRequest, "type must be one of: nap, night")
+			return nil, false
+		}
+		attributes := map[string]any{"type": string(sleepType)}
+		if notes := strings.TrimSpace(attributeString(raw, "notes")); notes != "" {
+			attributes["notes"] = notes
+		}
+		if durationMinutes, ok := attributeOptionalInt(raw, "duration_minutes"); ok {
+			attributes["duration_minutes"] = durationMinutes
+		}
+		return attributes, true
+	case eventTypeObservation:
+		text := strings.TrimSpace(attributeString(raw, "text"))
+		if text == "" {
+			writeError(w, http.StatusBadRequest, "text is required")
+			return nil, false
+		}
+		category := strings.TrimSpace(attributeString(raw, "category"))
+		if category == "" {
+			category = defaultObservationCategory
+		}
+		return map[string]any{"text": text, "category": category}, true
+	default:
+		writeError(w, http.StatusBadRequest, "event_type is invalid")
+		return nil, false
+	}
+}
+
+func attributeString(attributes map[string]any, key string) string {
+	if attributes == nil {
+		return ""
+	}
+	value, _ := attributes[key].(string)
+	return value
+}
+
+func attributeOptionalInt(attributes map[string]any, key string) (int, bool) {
+	if attributes == nil {
+		return 0, false
+	}
+	switch value := attributes[key].(type) {
+	case float64:
+		return int(value), true
+	case int:
+		return value, true
+	default:
+		return 0, false
+	}
 }
 
 // currentBabyForRequest resolves the authenticated caller's current baby.

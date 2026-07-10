@@ -83,6 +83,7 @@ func main() {
 			})
 			r.Route("/events", func(r chi.Router) {
 				r.Get("/", h.ListAllEvents)
+				r.Patch("/{id}", h.UpdateEvent)
 				r.Delete("/{id}", h.DeleteEvent)
 			})
 			r.Route("/nappies", func(r chi.Router) {

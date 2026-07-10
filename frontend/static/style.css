@@ -688,16 +688,32 @@ h2 {
   color: var(--color-text-secondary);
 }
 
+.event-edit,
 .event-delete {
   border: none;
   background: none;
   color: inherit;
-  font-size: 1.1rem;
   line-height: 1;
-  padding: 0.1rem 0.3rem;
   margin-left: 0.25rem;
   opacity: 0.55;
   cursor: pointer;
+}
+
+.event-edit {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.2rem 0.35rem;
+}
+
+.event-delete {
+  font-size: 1.1rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.event-edit:hover,
+.event-edit:active {
+  opacity: 1;
+  color: var(--color-blue);
 }
 
 .event-delete:hover,

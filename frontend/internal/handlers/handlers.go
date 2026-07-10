@@ -41,6 +41,7 @@ type Backend interface {
 	ArchiveCurrentBaby(ctx context.Context, confirmName string) error
 	ListEvents(ctx context.Context, resource, rangeKey string, out any) error
 	CreateEvent(ctx context.Context, resource string, payload map[string]any) error
+	UpdateEvent(ctx context.Context, id string, payload map[string]any) error
 	DeleteEvent(ctx context.Context, id string) error
 	InviteHelper(ctx context.Context, babyID, email string) error
 	ListTimelineMembers(ctx context.Context) (backendclient.TimelineMembersResult, error)
@@ -78,13 +79,24 @@ func New(backend Backend, auth AuthClient, templates *template.Template, secureC
 // feed, bath, sleep, observation) is flattened into, so the timeline can
 // render one kind of card regardless of how many event types exist.
 type TimelineEvent struct {
-	ID        string
-	CSSClass  string // "nappy", "feed", "bath", "observation" — drives card colour
-	Icon      string
-	TypeLabel string
-	Kind      string // nappy's kind / feed & bath's type / observation's category — shown as "(Kind)" next to TypeLabel
-	Detail    string
-	Time      string // pre-formatted for display, e.g. "11:15 AM" or "Jan 2, 11:15 AM"
+	ID              string
+	EventType       string
+	CSSClass        string // "nappy", "feed", "bath", "observation" — drives card colour
+	Icon            string
+	TypeLabel       string
+	Kind            string // nappy's kind / feed & bath's type / observation's category — shown as "(Kind)" next to TypeLabel
+	Detail          string
+	Time            string // pre-formatted for display, e.g. "11:15 AM" or "Jan 2, 11:15 AM"
+	DateValue       string
+	TimeValue       string
+	KindValue       string
+	TypeValue       string
+	Colour          string
+	AmountMl        string
+	DurationMinutes string
+	Notes           string
+	Text            string
+	Category        string
 }
 
 type TimelineViewData struct {
@@ -348,6 +360,85 @@ func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
 	h.renderTimeline(w, r, loc)
 }
 
+// UpdateEvent edits a single event, regardless of its type, and re-renders
+// the timeline — the same shared tail as every Create* and Delete handler.
+func (h *Handlers) UpdateEvent(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load baby", http.StatusBadGateway)
+		return
+	}
+
+	payload, err := h.eventUpdatePayloadFromForm(loc, r)
+	if err != nil {
+		log.Printf("build event update payload: %v", err)
+		http.Error(w, "invalid event", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Backend.UpdateEvent(r.Context(), id, payload); err != nil {
+		log.Printf("update event: %v", err)
+		http.Error(w, "failed to update event", http.StatusBadGateway)
+		return
+	}
+
+	h.renderTimeline(w, r, loc)
+}
+
+func (h *Handlers) eventUpdatePayloadFromForm(loc *time.Location, r *http.Request) (map[string]any, error) {
+	eventType := r.FormValue("event_type")
+	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
+	if err != nil {
+		return nil, err
+	}
+
+	attributes := map[string]any{}
+	switch eventType {
+	case "nappy":
+		attributes["kind"] = r.FormValue("kind")
+		attributes["colour"] = r.FormValue("colour")
+	case "feed":
+		amountMl, err := parseOptionalInt(r.FormValue("amount_ml"))
+		if err != nil {
+			return nil, err
+		}
+		durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
+		if err != nil {
+			return nil, err
+		}
+		attributes["type"] = r.FormValue("type")
+		attributes["amount_ml"] = amountMl
+		attributes["duration_minutes"] = durationMinutes
+	case "bath", "sleep":
+		durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
+		if err != nil {
+			return nil, err
+		}
+		attributes["type"] = r.FormValue("type")
+		attributes["notes"] = r.FormValue("notes")
+		attributes["duration_minutes"] = durationMinutes
+	case "observation":
+		attributes["text"] = r.FormValue("text")
+		attributes["category"] = r.FormValue("category")
+	default:
+		return nil, fmt.Errorf("unsupported event type %q", eventType)
+	}
+
+	return map[string]any{
+		"event_type":  eventType,
+		"attributes":  attributes,
+		"occurred_at": occurredAt.Format(time.RFC3339),
+	}, nil
+}
+
 // DeleteEvent removes a single event, regardless of its type, and re-renders
 // the timeline — the same shared tail as every Create* handler.
 func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
@@ -473,34 +564,54 @@ func timelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) (T
 		return TimelineEvent{}, false
 	}
 	te.ID = ev.ID
+	te.EventType = ev.EventType
+	occurredAt := ev.OccurredAt.In(loc)
+	te.DateValue = occurredAt.Format(dateFieldLayout)
+	te.TimeValue = occurredAt.Format(timeFieldLayout)
 	return te, true
 }
 
 func nappyTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
 	occurredAt := ev.OccurredAt.In(loc)
+	kind := attributeString(ev.Attributes, "kind")
+	colour := attributeString(ev.Attributes, "colour")
 
 	return TimelineEvent{
 		CSSClass:  "nappy",
 		Icon:      "💩",
 		TypeLabel: "Nappy",
-		Kind:      titleCase(attributeString(ev.Attributes, "kind")),
-		Detail:    attributeString(ev.Attributes, "colour"),
+		Kind:      titleCase(kind),
+		Detail:    colour,
 		Time:      formatEventTime(occurredAt, now),
+		KindValue: kind,
+		Colour:    colour,
 	}
 }
 
 func feedTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
 	occurredAt := ev.OccurredAt.In(loc)
+	feedType := attributeString(ev.Attributes, "type")
 
 	detail := amountAndDuration(ev.Attributes, "amount_ml", "ml")
+	amountMl := ""
+	if amount, ok := attributeInt(ev.Attributes, "amount_ml"); ok {
+		amountMl = strconv.Itoa(amount)
+	}
+	durationMinutes := ""
+	if duration, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+		durationMinutes = strconv.Itoa(duration)
+	}
 
 	return TimelineEvent{
-		CSSClass:  "feed",
-		Icon:      "🍼",
-		TypeLabel: "Feed",
-		Kind:      titleCase(attributeString(ev.Attributes, "type")),
-		Detail:    detail,
-		Time:      formatEventTime(occurredAt, now),
+		CSSClass:        "feed",
+		Icon:            "🍼",
+		TypeLabel:       "Feed",
+		Kind:            titleCase(feedType),
+		Detail:          detail,
+		Time:            formatEventTime(occurredAt, now),
+		TypeValue:       feedType,
+		AmountMl:        amountMl,
+		DurationMinutes: durationMinutes,
 	}
 }
 
@@ -508,20 +619,29 @@ func bathTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time
 	occurredAt := ev.OccurredAt.In(loc)
 
 	detail := attributeString(ev.Attributes, "notes")
+	durationMinutes := ""
 	if durationMinutes, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
 		if detail != "" {
 			detail += " · "
 		}
 		detail += fmt.Sprintf("%d min", durationMinutes)
 	}
+	if duration, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+		durationMinutes = strconv.Itoa(duration)
+	}
+	bathType := attributeString(ev.Attributes, "type")
+	notes := attributeString(ev.Attributes, "notes")
 
 	return TimelineEvent{
-		CSSClass:  "bath",
-		Icon:      "🛁",
-		TypeLabel: "Bath",
-		Kind:      titleCase(attributeString(ev.Attributes, "type")),
-		Detail:    detail,
-		Time:      formatEventTime(occurredAt, now),
+		CSSClass:        "bath",
+		Icon:            "🛁",
+		TypeLabel:       "Bath",
+		Kind:            titleCase(bathType),
+		Detail:          detail,
+		Time:            formatEventTime(occurredAt, now),
+		TypeValue:       bathType,
+		Notes:           notes,
+		DurationMinutes: durationMinutes,
 	}
 }
 
@@ -529,33 +649,46 @@ func sleepTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Tim
 	occurredAt := ev.OccurredAt.In(loc)
 
 	detail := attributeString(ev.Attributes, "notes")
+	durationMinutes := ""
 	if durationMinutes, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
 		if detail != "" {
 			detail += " · "
 		}
 		detail += fmt.Sprintf("%d min", durationMinutes)
 	}
+	if duration, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+		durationMinutes = strconv.Itoa(duration)
+	}
+	sleepType := attributeString(ev.Attributes, "type")
+	notes := attributeString(ev.Attributes, "notes")
 
 	return TimelineEvent{
-		CSSClass:  "sleep",
-		Icon:      "😴",
-		TypeLabel: "Sleep",
-		Kind:      titleCase(attributeString(ev.Attributes, "type")),
-		Detail:    detail,
-		Time:      formatEventTime(occurredAt, now),
+		CSSClass:        "sleep",
+		Icon:            "😴",
+		TypeLabel:       "Sleep",
+		Kind:            titleCase(sleepType),
+		Detail:          detail,
+		Time:            formatEventTime(occurredAt, now),
+		TypeValue:       sleepType,
+		Notes:           notes,
+		DurationMinutes: durationMinutes,
 	}
 }
 
 func observationTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
 	occurredAt := ev.OccurredAt.In(loc)
+	text := attributeString(ev.Attributes, "text")
+	category := attributeString(ev.Attributes, "category")
 
 	return TimelineEvent{
 		CSSClass:  "observation",
 		Icon:      "📝",
 		TypeLabel: "Observation",
-		Kind:      titleCase(attributeString(ev.Attributes, "category")),
-		Detail:    attributeString(ev.Attributes, "text"),
+		Kind:      titleCase(category),
+		Detail:    text,
 		Time:      formatEventTime(occurredAt, now),
+		Text:      text,
+		Category:  category,
 	}
 }
 

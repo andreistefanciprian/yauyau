@@ -97,6 +97,111 @@ function onEventSaved() {
 
 window.onEventSaved = onEventSaved;
 
+// Event editing uses one dialog with type-specific sections. Timeline cards
+// carry their current values in data-* attributes so the dialog can open
+// immediately without another backend request.
+
+const editDialog = document.getElementById("edit-event-dialog");
+const editForm = document.getElementById("edit-event-form");
+const editCloseButton = document.getElementById("edit-event-close");
+const editTypeInput = document.getElementById("edit-event-type");
+const editSections = Array.from(document.querySelectorAll(".edit-event-fields"));
+const editTitle = document.getElementById("edit-event-title");
+
+function setSectionEnabled(section, enabled) {
+  section.hidden = !enabled;
+  section.querySelectorAll("input, textarea, select").forEach((field) => {
+    field.disabled = !enabled;
+  });
+}
+
+editSections.forEach((section) => setSectionEnabled(section, false));
+
+function setRadioValue(form, name, value, fallback) {
+  const targetValue = value || fallback;
+  form.querySelectorAll(`input[type="radio"][name="${name}"]`).forEach((radio) => {
+    radio.checked = radio.value === targetValue;
+  });
+}
+
+function setFieldValue(form, name, value) {
+  const field = form.querySelector(`[name="${name}"]`);
+  if (field) field.value = value || "";
+}
+
+function openEditDialog(button) {
+  const type = button.dataset.eventType;
+  const eventID = button.dataset.eventId;
+  if (!type || !eventID) return;
+
+  editForm.reset();
+  editForm.setAttribute("hx-patch", `/events/${eventID}?range=${encodeURIComponent(selectedTimelineRange())}`);
+  editTypeInput.value = type;
+  editTitle.textContent = typeLabels[type] ? typeLabels[type].replace("Log", "Edit") : "Edit event";
+
+  editSections.forEach((section) => {
+    setSectionEnabled(section, section.dataset.editType === type);
+  });
+
+  setFieldValue(editForm, "date", button.dataset.date);
+  setFieldValue(editForm, "time", button.dataset.time);
+
+  switch (type) {
+    case "nappy":
+      setRadioValue(editForm, "kind", button.dataset.kind, "wet");
+      setFieldValue(editForm, "colour", button.dataset.colour);
+      break;
+    case "feed":
+      setRadioValue(editForm, "type", button.dataset.type, "breast");
+      setFieldValue(editForm, "amount_ml", button.dataset.amountMl);
+      setFieldValue(editForm, "duration_minutes", button.dataset.durationMinutes);
+      break;
+    case "bath":
+      setRadioValue(editForm, "type", button.dataset.type, "whole_body");
+      setFieldValue(editForm, "notes", button.dataset.notes);
+      setFieldValue(editForm, "duration_minutes", button.dataset.durationMinutes);
+      break;
+    case "sleep":
+      setRadioValue(editForm, "type", button.dataset.type, "nap");
+      setFieldValue(editForm, "notes", button.dataset.notes);
+      setFieldValue(editForm, "duration_minutes", button.dataset.durationMinutes);
+      break;
+    case "observation":
+      setFieldValue(editForm, "text", button.dataset.text);
+      setFieldValue(editForm, "category", button.dataset.category);
+      break;
+  }
+
+  editDialog.showModal();
+}
+
+function selectedTimelineRange() {
+  const rangeInput = editForm.querySelector('input[name="range"]');
+  return rangeInput ? rangeInput.value : "today";
+}
+
+document.body.addEventListener("click", (event) => {
+  const editButton = event.target.closest(".event-edit");
+  if (editButton) openEditDialog(editButton);
+});
+
+editCloseButton.addEventListener("click", () => editDialog.close());
+
+editDialog.addEventListener("click", (event) => {
+  if (event.target === editDialog) editDialog.close();
+});
+
+editDialog.addEventListener("close", () => {
+  editForm.reset();
+  editSections.forEach((section) => setSectionEnabled(section, false));
+});
+
+function onEventEdited() {
+  editDialog.close();
+}
+
+window.onEventEdited = onEventEdited;
+
 // Replaces the native window.confirm() that htmx's hx-confirm would
 // otherwise trigger (e.g. for event deletion) with a styled dialog, since
 // window.confirm() can't be themed at all.

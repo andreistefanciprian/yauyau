@@ -299,6 +299,10 @@ identity into context — see `internal/authctx`):
   newest-first (`store.ListAllEvents`, capped at `allEventsLimit`). Supports
   `?range=today` (default), `?range=yesterday`, `?range=24h`, and
   `?range=3d`; calendar ranges are calculated in the baby's timezone.
+* `PATCH /api/v1/babies/current/events/{id}` → `UpdateEvent`, type-checked
+  generic edit for an existing current-baby event.
+* `DELETE /api/v1/babies/current/events/{id}` → `DeleteEvent`, removes one
+  current-baby event regardless of type.
 * Per event type, nested under its plural resource name (`/nappies`,
   `/feeds`, `/baths`, `/observations`, ...):
   * `POST /api/v1/babies/current/<resource>` → `Create<Type>`
@@ -308,10 +312,12 @@ identity into context — see `internal/authctx`):
 
 There is one `events` table (`event_type TEXT`, `attributes JSONB`,
 `occurred_at`, plus id/baby_id/created_at). `store.PostgresStore` exposes
-only two event methods, shared by every event type:
+generic event methods, shared by every event type:
 
 * `CreateEvent(ctx, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error)`
-* `ListEvents(ctx, eventType string, limit int) ([]Event, error)`
+* `UpdateEvent(ctx, familyID, babyID, id uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error)`
+* `DeleteEvent(ctx, familyID, babyID, id uuid.UUID) error`
+* `ListAllEvents(ctx, familyID, babyID uuid.UUID, from, to time.Time, limit int) ([]Event, error)`
 
 No event-type-specific SQL exists anywhere — a new event type never touches
 `store/postgres.go`.
@@ -348,13 +354,15 @@ without a migration).
 ## Frontend wiring
 
 `frontend/internal/backendclient` has no per-event-type methods — just
-generic `ListEvents(ctx, resource string, rangeKey string, out any)` and
-`CreateEvent(ctx, resource string, payload map[string]any)` against
+generic `ListEvents(ctx, resource string, rangeKey string, out any)`,
+`CreateEvent(ctx, resource string, payload map[string]any)`, and
+`UpdateEvent(ctx, id string, payload map[string]any)` against
 `/api/v1/babies/current/<resource>`. Reads go through the combined
 `ListEvents(ctx, "events", rangeKey, &events)` (backend-api's `/events`
 endpoint, already merged, range-filtered, and sorted newest-first across
-every event type); writes still go through `CreateEvent(ctx, "<resource>", payload)` per type
-(`"nappies"`, `"feeds"`, `"baths"`, `"observations"`). The only shape
+every event type); creates still go through `CreateEvent(ctx, "<resource>", payload)` per type
+(`"nappies"`, `"feeds"`, `"baths"`, `"observations"`), while edits go through
+the combined `UpdateEvent` route. The only shape
 `backendclient.go` decodes is the generic `Event` struct (`EventType` plus
 an `Attributes map[string]any`) — no per-event-type typed view structs.
 
@@ -385,6 +393,8 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   (`templates/timeline.html`) swapped into `#timeline` — never a per-type
   partial. The selected range is carried in each form/delete request so HTMX
   refreshes preserve the parent's current view.
+* `UpdateEvent` uses the same `renderTimeline` tail after patching the
+  combined `/events/{id}` route.
 
 On the client, `frontend/static/app.js` drives the "Add Event" dialog: a
 type-picker step (four buttons, one per event type) followed by a
