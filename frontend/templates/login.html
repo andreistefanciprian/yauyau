@@ -20,13 +20,13 @@
 {{end}}
 
 {{define "login-form"}}
-<img src="/static/logo.png" alt="Yauli" class="auth-logo">
-<h1>Sign in</h1>
-<p class="auth-subtitle">We'll email you a magic link — no password needed.</p>
+<img src="/static/logo.png" alt="Yauli" class="auth-logo login-logo">
+<p class="login-tagline">Your parenting companion, from day one.</p>
+<p class="auth-subtitle">Enter your email to receive a secure sign in link.</p>
 {{if .Error}}<p class="auth-error">{{.Error}}</p>{{end}}
 <form class="auth-form" hx-post="/login" hx-target="#login-card" hx-swap="innerHTML">
   <label class="field-label">
-    Email
+    <span class="sr-only">Email</span>
     <input type="email" name="email" value="{{.Email}}" required autofocus placeholder="you@example.com">
   </label>
   <button type="submit">Send magic link</button>

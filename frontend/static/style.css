@@ -89,6 +89,18 @@ body {
   outline-offset: 2px;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Navbar */
 
 .navbar {
@@ -610,6 +622,18 @@ textarea {
   height: 2.5rem;
   width: auto;
   margin-bottom: 0.75rem;
+}
+
+.login-logo {
+  height: 110px;
+  margin-bottom: 0.5rem;
+}
+
+.login-tagline {
+  margin: 0 0 1.15rem;
+  color: var(--color-heading);
+  font-size: 0.98rem;
+  font-weight: 600;
 }
 
 .auth-subtitle {
