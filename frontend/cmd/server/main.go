@@ -56,10 +56,12 @@ func main() {
 
 		r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
+		r.Get("/", h.ShowIntro)
+
 		r.Group(func(r chi.Router) {
 			r.Use(h.RequireSession)
 
-			r.Get("/", h.Index)
+			r.Get("/app", h.Index)
 			r.Post("/invite", h.CreateInvite)
 			r.Post("/nappies", h.CreateNappy)
 			r.Post("/feeds", h.CreateFeed)

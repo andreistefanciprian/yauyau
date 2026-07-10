@@ -82,9 +82,8 @@ func (h *Handlers) ShowVerify(w http.ResponseWriter, r *http.Request) {
 }
 
 // ConfirmVerify consumes the token, opens the yauli_session cookie from the
-// returned session, and redirects to the dashboard. Session gating (which
-// branches on whether the session has a family yet) lands in PR8 — until
-// then this always redirects to "/".
+// returned session, and redirects to the public front door, which sends
+// already-authenticated users to the dashboard or onboarding as appropriate.
 func (h *Handlers) ConfirmVerify(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form", http.StatusBadRequest)

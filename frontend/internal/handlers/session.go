@@ -36,10 +36,10 @@ func (h *Handlers) RequireSession(next http.Handler) http.Handler {
 // RequireOnboardingSession is RequireSession's counterpart for the
 // onboarding routes themselves — the one place a session with no family yet
 // is expected, rather than redirected away. A session that already has a
-// family is sent to "/" instead, since onboarding has nothing left to do
+// family is sent to "/app" instead, since onboarding has nothing left to do
 // for it.
 func (h *Handlers) RequireOnboardingSession(next http.Handler) http.Handler {
-	return h.requireSession(false, "/", next)
+	return h.requireSession(false, "/app", next)
 }
 
 // requireSession is the shared implementation behind RequireSession and

@@ -1,0 +1,50 @@
+{{define "intro"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yauli · Your parenting companion</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/favicon-512x512.png">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="intro-body">
+  <nav class="intro-nav" aria-label="Primary">
+    <a class="intro-brand" href="/" aria-label="Yauli home">
+      <img src="/static/logo.png" alt="Yauli" class="intro-logo">
+    </a>
+    <a class="intro-sign-in" href="/login">Sign in</a>
+  </nav>
+
+  <main class="intro-main">
+    <section class="intro-hero">
+      <p class="intro-kicker">Free to get started</p>
+      <h1>Your parenting companion, from day one.</h1>
+      <p class="intro-copy">
+        Keep feeds, nappies, sleep, baths, and tiny observations in one calm timeline.
+        Invite the people helping care for your baby, so everyone stays gently in sync.
+      </p>
+      <div class="intro-actions">
+        <a class="intro-primary" href="/login">Get started</a>
+        <a class="intro-secondary" href="/login">Send me a secure link</a>
+      </div>
+    </section>
+
+    <section class="intro-points" aria-label="What Yauli helps with">
+      <div>
+        <span>Feeds</span>
+        <p>Record what happened in seconds, without rummaging through forms.</p>
+      </div>
+      <div>
+        <span>Timeline</span>
+        <p>See your baby's day at a glance, newest moments first.</p>
+      </div>
+      <div>
+        <span>Together</span>
+        <p>Share the timeline with trusted helpers when care is a team effort.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+{{end}}
