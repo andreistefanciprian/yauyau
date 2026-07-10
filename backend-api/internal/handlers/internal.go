@@ -16,6 +16,18 @@ import (
 // end user's browser — only by other services, over the network path gated
 // by the X-Internal-Secret middleware mounted in cmd/server/main.go.
 
+// parseUUIDField parses raw as a uuid, writing a 400 naming field and
+// returning ok=false if it isn't one — shared by every internal-API handler
+// that takes a uuid path/query/body parameter.
+func parseUUIDField(w http.ResponseWriter, field, raw string) (uuid.UUID, bool) {
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, field+" must be a valid uuid")
+		return uuid.UUID{}, false
+	}
+	return id, true
+}
+
 type upsertUserRequest struct {
 	Email string `json:"email"`
 }
@@ -49,9 +61,8 @@ func (h *Handlers) UpsertUser(w http.ResponseWriter, r *http.Request) {
 // activated first — this lets auth-service's verify flow resolve-and-activate
 // an invited user's membership in a single call.
 func (h *Handlers) GetFamilyMembership(w http.ResponseWriter, r *http.Request) {
-	userID, err := uuid.Parse(r.URL.Query().Get("user_id"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "user_id must be a valid uuid")
+	userID, ok := parseUUIDField(w, "user_id", r.URL.Query().Get("user_id"))
+	if !ok {
 		return
 	}
 	activateIfInvited := r.URL.Query().Get("activate_if_invited") == "true"
@@ -104,9 +115,8 @@ func (h *Handlers) CreateInvite(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "email is required")
 		return
 	}
-	familyID, err := uuid.Parse(req.FamilyID)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "family_id must be a valid uuid")
+	familyID, ok := parseUUIDField(w, "family_id", req.FamilyID)
+	if !ok {
 		return
 	}
 
