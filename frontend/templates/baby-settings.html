@@ -50,7 +50,7 @@
 
     <section class="settings-section danger-section">
       <h2>Delete timeline</h2>
-      <p class="settings-message">This removes {{.Baby.Name}} from the active app and hides their timeline. Type the baby name to confirm.</p>
+      <p class="settings-message">This removes {{.Baby.Name}} from the active app and hides their timeline. If you need to join another baby's timeline, delete this one first, then use the invitation link you received. Type the baby name to confirm.</p>
       {{if .DeleteError}}<p class="invite-error">{{.DeleteError}}</p>{{end}}
       <form method="post" action="/settings/baby/delete" class="settings-form">
         <label class="field-label">

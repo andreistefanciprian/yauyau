@@ -77,7 +77,7 @@ func textMagicLink(link string) string {
 }
 
 func textInviteMagicLink(babyName, link string) string {
-	return "You have been invited to help care for " + babyName + " on Yauli.\n\nOpen Yauli:\n\n" + link + "\n\nThis link expires in 15 minutes. If you did not expect this invitation, you can ignore this email."
+	return "You have been invited to help care for " + babyName + " on Yauli.\n\nIf you already created a baby in Yauli, delete that timeline from Baby settings before using this invite.\n\nOpen Yauli:\n\n" + link + "\n\nThis link expires in 15 minutes. If you did not expect this invitation, you can ignore this email."
 }
 
 func htmlMagicLink(email, link string) string {
@@ -161,6 +161,9 @@ func htmlInviteMagicLink(email, babyName, link string) string {
               </p>
               <p style="margin:0 0 30px;font-size:0.92rem;color:#64748B;line-height:1.65;">
                 Open Yauli with the secure link below to join ` + escapedBabyName + `'s timeline. This link expires in 15 minutes and can only be used once.
+              </p>
+              <p style="margin:0 0 26px;padding:14px 16px;background:#FCFBF8;border:1px solid #E6EEF0;border-radius:12px;font-size:0.86rem;color:#64748B;line-height:1.6;">
+                Already created a baby in Yauli? Delete that timeline from Baby settings first, then use this invite to join ` + escapedBabyName + `'s timeline.
               </p>
               <a href="` + escaped + `"
                  style="display:inline-block;padding:14px 32px;background:#74C7C3;color:#ffffff;font-size:0.95rem;font-weight:700;border-radius:999px;text-decoration:none;box-shadow:0 4px 14px rgba(116,199,195,0.32);">

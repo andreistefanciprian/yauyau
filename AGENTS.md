@@ -275,7 +275,9 @@ identity into context — see `internal/authctx`):
   current baby profile fields such as name and timezone.
 * `DELETE /api/v1/babies/current` → `ArchiveCurrentBaby`, owner-only; requires
   the caller to confirm the exact baby name and soft-deletes the active baby
-  by setting `babies.archived_at`.
+  by setting `babies.archived_at`. Archiving also removes the owner's
+  membership for that family and revokes their sessions, keeping the current
+  product model to one active timeline per user.
 * `POST /api/v1/babies/{id}/invite` → `InviteHelper`, baby-scoped and
   owner-only; creates a pending helper invite for the supplied email.
 * `GET /api/v1/babies/current/members` → `ListTimelineMembers`, owner-only;

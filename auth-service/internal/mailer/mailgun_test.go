@@ -98,6 +98,12 @@ func TestMailgunSendInviteMagicLink(t *testing.T) {
 	if !strings.Contains(gotForm.Get("html"), "Join on Yauli") {
 		t.Fatalf("html body did not contain invite CTA: %q", gotForm.Get("html"))
 	}
+	if !strings.Contains(gotForm.Get("text"), "delete that timeline") {
+		t.Fatalf("text body did not contain starter baby guidance: %q", gotForm.Get("text"))
+	}
+	if !strings.Contains(gotForm.Get("html"), "Delete that timeline from Baby settings first") {
+		t.Fatalf("html body did not contain starter baby guidance: %q", gotForm.Get("html"))
+	}
 	if !strings.Contains(gotForm.Get("html"), "https://app.example.com/auth/verify?token=invite") {
 		t.Fatalf("html body did not contain magic link: %q", gotForm.Get("html"))
 	}

@@ -86,7 +86,8 @@ func (h *Handlers) ArchiveCurrentBaby(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/app", http.StatusSeeOther)
+	http.SetCookie(w, h.sessionCookie("", -1))
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 func (h *Handlers) renderBabySettings(w http.ResponseWriter, r *http.Request, data babySettingsPageData) {

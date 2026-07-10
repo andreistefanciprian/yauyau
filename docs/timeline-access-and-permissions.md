@@ -94,6 +94,10 @@ Current limitations:
 
 * `owner` vs `member` is the only authorization split.
 * All active members can use the timeline in the same way.
+* Multi-timeline switching is intentionally deferred. If someone already
+  created a baby in Yauli and needs to join another baby's timeline, they
+  should delete/archive their current baby first and then use the invite
+  link.
 * Owners cannot yet transfer ownership or remove another owner.
 
 ## Design decisions

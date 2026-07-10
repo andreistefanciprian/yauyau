@@ -244,7 +244,7 @@ func normalizeBabyTimezone(w http.ResponseWriter, raw string) (string, bool) {
 // owner types the baby's exact name. The data remains in Postgres for future
 // recovery/audit, but active baby and event routes stop returning it.
 func (h *Handlers) ArchiveCurrentBaby(w http.ResponseWriter, r *http.Request) {
-	_, baby, ok := h.requireCurrentBabyOwner(w, r, "only the owner can delete this baby")
+	claims, baby, ok := h.requireCurrentBabyOwner(w, r, "only the owner can delete this baby")
 	if !ok {
 		return
 	}
@@ -265,6 +265,15 @@ func (h *Handlers) ArchiveCurrentBaby(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("archive current baby: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to delete baby")
+		return
+	}
+
+	if err := h.Auth.RevokeFamilyMemberSessions(r.Context(), claims.UserID, baby.FamilyID); err != nil {
+		log.Printf("revoke archived baby owner sessions: %v", err)
+	}
+	if err := h.FamilyStore.RemoveTimelineMember(r.Context(), baby.FamilyID, claims.UserID); err != nil && !errors.Is(err, store.ErrNotFound) {
+		log.Printf("remove archived baby owner membership: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to delete baby")
 		return
 	}
