@@ -1,0 +1,29 @@
+{{define "onboarding"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add your baby · Yauli</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/favicon-512x512.png">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="auth-main">
+    <div class="auth-card">
+      <img src="/static/logo.png" alt="Yauli" class="auth-logo">
+      <h1>Add your baby</h1>
+      <p class="auth-subtitle">Let's set up their timeline.</p>
+      {{if .Error}}<p class="auth-error">{{.Error}}</p>{{end}}
+      <form class="auth-form" method="post" action="/onboarding">
+        <label class="field-label">
+          Baby's name
+          <input type="text" name="name" required autofocus placeholder="e.g. Alex">
+        </label>
+        <button type="submit">Continue</button>
+      </form>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

@@ -17,36 +17,9 @@ The former PR11–14 shift down to PR9–12 unchanged in content.
 - **PR5** — auth-service: new service skeleton.
 - **PR6** — auth-service: request + verify magic link.
 - **PR7** — auth-service: JWT minting/logout/attach-family + frontend login pages.
+- **PR8** — frontend: session gating + Bearer attachment + onboarding UI.
 
 ## Remaining
-
-### PR8 — frontend: session gating + Bearer attachment + onboarding UI
-**Session gating:** middleware (`frontend/internal/handlers/session.go`)
-requiring a valid `yauli_session` cookie on protected routes; mints a
-fresh access token from auth-service **on every request** (no caching —
-frontend stays fully stateless). Branches on the mint response's plain
-`family_id` field: null → redirect to `/onboarding`, present → dashboard.
-Extend `frontend/internal/backendclient/http.go`'s `do` to attach
-`Authorization: Bearer <token>`.
-
-**This is what makes the currently-frontend-breaking state of
-`GetCurrentBaby` (since PR4) actually work end-to-end** — until this PR
-lands, the frontend has no way to supply a Bearer token, and every
-protected backend-api call 401s. That's the accepted, sequenced gap PR4
-left behind.
-
-**Onboarding UI:** new `frontend/internal/handlers/onboarding.go` +
-template: a single "add your baby" form (no family step shown) → `POST
-/api/v1/babies` (via backend-api client, PR4) → backend-api's response
-carries `family_id` → frontend calls auth-service's attach-family with it
-→ re-mint token → redirect to dashboard.
-
-**Verify:** no cookie → `/login`; fresh signup → `/onboarding`; a
-membership with a family → dashboard. Restart the frontend container
-mid-session and confirm the next request works with no re-auth (proves
-statelessness). Full browser flow for a brand-new email: signup → "add
-your baby" (name/birthdate) → land on dashboard showing that baby's
-(empty) timeline. Nothing in the UI ever mentions "family."
 
 ### PR9 — backend-api: thread family scoping through event routes
 Replace remaining reads of `store.FamilyID`/`store.BabyID` inside the
@@ -132,6 +105,13 @@ the received link round-trips through the normal verify flow.
   two interdependent frontend features (session gating, onboarding) for
   the same reason: gating is the only thing that routes a session into the
   onboarding form, so shipping either alone leaves the other unreachable.
+- PR8's onboarding form only collects a baby's name — `babies` has no
+  birthdate column, and adding one wasn't in scope for a frontend-only PR.
+  `CreateBaby`/`AttachFamily` are two independent calls with no
+  compensation between them if the second fails after the first succeeds;
+  documented as an accepted gap in `onboarding.go` rather than solved with
+  an idempotency key, since a retry reuses the already-created family and
+  just adds a duplicate baby row, not an orphaned one.
 
 ## Overall verification (after PR11)
 

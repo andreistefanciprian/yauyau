@@ -15,10 +15,9 @@
     <a class="navbar-brand" href="/" aria-label="Yauli home">
       <img src="/static/logo.png" alt="Yauli" class="navbar-logo-image">
     </a>
-    <div class="navbar-actions">
-      <button type="button" class="navbar-text-button" id="signin-button">Sign In</button>
-      <button type="button" class="navbar-text-button" id="signout-button" hidden>Sign Out</button>
-    </div>
+    <form method="post" action="/logout" class="navbar-actions">
+      <button type="submit" class="navbar-text-button">Sign Out</button>
+    </form>
   </nav>
 
   <main>

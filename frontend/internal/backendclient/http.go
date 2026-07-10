@@ -24,9 +24,32 @@ func New(baseURL string) *HTTPClient {
 	}
 }
 
+// tokenContextKey is unexported so ContextWithToken is the only way to set
+// it — internal/handlers' session middleware mints a fresh access token
+// per request (see docs/auth-magic-link.md) and stashes it here so every
+// backend-api call in that request's lifecycle picks it up automatically.
+type tokenContextKey struct{}
+
+// ContextWithToken returns a context carrying token, which do attaches as
+// this request's Authorization: Bearer header.
+func ContextWithToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, tokenContextKey{}, token)
+}
+
 func (c *HTTPClient) GetCurrentBaby(ctx context.Context) (Baby, error) {
 	var baby Baby
 	if err := c.getJSON(ctx, "/api/v1/babies/current", &baby); err != nil {
+		return Baby{}, err
+	}
+	return baby, nil
+}
+
+// CreateBaby adds name as the caller's first baby. backend-api creates
+// their family implicitly in the same call (see backend-api's CreateBaby)
+// and returns it as the baby's family_id.
+func (c *HTTPClient) CreateBaby(ctx context.Context, name string) (Baby, error) {
+	var baby Baby
+	if err := c.postJSONDecode(ctx, "/api/v1/babies", map[string]any{"name": name}, &baby); err != nil {
 		return Baby{}, err
 	}
 	return baby, nil
@@ -65,6 +88,9 @@ func (c *HTTPClient) do(ctx context.Context, method, path string, body io.Reader
 	if err != nil {
 		return nil, fmt.Errorf("building request: %w", err)
 	}
+	if token, ok := ctx.Value(tokenContextKey{}).(string); ok {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -96,17 +122,38 @@ func (c *HTTPClient) getJSON(ctx context.Context, path string, out any) error {
 	return nil
 }
 
+// postJSON POSTs payload as JSON and discards the response body.
 func (c *HTTPClient) postJSON(ctx context.Context, path string, payload any) error {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("encoding request: %w", err)
-	}
-
-	resp, err := c.do(ctx, http.MethodPost, path, bytes.NewReader(body))
+	resp, err := c.doJSON(ctx, path, payload)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
 	return nil
+}
+
+// postJSONDecode POSTs payload as JSON and decodes the response body into
+// out.
+func (c *HTTPClient) postJSONDecode(ctx context.Context, path string, payload any, out any) error {
+	resp, err := c.doJSON(ctx, path, payload)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return fmt.Errorf("decoding response: %w", err)
+	}
+
+	return nil
+}
+
+func (c *HTTPClient) doJSON(ctx context.Context, path string, payload any) (*http.Response, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("encoding request: %w", err)
+	}
+
+	return c.do(ctx, http.MethodPost, path, bytes.NewReader(body))
 }

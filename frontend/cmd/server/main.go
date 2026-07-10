@@ -50,19 +50,30 @@ func main() {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Logger)
 
-		r.Get("/", h.Index)
-		r.Post("/nappies", h.CreateNappy)
-		r.Post("/feeds", h.CreateFeed)
-		r.Post("/baths", h.CreateBath)
-		r.Post("/sleeps", h.CreateSleep)
-		r.Post("/observations", h.CreateObservation)
-		r.Delete("/events/{id}", h.DeleteEvent)
-
 		r.Get("/login", h.ShowLogin)
 		r.Post("/login", h.RequestMagicLink)
 		r.Post("/logout", h.Logout)
 
 		r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
+		r.Group(func(r chi.Router) {
+			r.Use(h.RequireSession)
+
+			r.Get("/", h.Index)
+			r.Post("/nappies", h.CreateNappy)
+			r.Post("/feeds", h.CreateFeed)
+			r.Post("/baths", h.CreateBath)
+			r.Post("/sleeps", h.CreateSleep)
+			r.Post("/observations", h.CreateObservation)
+			r.Delete("/events/{id}", h.DeleteEvent)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(h.RequireOnboardingSession)
+
+			r.Get("/onboarding", h.ShowOnboarding)
+			r.Post("/onboarding", h.CreateFirstBaby)
+		})
 	})
 
 	// /auth/verify (both GET, which carries the raw magic-link token in its

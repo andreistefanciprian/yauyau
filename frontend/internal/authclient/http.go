@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -52,6 +53,26 @@ func (c *HTTPClient) Logout(ctx context.Context, sessionID string) error {
 	return c.postJSON(ctx, "/internal/auth/logout", map[string]string{"session_id": sessionID})
 }
 
+// MintToken exchanges sessionID for a fresh short-lived access token. The
+// frontend calls this on every request rather than caching a token — see
+// docs/auth-magic-link.md.
+func (c *HTTPClient) MintToken(ctx context.Context, sessionID string) (MintResult, error) {
+	var result MintResult
+	if err := c.postJSONDecode(ctx, "/internal/auth/token", map[string]string{"session_id": sessionID}, &result); err != nil {
+		return MintResult{}, err
+	}
+	return result, nil
+}
+
+// AttachFamily binds sessionID to familyID — called once, right after
+// onboarding's "add your baby" step returns the family_id backend-api
+// created for it. sessionID is escaped since it originates from the
+// caller-supplied yauli_session cookie, not from auth-service, and is
+// spliced directly into the request path below.
+func (c *HTTPClient) AttachFamily(ctx context.Context, sessionID, familyID string) error {
+	return c.postJSON(ctx, "/internal/auth/session/"+url.PathEscape(sessionID)+"/attach-family", map[string]string{"family_id": familyID})
+}
+
 // do builds and executes an HTTP request against auth-service, attaching
 // the shared secret every /internal/auth route requires, and returning an
 // error for any transport failure or non-2xx response. Callers own closing
@@ -71,6 +92,14 @@ func (c *HTTPClient) do(ctx context.Context, method, path string, body io.Reader
 		return nil, fmt.Errorf("calling auth-service: %w", err)
 	}
 
+	switch resp.StatusCode {
+	case http.StatusUnauthorized:
+		resp.Body.Close()
+		return nil, ErrUnauthorized
+	case http.StatusConflict:
+		resp.Body.Close()
+		return nil, ErrAlreadyAttached
+	}
 	if resp.StatusCode >= 400 {
 		resp.Body.Close()
 		return nil, fmt.Errorf("auth-service returned status %d", resp.StatusCode)

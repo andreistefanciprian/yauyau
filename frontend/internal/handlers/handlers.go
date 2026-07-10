@@ -35,6 +35,7 @@ const (
 // (nappies, feeds, ...) so adding an event type never grows this interface.
 type Backend interface {
 	GetCurrentBaby(ctx context.Context) (backendclient.Baby, error)
+	CreateBaby(ctx context.Context, name string) (backendclient.Baby, error)
 	ListEvents(ctx context.Context, resource string, out any) error
 	CreateEvent(ctx context.Context, resource string, payload map[string]any) error
 	DeleteEvent(ctx context.Context, id string) error
@@ -47,6 +48,8 @@ type AuthClient interface {
 	RequestMagicLink(ctx context.Context, email string) error
 	VerifyMagicLink(ctx context.Context, token string) (authclient.VerifyResult, error)
 	Logout(ctx context.Context, sessionID string) error
+	MintToken(ctx context.Context, sessionID string) (authclient.MintResult, error)
+	AttachFamily(ctx context.Context, sessionID, familyID string) error
 }
 
 type Handlers struct {
