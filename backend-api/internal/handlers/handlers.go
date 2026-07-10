@@ -24,9 +24,9 @@ import (
 type Store interface {
 	GetCurrentBaby(ctx context.Context, familyID uuid.UUID) (store.Baby, error)
 	CreateBaby(ctx context.Context, familyID uuid.UUID, name, timezone string) (store.Baby, error)
-	CreateEvent(ctx context.Context, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
-	ListAllEvents(ctx context.Context, limit int) ([]store.Event, error)
-	DeleteEvent(ctx context.Context, id uuid.UUID) error
+	CreateEvent(ctx context.Context, familyID, babyID uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
+	ListAllEvents(ctx context.Context, familyID, babyID uuid.UUID, limit int) ([]store.Event, error)
+	DeleteEvent(ctx context.Context, familyID, babyID, id uuid.UUID) error
 }
 
 // FamilyStore is the persistence boundary the internal, auth-service-facing
@@ -62,7 +62,12 @@ type eventResponse struct {
 // merged and ordered newest-first by the store, for a single combined
 // timeline instead of one list call per event type.
 func (h *Handlers) ListAllEvents(w http.ResponseWriter, r *http.Request) {
-	events, err := h.Store.ListAllEvents(r.Context(), allEventsLimit)
+	baby, ok := h.currentBabyForRequest(w, r)
+	if !ok {
+		return
+	}
+
+	events, err := h.Store.ListAllEvents(r.Context(), baby.FamilyID, baby.ID, allEventsLimit)
 	if err != nil {
 		log.Printf("list all events: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to load events")
@@ -92,7 +97,12 @@ func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Store.DeleteEvent(r.Context(), id); err != nil {
+	baby, ok := h.currentBabyForRequest(w, r)
+	if !ok {
+		return
+	}
+
+	if err := h.Store.DeleteEvent(r.Context(), baby.FamilyID, baby.ID, id); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "event not found")
 			return
@@ -133,13 +143,46 @@ func parseOccurredAt(raw string) (time.Time, error) {
 	return time.Parse(time.RFC3339, raw)
 }
 
+// currentBabyForRequest resolves the authenticated caller's current baby.
+// The event routes are exposed as /babies/current/... rather than
+// /babies/{id}/..., so this is the single place they translate a verified
+// family_id claim into the concrete baby_id used by the events table.
+func (h *Handlers) currentBabyForRequest(w http.ResponseWriter, r *http.Request) (store.Baby, bool) {
+	claims, ok := requireClaims(w, r)
+	if !ok {
+		return store.Baby{}, false
+	}
+	if claims.FamilyID == nil {
+		writeError(w, http.StatusNotFound, "baby not found")
+		return store.Baby{}, false
+	}
+
+	baby, err := h.Store.GetCurrentBaby(r.Context(), *claims.FamilyID)
+	if errors.Is(err, store.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "baby not found")
+		return store.Baby{}, false
+	}
+	if err != nil {
+		log.Printf("get current baby for event route: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load baby")
+		return store.Baby{}, false
+	}
+
+	return baby, true
+}
+
 // createAndRespond is the shared tail of every Create<X> handler: persist
 // attributes as an event of eventType via the generic store, then respond
 // with the caller's typed view of it. Decoding the request, validating it,
 // and building attributes stays in each event-specific file since that part
 // genuinely differs per event type.
 func createAndRespond[T any](w http.ResponseWriter, r *http.Request, h *Handlers, eventType string, attributes map[string]any, occurredAt time.Time, fromEvent func(store.Event) T) {
-	ev, err := h.Store.CreateEvent(r.Context(), eventType, attributes, occurredAt)
+	baby, ok := h.currentBabyForRequest(w, r)
+	if !ok {
+		return
+	}
+
+	ev, err := h.Store.CreateEvent(r.Context(), baby.FamilyID, baby.ID, eventType, attributes, occurredAt)
 	if err != nil {
 		log.Printf("create %s event: %v", eventType, err)
 		writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save %s event", eventType))
