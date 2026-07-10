@@ -35,6 +35,8 @@ services:
       BACKEND_API_URL: http://backend-api:${BACKEND_API_PORT}
       INTERNAL_AUTH_SECRET: ${INTERNAL_AUTH_SECRET}
       FRONTEND_URL: http://localhost:${FRONTEND_PORT}
+      JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET}
+      FRONTEND_AUTH_SECRET: ${FRONTEND_AUTH_SECRET}
     ports:
       - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
     depends_on:
@@ -45,11 +47,14 @@ services:
     build: ./frontend
     environment:
       BACKEND_API_URL: http://backend-api:${BACKEND_API_PORT}
+      AUTH_SERVICE_URL: http://auth-service:${AUTH_SERVICE_PORT}
+      FRONTEND_AUTH_SECRET: ${FRONTEND_AUTH_SECRET}
       PORT: ${FRONTEND_PORT}
     ports:
       - "${FRONTEND_PORT}:${FRONTEND_PORT}"
     depends_on:
       - backend-api
+      - auth-service
 
 volumes:
   postgres-data:

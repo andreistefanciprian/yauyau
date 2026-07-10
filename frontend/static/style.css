@@ -496,6 +496,7 @@ fieldset label {
 }
 
 input[type="text"],
+input[type="email"],
 input[type="number"],
 input[type="date"],
 input[type="time"],
@@ -526,5 +527,68 @@ textarea {
 }
 
 .event-form button[type="submit"]:active {
+  background: color-mix(in srgb, var(--color-teal) 82%, black);
+}
+
+/* Auth (login / verify) */
+
+.auth-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 7rem);
+}
+
+.auth-card {
+  width: 100%;
+  background: var(--color-surface);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 1.75rem 1.5rem;
+  text-align: center;
+}
+
+.auth-logo {
+  height: 2.5rem;
+  width: auto;
+  margin-bottom: 0.75rem;
+}
+
+.auth-subtitle {
+  color: var(--color-text-secondary);
+  margin: 0.35rem 0 1.25rem;
+}
+
+.auth-error {
+  color: var(--color-danger);
+  margin: 0 0 1rem;
+}
+
+.auth-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: var(--color-teal);
+  font-weight: 600;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.auth-form button[type="submit"] {
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--color-teal);
+  color: white;
+  cursor: pointer;
+  margin-top: 0.25rem;
+}
+
+.auth-form button[type="submit"]:active {
   background: color-mix(in srgb, var(--color-teal) 82%, black);
 }

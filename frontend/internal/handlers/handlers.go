@@ -17,6 +17,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/andreistefanciprian/yauli/frontend/internal/authclient"
 	"github.com/andreistefanciprian/yauli/frontend/internal/backendclient"
 )
 
@@ -39,13 +40,27 @@ type Backend interface {
 	DeleteEvent(ctx context.Context, id string) error
 }
 
-type Handlers struct {
-	Backend   Backend
-	Templates *template.Template
+// AuthClient is the auth-service boundary this package needs. Kept separate
+// from Backend — a different service, a different domain (login vs. baby
+// events) — rather than one interface spanning both.
+type AuthClient interface {
+	RequestMagicLink(ctx context.Context, email string) error
+	VerifyMagicLink(ctx context.Context, token string) (authclient.VerifyResult, error)
+	Logout(ctx context.Context, sessionID string) error
 }
 
-func New(backend Backend, templates *template.Template) *Handlers {
-	return &Handlers{Backend: backend, Templates: templates}
+type Handlers struct {
+	Backend       Backend
+	Auth          AuthClient
+	Templates     *template.Template
+	SecureCookies bool
+}
+
+// New wires up Handlers. secureCookies sets the yauli_session cookie's
+// Secure flag — true in production (HTTPS), false in local dev (plain
+// HTTP, where a Secure cookie would silently never be sent back).
+func New(backend Backend, auth AuthClient, templates *template.Template, secureCookies bool) *Handlers {
+	return &Handlers{Backend: backend, Auth: auth, Templates: templates, SecureCookies: secureCookies}
 }
 
 // TimelineEvent is the single presentation shape every event type (nappy,

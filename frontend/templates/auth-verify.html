@@ -1,0 +1,40 @@
+{{define "auth-verify"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Confirm sign in · Yauli</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/favicon-512x512.png">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="auth-main">
+    <div class="auth-card">
+      {{if .Error}}
+      <h1>Link expired</h1>
+      <p class="auth-error">{{.Error}}</p>
+      <a class="auth-link" href="/login">Request a new link</a>
+      {{else}}
+      <h1>Confirm sign in</h1>
+      <p class="auth-subtitle">Click below to finish signing in to Yauli.</p>
+      <form class="auth-form" method="post" action="/auth/verify">
+        <input type="hidden" name="token" value="{{.Token}}">
+        <button type="submit">Confirm sign in</button>
+      </form>
+      {{end}}
+    </div>
+  </main>
+  <script>
+    // The raw token lives in this page's URL query string until this point —
+    // strip it now that the page has read it, so it doesn't linger in
+    // browser history past the moment it was actually needed. Deliberately
+    // does NOT touch the token in the hidden form field above, and does NOT
+    // submit anything: only the explicit button click above does that.
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  </script>
+</body>
+</html>
+{{end}}

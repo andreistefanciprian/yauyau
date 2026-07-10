@@ -146,3 +146,89 @@ func (s *PostgresStore) WriteAuditLog(ctx context.Context, userID uuid.UUID, ses
 
 	return nil
 }
+
+// GetValidSession returns a session's user_id/family_id, as long as it
+// hasn't been revoked or expired. ErrNotFound covers "no such session,"
+// "revoked," and "expired" alike, the same collapsing ConsumeMagicLink does
+// — none of those cases should distinguish themselves to the caller.
+func (s *PostgresStore) GetValidSession(ctx context.Context, sessionID uuid.UUID) (uuid.UUID, *uuid.UUID, error) {
+	const query = `
+		SELECT user_id, family_id
+		FROM sessions
+		WHERE id = $1 AND revoked_at IS NULL AND expires_at > NOW()
+	`
+
+	var userID uuid.UUID
+	var familyID *uuid.UUID
+	err := s.pool.QueryRow(ctx, query, sessionID).Scan(&userID, &familyID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, nil, fmt.Errorf("getting session: %w", err)
+	}
+
+	return userID, familyID, nil
+}
+
+// RevokeSession marks a session revoked and returns the user_id it belonged
+// to, for the caller to audit-log. ErrNotFound covers both "no such
+// session" and "already revoked" — logout is idempotent from the client's
+// perspective either way, so the handler treats both as a no-op success
+// rather than an error.
+func (s *PostgresStore) RevokeSession(ctx context.Context, sessionID uuid.UUID) (uuid.UUID, error) {
+	const query = `
+		UPDATE sessions
+		SET revoked_at = NOW()
+		WHERE id = $1 AND revoked_at IS NULL
+		RETURNING user_id
+	`
+
+	var userID uuid.UUID
+	err := s.pool.QueryRow(ctx, query, sessionID).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("revoking session: %w", err)
+	}
+
+	return userID, nil
+}
+
+// AttachFamily binds a null-family session to familyID — called once, right
+// after onboarding's "add your baby" step creates a family. Only succeeds
+// while family_id is still NULL: sessions.family_id is fixed per session by
+// design (docs/auth-magic-link.md), so this is a one-time transition, not a
+// general update. When the UPDATE matches no rows, a follow-up read tells
+// ErrNotFound ("no such session") apart from ErrAlreadyAttached ("a
+// previous attach-family call already succeeded") — a network retry after
+// a timed-out-but-actually-succeeded first attempt is a harmless collision,
+// not the same failure as a garbage session id.
+func (s *PostgresStore) AttachFamily(ctx context.Context, sessionID, familyID uuid.UUID) error {
+	const updateQuery = `
+		UPDATE sessions
+		SET family_id = $1
+		WHERE id = $2 AND family_id IS NULL
+	`
+
+	tag, err := s.pool.Exec(ctx, updateQuery, familyID, sessionID)
+	if err != nil {
+		return fmt.Errorf("attaching family to session: %w", err)
+	}
+	if tag.RowsAffected() > 0 {
+		return nil
+	}
+
+	const existsQuery = `SELECT 1 FROM sessions WHERE id = $1`
+	var exists int
+	err = s.pool.QueryRow(ctx, existsQuery, sessionID).Scan(&exists)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("checking session existence: %w", err)
+	}
+
+	return ErrAlreadyAttached
+}
