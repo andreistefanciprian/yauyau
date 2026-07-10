@@ -7,16 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Hardcoded family/baby still used by the event routes (nappy/feed/bath/
-// sleep/observation, plus ListAllEvents/DeleteEvent) and CreateEvent below.
-// Baby/family creation and lookup (CreateBaby/GetCurrentBaby) are real and
-// family-scoped; a later PR threads the caller's actual family/baby through
-// the event routes too and deletes these.
-var (
-	FamilyID = uuid.MustParse("11111111-1111-1111-1111-111111111111")
-	BabyID   = uuid.MustParse("22222222-2222-2222-2222-222222222222")
-)
-
 // ErrNotFound is returned by Store methods when the requested record does
 // not exist, so callers never need to know about the underlying driver's
 // not-found error.
@@ -29,7 +19,7 @@ var ErrNotFound = errors.New("not found")
 // re-fetch the membership instead of treating this as a hard failure.
 var ErrActiveMembershipExists = errors.New("user already has an active family membership")
 
-// Baby is the hardcoded baby record as returned to API consumers.
+// Baby is a baby record as returned to API consumers.
 type Baby struct {
 	ID       uuid.UUID `json:"id"`
 	FamilyID uuid.UUID `json:"family_id"`

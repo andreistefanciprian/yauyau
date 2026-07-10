@@ -121,7 +121,7 @@ func (s *PostgresStore) CreateBaby(ctx context.Context, familyID uuid.UUID, name
 	return baby, nil
 }
 
-func (s *PostgresStore) CreateEvent(ctx context.Context, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error) {
+func (s *PostgresStore) CreateEvent(ctx context.Context, familyID, babyID uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error) {
 	id := uuid.New()
 
 	const query = `
@@ -131,14 +131,14 @@ func (s *PostgresStore) CreateEvent(ctx context.Context, eventType string, attri
 	`
 
 	var createdAt time.Time
-	err := s.pool.QueryRow(ctx, query, id, FamilyID, BabyID, eventType, occurredAt, attributes).Scan(&createdAt)
+	err := s.pool.QueryRow(ctx, query, id, familyID, babyID, eventType, occurredAt, attributes).Scan(&createdAt)
 	if err != nil {
 		return Event{}, fmt.Errorf("inserting %s event: %w", eventType, err)
 	}
 
 	return Event{
 		ID:         id,
-		BabyID:     BabyID,
+		BabyID:     babyID,
 		EventType:  eventType,
 		OccurredAt: occurredAt,
 		CreatedAt:  createdAt,
@@ -150,10 +150,10 @@ func (s *PostgresStore) CreateEvent(ctx context.Context, eventType string, attri
 // ErrNotFound is returned if no matching row exists (already deleted, wrong
 // id, or belongs to a different baby), so callers can tell that apart from a
 // real database error.
-func (s *PostgresStore) DeleteEvent(ctx context.Context, id uuid.UUID) error {
-	const query = `DELETE FROM events WHERE id = $1 AND baby_id = $2`
+func (s *PostgresStore) DeleteEvent(ctx context.Context, familyID, babyID, id uuid.UUID) error {
+	const query = `DELETE FROM events WHERE id = $1 AND family_id = $2 AND baby_id = $3`
 
-	tag, err := s.pool.Exec(ctx, query, id, BabyID)
+	tag, err := s.pool.Exec(ctx, query, id, familyID, babyID)
 	if err != nil {
 		return fmt.Errorf("deleting event: %w", err)
 	}
@@ -167,16 +167,16 @@ func (s *PostgresStore) DeleteEvent(ctx context.Context, id uuid.UUID) error {
 // ListAllEvents returns the most recent events across every event type,
 // ordered newest-first, for consumers (the frontend timeline) that need a
 // single merged view instead of one list per type.
-func (s *PostgresStore) ListAllEvents(ctx context.Context, limit int) ([]Event, error) {
+func (s *PostgresStore) ListAllEvents(ctx context.Context, familyID, babyID uuid.UUID, limit int) ([]Event, error) {
 	const query = `
 		SELECT id, baby_id, event_type, attributes, occurred_at, created_at
 		FROM events
-		WHERE baby_id = $1
+		WHERE family_id = $1 AND baby_id = $2
 		ORDER BY occurred_at DESC
-		LIMIT $2
+		LIMIT $3
 	`
 
-	rows, err := s.pool.Query(ctx, query, BabyID, limit)
+	rows, err := s.pool.Query(ctx, query, familyID, babyID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("querying events: %w", err)
 	}
