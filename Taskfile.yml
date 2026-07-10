@@ -15,3 +15,9 @@ tasks:
     desc: Stop containers and remove volumes, network and orphans (deletes local Postgres data)
     cmds:
       - docker compose down --volumes --remove-orphans
+
+  test:
+    desc: Run backend-api's test suite (needs `task up`'s postgres running)
+    dir: backend-api
+    cmds:
+      - go test ./...

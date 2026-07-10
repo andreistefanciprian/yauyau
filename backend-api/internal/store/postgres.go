@@ -162,3 +162,93 @@ func (s *PostgresStore) ListAllEvents(ctx context.Context, limit int) ([]Event, 
 
 	return results, nil
 }
+
+// UpsertUserByEmail returns the existing user with this email, creating one
+// if none exists yet. Email is the only identity a user has.
+func (s *PostgresStore) UpsertUserByEmail(ctx context.Context, email string) (User, error) {
+	const query = `
+		INSERT INTO users (id, email)
+		VALUES ($1, $2)
+		ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+		RETURNING id, email, created_at
+	`
+
+	var u User
+	err := s.pool.QueryRow(ctx, query, uuid.New(), email).Scan(&u.ID, &u.Email, &u.CreatedAt)
+	if err != nil {
+		return User{}, fmt.Errorf("upserting user by email: %w", err)
+	}
+
+	return u, nil
+}
+
+// GetFamilyMembership returns userID's family membership, if any.
+func (s *PostgresStore) GetFamilyMembership(ctx context.Context, userID uuid.UUID) (FamilyMembership, error) {
+	const query = `
+		SELECT family_id, role, status
+		FROM family_members
+		WHERE user_id = $1
+	`
+
+	var m FamilyMembership
+	var role, status string
+	err := s.pool.QueryRow(ctx, query, userID).Scan(&m.FamilyID, &role, &status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return FamilyMembership{Found: false}, nil
+	}
+	if err != nil {
+		return FamilyMembership{}, fmt.Errorf("getting family membership: %w", err)
+	}
+
+	m.Found = true
+	m.Role = MembershipRole(role)
+	m.Status = MembershipStatus(status)
+	return m, nil
+}
+
+// CreateFamilyWithOwner creates a new family and makes userID its active
+// owner, atomically. familyName is never shown to users — the family is a
+// backend-only grouping, not a product concept. A single data-modifying CTE
+// keeps both inserts in one round trip and one implicit statement-level
+// transaction, rather than an explicit Begin/Exec/Exec/Commit. If userID
+// already has an active membership elsewhere, idx_family_members_one_active_per_user
+// rejects the insert and this returns that error wrapped, rather than
+// silently creating a second active membership.
+func (s *PostgresStore) CreateFamilyWithOwner(ctx context.Context, userID uuid.UUID, familyName string) (uuid.UUID, error) {
+	const query = `
+		WITH new_family AS (
+			INSERT INTO families (id, name) VALUES ($1, $2)
+			RETURNING id
+		)
+		INSERT INTO family_members (family_id, user_id, role, status)
+		SELECT id, $3, $4, $5 FROM new_family
+	`
+
+	familyID := uuid.New()
+	if _, err := s.pool.Exec(ctx, query, familyID, familyName, userID, MembershipRoleOwner, MembershipStatusActive); err != nil {
+		return uuid.Nil, fmt.Errorf("creating family with owner: %w", err)
+	}
+
+	return familyID, nil
+}
+
+// ActivateInvitedMembership flips a pending invite to active — called when
+// an invited user completes their first login. ErrNotFound is returned if
+// no matching invited row exists.
+func (s *PostgresStore) ActivateInvitedMembership(ctx context.Context, userID, familyID uuid.UUID) error {
+	const query = `
+		UPDATE family_members
+		SET status = $1
+		WHERE user_id = $2 AND family_id = $3 AND status = $4
+	`
+
+	tag, err := s.pool.Exec(ctx, query, MembershipStatusActive, userID, familyID, MembershipStatusInvited)
+	if err != nil {
+		return fmt.Errorf("activating membership: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}

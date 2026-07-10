@@ -38,3 +38,39 @@ type Event struct {
 	CreatedAt  time.Time      `json:"created_at"`
 	Attributes map[string]any `json:"attributes"`
 }
+
+// User is a person who can log in via magic link. Email is the only
+// identity a user has — there is no password.
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	Email     string    `json:"email"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// MembershipRole and MembershipStatus are the fixed sets of values a
+// family_members row can hold. Validated in Go rather than a DB CHECK
+// constraint, consistent with how event-attribute enums (e.g. NappyKind)
+// are handled elsewhere in this codebase.
+type MembershipRole string
+
+const (
+	MembershipRoleOwner  MembershipRole = "owner"
+	MembershipRoleMember MembershipRole = "member"
+)
+
+type MembershipStatus string
+
+const (
+	MembershipStatusInvited MembershipStatus = "invited"
+	MembershipStatusActive  MembershipStatus = "active"
+)
+
+// FamilyMembership describes a user's relationship to a family, if any.
+// Found is false when the user has no family_members row at all yet (a
+// brand-new signup with no family created and no pending invite).
+type FamilyMembership struct {
+	Found    bool
+	FamilyID uuid.UUID
+	Role     MembershipRole
+	Status   MembershipStatus
+}
