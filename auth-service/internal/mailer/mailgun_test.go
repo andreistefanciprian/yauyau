@@ -65,6 +65,47 @@ func TestMailgunSendMagicLink(t *testing.T) {
 	}
 }
 
+func TestMailgunSendInviteMagicLink(t *testing.T) {
+	var gotForm url.Values
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		gotForm = r.PostForm
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id":"test","message":"Queued. Thank you."}`))
+	}))
+	t.Cleanup(server.Close)
+
+	m := NewMailgun("secret-key", "mg.example.com", "Yauli <login@example.com>", server.URL)
+	if err := m.SendInviteMagicLink(context.Background(), "helper@example.com", "Ada", "https://app.example.com/auth/verify?token=invite"); err != nil {
+		t.Fatalf("send invite magic link: %v", err)
+	}
+
+	if gotForm.Get("to") != "helper@example.com" {
+		t.Fatalf("to = %q", gotForm.Get("to"))
+	}
+	if gotForm.Get("subject") != "You're invited to join Yauli" {
+		t.Fatalf("subject = %q", gotForm.Get("subject"))
+	}
+	if !strings.Contains(gotForm.Get("text"), "help care for Ada") {
+		t.Fatalf("text body did not contain invite copy: %q", gotForm.Get("text"))
+	}
+	if !strings.Contains(gotForm.Get("html"), "help care for Ada") {
+		t.Fatalf("html body did not contain baby name: %q", gotForm.Get("html"))
+	}
+	if !strings.Contains(gotForm.Get("html"), "Join on Yauli") {
+		t.Fatalf("html body did not contain invite CTA: %q", gotForm.Get("html"))
+	}
+	if !strings.Contains(gotForm.Get("html"), "https://app.example.com/auth/verify?token=invite") {
+		t.Fatalf("html body did not contain magic link: %q", gotForm.Get("html"))
+	}
+	if !strings.Contains(gotForm.Get("html"), "helper@example.com") {
+		t.Fatalf("html body did not contain recipient email: %q", gotForm.Get("html"))
+	}
+}
+
 func TestMailgunSendMagicLinkReturnsErrorOnNon2xx(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad domain", http.StatusUnauthorized)

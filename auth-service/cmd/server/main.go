@@ -78,6 +78,7 @@ func main() {
 	r.Route("/internal/auth", func(r chi.Router) {
 		r.Use(requireFrontendSecret(frontendAuthSecret))
 		r.Post("/request", h.RequestMagicLink)
+		r.Post("/invite", h.RequestInviteMagicLink)
 		r.Post("/verify", h.VerifyMagicLink)
 		r.Post("/token", h.MintToken)
 		r.Post("/logout", h.Logout)

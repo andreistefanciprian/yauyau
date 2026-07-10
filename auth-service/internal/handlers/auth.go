@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -37,6 +39,11 @@ type requestMagicLinkRequest struct {
 	Email string `json:"email"`
 }
 
+type requestInviteMagicLinkRequest struct {
+	Email    string `json:"email"`
+	BabyName string `json:"baby_name"`
+}
+
 // RequestMagicLink upserts the user via backend-api, issues a magic link,
 // and sends it through the configured mailer. The response is identical
 // whether or not the email already had an account, so this endpoint never
@@ -47,39 +54,83 @@ func (h *Handlers) RequestMagicLink(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	if req.Email == "" {
+	email := strings.TrimSpace(req.Email)
+	if email == "" {
 		writeError(w, http.StatusBadRequest, "email is required")
 		return
 	}
 
-	user, err := h.Backend.UpsertUser(r.Context(), req.Email)
+	rawToken, err := h.createMagicLink(r.Context(), email)
 	if err != nil {
-		log.Printf("upsert user: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to send magic link")
-		return
-	}
-
-	rawToken, err := generateRawToken()
-	if err != nil {
-		log.Printf("generate token: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to send magic link")
-		return
-	}
-
-	if err := h.Store.CreateMagicLink(r.Context(), user.ID, hashToken(rawToken)); err != nil {
-		log.Printf("create magic link: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to send magic link")
 		return
 	}
 
 	link := h.FrontendURL + "/auth/verify?token=" + rawToken
-	if err := h.Mailer.SendMagicLink(r.Context(), req.Email, link); err != nil {
+	if err := h.Mailer.SendMagicLink(r.Context(), email, link); err != nil {
 		log.Printf("send magic link: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to send magic link")
 		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "magic link sent"})
+}
+
+// RequestInviteMagicLink issues a magic link with invitation-specific email
+// copy. backend-api owns the actual family_members invite row; this endpoint
+// only creates the link that lets the invitee accept it during verification.
+func (h *Handlers) RequestInviteMagicLink(w http.ResponseWriter, r *http.Request) {
+	var req requestInviteMagicLinkRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	email := strings.TrimSpace(req.Email)
+	babyName := strings.TrimSpace(req.BabyName)
+	if email == "" {
+		writeError(w, http.StatusBadRequest, "email is required")
+		return
+	}
+	if babyName == "" {
+		writeError(w, http.StatusBadRequest, "baby_name is required")
+		return
+	}
+
+	rawToken, err := h.createMagicLink(r.Context(), email)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to send invite")
+		return
+	}
+
+	link := h.FrontendURL + "/auth/verify?token=" + rawToken
+	if err := h.Mailer.SendInviteMagicLink(r.Context(), email, babyName, link); err != nil {
+		log.Printf("send invite magic link: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to send invite")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "invite sent"})
+}
+
+func (h *Handlers) createMagicLink(ctx context.Context, email string) (string, error) {
+	user, err := h.Backend.UpsertUser(ctx, email)
+	if err != nil {
+		log.Printf("upsert user: %v", err)
+		return "", err
+	}
+
+	rawToken, err := generateRawToken()
+	if err != nil {
+		log.Printf("generate token: %v", err)
+		return "", err
+	}
+
+	if err := h.Store.CreateMagicLink(ctx, user.ID, hashToken(rawToken)); err != nil {
+		log.Printf("create magic link: %v", err)
+		return "", err
+	}
+
+	return rawToken, nil
 }
 
 type verifyMagicLinkRequest struct {

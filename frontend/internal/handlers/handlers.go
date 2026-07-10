@@ -48,6 +48,7 @@ type Backend interface {
 // events) — rather than one interface spanning both.
 type AuthClient interface {
 	RequestMagicLink(ctx context.Context, email string) error
+	RequestInviteMagicLink(ctx context.Context, email, babyName string) error
 	VerifyMagicLink(ctx context.Context, token string) (authclient.VerifyResult, error)
 	Logout(ctx context.Context, sessionID string) error
 	MintToken(ctx context.Context, sessionID string) (authclient.MintResult, error)
@@ -154,6 +155,11 @@ func (h *Handlers) CreateInvite(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("invite helper: %v", err)
 		h.renderIndex(w, r, inviteStatus{Error: "Something went wrong. Please try again."})
+		return
+	}
+	if err := h.Auth.RequestInviteMagicLink(r.Context(), email, baby.Name); err != nil {
+		log.Printf("send invite magic link: %v", err)
+		h.renderIndex(w, r, inviteStatus{Error: "The invite was saved, but the email could not be sent. Please try again."})
 		return
 	}
 

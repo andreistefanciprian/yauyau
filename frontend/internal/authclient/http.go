@@ -37,6 +37,12 @@ func (c *HTTPClient) RequestMagicLink(ctx context.Context, email string) error {
 	return c.postJSON(ctx, "/internal/auth/request", map[string]string{"email": email})
 }
 
+// RequestInviteMagicLink asks auth-service to email an invite-specific magic
+// link for email, after backend-api has created the pending membership.
+func (c *HTTPClient) RequestInviteMagicLink(ctx context.Context, email, babyName string) error {
+	return c.postJSON(ctx, "/internal/auth/invite", map[string]string{"email": email, "baby_name": babyName})
+}
+
 // VerifyMagicLink consumes token exactly once and returns the session it
 // opened.
 func (c *HTTPClient) VerifyMagicLink(ctx context.Context, token string) (VerifyResult, error) {

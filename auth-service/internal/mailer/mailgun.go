@@ -35,12 +35,20 @@ func NewMailgun(apiKey, domain, from, baseURL string) *Mailgun {
 }
 
 func (m *Mailgun) SendMagicLink(ctx context.Context, email, link string) error {
+	return m.send(ctx, email, "Sign in to Yauli", textMagicLink(link), htmlMagicLink(email, link))
+}
+
+func (m *Mailgun) SendInviteMagicLink(ctx context.Context, email, babyName, link string) error {
+	return m.send(ctx, email, "You're invited to join Yauli", textInviteMagicLink(babyName, link), htmlInviteMagicLink(email, babyName, link))
+}
+
+func (m *Mailgun) send(ctx context.Context, email, subject, textBody, htmlBody string) error {
 	form := url.Values{}
 	form.Set("from", m.from)
 	form.Set("to", email)
-	form.Set("subject", "Sign in to Yauli")
-	form.Set("text", textMagicLink(link))
-	form.Set("html", htmlMagicLink(email, link))
+	form.Set("subject", subject)
+	form.Set("text", textBody)
+	form.Set("html", htmlBody)
 
 	endpoint := fmt.Sprintf("%s/v3/%s/messages", m.baseURL, url.PathEscape(m.domain))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
@@ -66,6 +74,10 @@ func (m *Mailgun) SendMagicLink(ctx context.Context, email, link string) error {
 
 func textMagicLink(link string) string {
 	return "Sign in to Yauli:\n\n" + link + "\n\nThis link expires in 15 minutes. If you did not request it, you can ignore this email."
+}
+
+func textInviteMagicLink(babyName, link string) string {
+	return "You have been invited to help care for " + babyName + " on Yauli.\n\nOpen Yauli:\n\n" + link + "\n\nThis link expires in 15 minutes. If you did not expect this invitation, you can ignore this email."
 }
 
 func htmlMagicLink(email, link string) string {
@@ -109,6 +121,63 @@ func htmlMagicLink(email, link string) string {
               <p style="margin:0;font-size:0.78rem;color:#94A3B8;line-height:1.6;">
                 If you did not request this email, you can safely ignore it.<br>
                 This link was requested for <strong style="color:#64748B;">` + escapedEmail + `</strong>.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+func htmlInviteMagicLink(email, babyName, link string) string {
+	escapedEmail := htmlEscape(email)
+	escapedBabyName := htmlEscape(babyName)
+	escaped := htmlEscape(link)
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're invited to join Yauli</title>
+</head>
+<body style="margin:0;padding:0;background:#FCFBF8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#334155;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FCFBF8;">
+    <tr>
+      <td align="center" style="padding:48px 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+
+          <tr>
+            <td style="background:#FFFFFF;border:1px solid #E6EEF0;border-radius:14px;padding:40px 36px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+              <p style="margin:0 0 8px;font-size:1.35rem;font-weight:700;color:#56789D;">Yauli</p>
+              <p style="margin:0 0 24px;font-size:0.96rem;font-weight:600;color:#56789D;line-height:1.55;">
+                Your parenting companion, from day one.
+              </p>
+              <p style="margin:0 0 12px;font-size:1.05rem;font-weight:700;color:#334155;line-height:1.45;">
+                You've been invited to help care for ` + escapedBabyName + `.
+              </p>
+              <p style="margin:0 0 30px;font-size:0.92rem;color:#64748B;line-height:1.65;">
+                Open Yauli with the secure link below to join ` + escapedBabyName + `'s timeline. This link expires in 15 minutes and can only be used once.
+              </p>
+              <a href="` + escaped + `"
+                 style="display:inline-block;padding:14px 32px;background:#74C7C3;color:#ffffff;font-size:0.95rem;font-weight:700;border-radius:999px;text-decoration:none;box-shadow:0 4px 14px rgba(116,199,195,0.32);">
+                Join on Yauli
+              </a>
+              <p style="margin:28px 0 0;font-size:0.8rem;color:#94A3B8;line-height:1.6;">
+                If the button does not work, copy and paste this link into your browser:<br>
+                <a href="` + escaped + `" style="color:#F28B72;text-decoration:none;word-break:break-all;">` + escaped + `</a>
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding-top:24px;">
+              <p style="margin:0;font-size:0.78rem;color:#94A3B8;line-height:1.6;">
+                If you did not expect this invitation, you can safely ignore it.<br>
+                This invitation was sent to <strong style="color:#64748B;">` + escapedEmail + `</strong>.
               </p>
             </td>
           </tr>
