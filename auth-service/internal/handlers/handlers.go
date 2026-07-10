@@ -20,6 +20,9 @@ type Store interface {
 	ConsumeMagicLink(ctx context.Context, tokenHash string) (uuid.UUID, error)
 	CreateSession(ctx context.Context, userID uuid.UUID, familyID *uuid.UUID) (uuid.UUID, error)
 	WriteAuditLog(ctx context.Context, userID uuid.UUID, sessionID *uuid.UUID, eventType string) error
+	GetValidSession(ctx context.Context, sessionID uuid.UUID) (uuid.UUID, *uuid.UUID, error)
+	RevokeSession(ctx context.Context, sessionID uuid.UUID) (uuid.UUID, error)
+	AttachFamily(ctx context.Context, sessionID, familyID uuid.UUID) error
 }
 
 // BackendClient is the boundary onto backend-api's internal API — the only
@@ -34,13 +37,16 @@ type Handlers struct {
 	Store       Store
 	Backend     BackendClient
 	FrontendURL string
+	JWTSecret   []byte
 }
 
 // New wires up Handlers. frontendURL is used only to build the magic link
 // logged to stdout in local dev (Auth->>Email in the design doc's sequence
-// diagram) — the real send-a-real-email path lands in PR12.
-func New(s Store, b BackendClient, frontendURL string) *Handlers {
-	return &Handlers{Store: s, Backend: b, FrontendURL: frontendURL}
+// diagram) — the real send-a-real-email path lands in PR12. jwtSecret signs
+// every access token minted by MintToken; backend-api verifies against the
+// same value once JWT enforcement lands (PR10).
+func New(s Store, b BackendClient, frontendURL, jwtSecret string) *Handlers {
+	return &Handlers{Store: s, Backend: b, FrontendURL: frontendURL, JWTSecret: []byte(jwtSecret)}
 }
 
 func (h *Handlers) Healthz(w http.ResponseWriter, r *http.Request) {

@@ -16,44 +16,9 @@ The former PR11–14 shift down to PR9–12 unchanged in content.
 - **PR4** — backend-api: baby creation, family created implicitly.
 - **PR5** — auth-service: new service skeleton.
 - **PR6** — auth-service: request + verify magic link.
+- **PR7** — auth-service: JWT minting/logout/attach-family + frontend login pages.
 
 ## Remaining
-
-### PR7 — auth-service: JWT minting/logout/attach-family + frontend login pages
-**auth-service:** `POST /internal/auth/token` (session → `{access_token,
-family_id}` — `family_id` surfaced as plain data so frontend never decodes
-the JWT itself; JWT claims are `sub`=user_id + `family_id` if present,
-10min TTL, HMAC-SHA256 via `golang-jwt/jwt/v5`), `POST /internal/auth/logout`
-(revoke + audit log), and `POST /internal/auth/session/{id}/attach-family`
-(binds a null-family session to a newly created family_id — called once,
-right after onboarding's "add your baby" step returns a family_id).
-
-**frontend:** new `frontend/internal/authclient/http.go` (mirrors
-`frontend/internal/backendclient/http.go`); new
-`frontend/internal/handlers/auth.go` (`ShowLogin`, `RequestMagicLink`,
-`ShowVerify`, `ConfirmVerify`, `Logout`); new `frontend/templates/login.html`
-/ `auth-verify.html`. Sets `yauli_session` cookie (HttpOnly, Secure in
-prod, SameSite=Lax). **Verify page must not consume the token on a bare
-`GET`** — only an explicit confirm button/POST does (anti-prefetch
-hardening). Dashboard stays open in this PR — only the login path is added.
-
-Two additional hardening details land in the frontend half: the request
-logger must not log the raw query string on `/auth/verify` (redact it,
-don't rely on default logging middleware), and the confirmation page
-strips the token from the visible URL via `history.replaceState` once
-loaded, so it doesn't linger in browser history after being read.
-
-**Verify:** mint from a family-less session → `family_id: null` in the
-response, decode the JWT and confirm no `family_id` claim; call
-attach-family, mint again → `family_id` now present; mint from a
-revoked/expired session → 401. Separately, manual browser click-through:
-confirm a bare `GET /auth/verify?token=...` does not consume the token;
-confirm the URL bar no longer shows the token after the page loads; confirm
-`docker compose logs frontend` doesn't contain the raw token from this
-route.
-
-**State explicitly in the PR description:** relies on `SameSite=Lax`, no
-separate CSRF token — a documented trade-off, not an oversight.
 
 ### PR8 — frontend: session gating + Bearer attachment + onboarding UI
 **Session gating:** middleware (`frontend/internal/handlers/session.go`)

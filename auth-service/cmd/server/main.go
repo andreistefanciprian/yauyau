@@ -41,6 +41,11 @@ func main() {
 		log.Fatal("FRONTEND_URL is required")
 	}
 
+	jwtSecret := os.Getenv("JWT_SIGNING_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SIGNING_SECRET is required")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -54,7 +59,7 @@ func main() {
 		log.Fatalf("run migrations: %v", err)
 	}
 
-	h := handlers.New(store.NewPostgresStore(pool), backendclient.New(backendURL, internalSecret), frontendURL)
+	h := handlers.New(store.NewPostgresStore(pool), backendclient.New(backendURL, internalSecret), frontendURL, jwtSecret)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -64,6 +69,9 @@ func main() {
 	r.Route("/internal/auth", func(r chi.Router) {
 		r.Post("/request", h.RequestMagicLink)
 		r.Post("/verify", h.VerifyMagicLink)
+		r.Post("/token", h.MintToken)
+		r.Post("/logout", h.Logout)
+		r.Post("/session/{id}/attach-family", h.AttachFamily)
 	})
 
 	log.Printf("auth-service listening on :%s", port)
