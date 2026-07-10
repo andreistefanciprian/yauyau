@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/andreistefanciprian/yauli/auth-service/internal/backendclient"
+	"github.com/andreistefanciprian/yauli/auth-service/internal/handlers"
 	"github.com/andreistefanciprian/yauli/auth-service/internal/store"
 )
 
@@ -23,6 +24,21 @@ func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8082"
+	}
+
+	backendURL := os.Getenv("BACKEND_API_URL")
+	if backendURL == "" {
+		log.Fatal("BACKEND_API_URL is required")
+	}
+
+	internalSecret := os.Getenv("INTERNAL_AUTH_SECRET")
+	if internalSecret == "" {
+		log.Fatal("INTERNAL_AUTH_SECRET is required")
+	}
+
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		log.Fatal("FRONTEND_URL is required")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -38,14 +54,16 @@ func main() {
 		log.Fatalf("run migrations: %v", err)
 	}
 
+	h := handlers.New(store.NewPostgresStore(pool), backendclient.New(backendURL, internalSecret), frontendURL)
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	r.Get("/healthz", h.Healthz)
+	r.Route("/internal/auth", func(r chi.Router) {
+		r.Post("/request", h.RequestMagicLink)
+		r.Post("/verify", h.VerifyMagicLink)
 	})
 
 	log.Printf("auth-service listening on :%s", port)

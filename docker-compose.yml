@@ -32,6 +32,9 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       PORT: ${AUTH_SERVICE_PORT}
+      BACKEND_API_URL: http://backend-api:${BACKEND_API_PORT}
+      INTERNAL_AUTH_SECRET: ${INTERNAL_AUTH_SECRET}
+      FRONTEND_URL: http://localhost:${FRONTEND_PORT}
     ports:
       - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
     depends_on:

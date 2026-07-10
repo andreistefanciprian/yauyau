@@ -11,25 +11,9 @@ covers what's left (PR5–14).
 - **PR3** — backend-api: JWT claims context (decode only, no verification yet).
 - **PR4** — backend-api: baby creation, family created implicitly.
 - **PR5** — auth-service: new service skeleton.
+- **PR6** — auth-service: request + verify magic link.
 
 ## Remaining
-
-### PR6 — auth-service: request + verify magic link
-`POST /internal/auth/request` (call backend-api to upsert the user, insert
-a hashed-token `magic_links` row, log the raw link to stdout) and
-`POST /internal/auth/verify` (atomic
-`UPDATE ... WHERE used_at IS NULL AND expires_at > NOW() RETURNING`, then
-call backend-api's `/internal/family-membership?activateIfInvited=true`;
-create a `sessions` row with `family_id` set if a membership was found/
-activated, or `NULL` if not; write an `audit_logs` login entry). New
-`auth-service/internal/backendclient/http.go` mirrors
-`frontend/internal/backendclient/http.go`'s shape.
-
-**Verify:** request + verify for a brand-new email → session has null
-family_id; pre-insert a `family_members` row with `status=invited` for an
-email, then verify that email's login → session comes back with the
-family_id already attached (no onboarding needed). Re-verify the same
-token → 401 (single-use).
 
 ### PR7 — auth-service: JWT minting + logout/revoke + attach-family
 `POST /internal/auth/token` (session → `{access_token, family_id}` —
