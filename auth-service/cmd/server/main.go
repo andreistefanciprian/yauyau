@@ -13,6 +13,7 @@ import (
 
 	"github.com/andreistefanciprian/yauli/auth-service/internal/backendclient"
 	"github.com/andreistefanciprian/yauli/auth-service/internal/handlers"
+	"github.com/andreistefanciprian/yauli/auth-service/internal/mailer"
 	"github.com/andreistefanciprian/yauli/auth-service/internal/store"
 )
 
@@ -52,6 +53,8 @@ func main() {
 		log.Fatal("FRONTEND_AUTH_SECRET is required")
 	}
 
+	mail := configureMailer()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -65,7 +68,7 @@ func main() {
 		log.Fatalf("run migrations: %v", err)
 	}
 
-	h := handlers.New(store.NewPostgresStore(pool), backendclient.New(backendURL, internalSecret), frontendURL, jwtSecret)
+	h := handlers.New(store.NewPostgresStore(pool), backendclient.New(backendURL, internalSecret), mail, frontendURL, jwtSecret)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -85,6 +88,29 @@ func main() {
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
+}
+
+func configureMailer() mailer.Mailer {
+	if os.Getenv("ENV") != "production" {
+		log.Print("auth-service mailer: stdout")
+		return mailer.Stdout{}
+	}
+
+	apiKey := os.Getenv("MAILGUN_API_KEY")
+	if apiKey == "" {
+		log.Fatal("MAILGUN_API_KEY is required in production")
+	}
+	domain := os.Getenv("MAILGUN_DOMAIN")
+	if domain == "" {
+		log.Fatal("MAILGUN_DOMAIN is required in production")
+	}
+	from := os.Getenv("MAILGUN_FROM")
+	if from == "" {
+		log.Fatal("MAILGUN_FROM is required in production")
+	}
+
+	log.Print("auth-service mailer: mailgun")
+	return mailer.NewMailgun(apiKey, domain, from, os.Getenv("MAILGUN_BASE_URL"))
 }
 
 // requireFrontendSecret gates the frontend-facing API behind a single

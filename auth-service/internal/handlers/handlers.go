@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/andreistefanciprian/yauli/auth-service/internal/backendclient"
+	"github.com/andreistefanciprian/yauli/auth-service/internal/mailer"
 )
 
 // Store is the persistence boundary this package needs. Defined here (the
@@ -36,17 +37,16 @@ type BackendClient interface {
 type Handlers struct {
 	Store       Store
 	Backend     BackendClient
+	Mailer      mailer.Mailer
 	FrontendURL string
 	JWTSecret   []byte
 }
 
-// New wires up Handlers. frontendURL is used only to build the magic link
-// logged to stdout in local dev (Auth->>Email in the design doc's sequence
-// diagram) — the real send-a-real-email path lands in PR12. jwtSecret signs
-// every access token minted by MintToken; backend-api verifies against the
-// same value once JWT enforcement lands (PR10).
-func New(s Store, b BackendClient, frontendURL, jwtSecret string) *Handlers {
-	return &Handlers{Store: s, Backend: b, FrontendURL: frontendURL, JWTSecret: []byte(jwtSecret)}
+// New wires up Handlers. frontendURL is used to build magic links before
+// they are handed to the configured Mailer. jwtSecret signs every access
+// token minted by MintToken; backend-api verifies against the same value.
+func New(s Store, b BackendClient, m mailer.Mailer, frontendURL, jwtSecret string) *Handlers {
+	return &Handlers{Store: s, Backend: b, Mailer: m, FrontendURL: frontendURL, JWTSecret: []byte(jwtSecret)}
 }
 
 func (h *Handlers) Healthz(w http.ResponseWriter, r *http.Request) {

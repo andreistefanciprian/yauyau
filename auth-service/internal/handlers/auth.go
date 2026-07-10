@@ -38,10 +38,9 @@ type requestMagicLinkRequest struct {
 }
 
 // RequestMagicLink upserts the user via backend-api, issues a magic link,
-// and (in local dev) logs it to stdout instead of emailing it — see PR12
-// for the real Mailgun send. The response is identical whether or not the
-// email already had an account, so this endpoint never reveals which
-// emails are registered.
+// and sends it through the configured mailer. The response is identical
+// whether or not the email already had an account, so this endpoint never
+// reveals which emails are registered.
 func (h *Handlers) RequestMagicLink(w http.ResponseWriter, r *http.Request) {
 	var req requestMagicLinkRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -73,7 +72,12 @@ func (h *Handlers) RequestMagicLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("magic link for %s: %s/auth/verify?token=%s", req.Email, h.FrontendURL, rawToken)
+	link := h.FrontendURL + "/auth/verify?token=" + rawToken
+	if err := h.Mailer.SendMagicLink(r.Context(), req.Email, link); err != nil {
+		log.Printf("send magic link: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to send magic link")
+		return
+	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "magic link sent"})
 }

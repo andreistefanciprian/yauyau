@@ -1,8 +1,8 @@
 # Magic-Link Auth — Remaining PRs
 
 Tracks the PR-by-PR rollout of magic-link auth described in
-[`auth-magic-link.md`](auth-magic-link.md). PR1–10 are merged; this file
-covers what's left (PR11–12).
+[`auth-magic-link.md`](auth-magic-link.md). PR1–11 are merged; this file
+covers what's left (PR12).
 
 Renumbered from an earlier 14-PR breakdown: former PR7+PR8 merged into PR7,
 and former PR9+PR10 merged into PR8 (see Sequencing notes below for why).
@@ -20,26 +20,9 @@ The former PR11–14 shift down to PR9–12 unchanged in content.
 - **PR8** — frontend: session gating + Bearer attachment + onboarding UI.
 - **PR9** — backend-api: thread family scoping through event routes.
 - **PR10** — backend-api: enforce JWT verification.
+- **PR11** — invite someone to help with a baby.
 
 ## Remaining
-
-### PR11 — invite someone to help with a baby
-Backend-api only — no auth-service changes needed. `POST
-/api/v1/babies/{id}/invite {email}` resolves the baby's `family_id`
-internally, checks the caller is that family's owner (via PR3/PR10's
-verified identity), and calls PR1's invite store method to create the
-pending `family_members` row. Frontend: an "invite someone to help with
-{baby name}" page/section (owner-only) — copy never says "family."
-Confirms PR6's already-built behavior: an invitee who logs in lands
-directly in the family, skipping onboarding entirely.
-
-**Verify:** owner invites a second email via the baby-scoped invite; that
-email signs up via its own magic link and lands directly on the shared
-dashboard (no "add your baby" prompt, since a membership already exists);
-a non-owner attempting to invite → 403.
-
-**State explicitly in the PR description:** same `SameSite=Lax`-only CSRF
-posture as PR7.
 
 ### PR12 — auth-service: Mailgun integration for production email
 Replace the stdout-only email step from PR6 with a real Mailgun API call
@@ -65,8 +48,8 @@ the received link round-trips through the normal verify flow.
   `CreateBaby` is ever called before that happens.)
 - Audit logging isn't a separate PR — folded into PR6 (login) and PR7
   (logout/revoke).
-- PR12 (Mailgun) is last since nothing else depends on it and it doesn't
-  affect local dev.
+- PR12 (Mailgun) is last since nothing else depends on it and it keeps local
+  dev on stdout logging.
 - PR4 deliberately left the frontend broken for `GetCurrentBaby` (no Bearer
   token attached yet) and event routes still hardcoded to the seed
   family/baby — both are accepted, sequenced gaps closed by PR8 and PR9

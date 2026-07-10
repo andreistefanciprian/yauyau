@@ -124,7 +124,7 @@ sequenceDiagram
     AuthDB-->>Auth: link { token: raw + hash }
 
     alt Production
-        Auth->>Email: send link (raw token) to user@email.com
+        Auth->>Email: send link via Mailgun
     else Local dev
         Auth->>Auth: log link to stdout
     end
@@ -327,16 +327,19 @@ around from the start rather than patched in later:
 
 ## Local dev
 
-Same as the reference pattern: magic links are logged to auth-service's
-stdout instead of being emailed. `docker compose logs auth-service` after
-requesting a link, click it directly from the terminal output.
+Local dev keeps the reference pattern: magic links are logged to
+auth-service's stdout instead of being emailed. `docker compose logs
+auth-service` after requesting a link, then click it directly from the
+terminal output.
+
+Production sends magic links through Mailgun's Messages API. Set
+`ENV=production`, `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, and `MAILGUN_FROM`;
+`MAILGUN_BASE_URL` is optional and defaults to `https://api.mailgun.net`.
 
 ## Explicitly out of scope for this slice
 
 * OAuth 2.1 + PKCE for ChatGPT / mcp-server.
 * Google / Apple sign-in.
-* Email deliverability (provider choice, templates) — stdout logging only
-  until this is revisited.
 * Removing a family member, transferring ownership, deleting a family.
 * Rate limiting on `/auth/request` (needed before this is public-facing for
   real, but not blocking for Cip & Jenny using it first).
