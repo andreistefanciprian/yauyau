@@ -19,11 +19,6 @@ var ErrNotFound = errors.New("not found")
 // re-fetch the membership instead of treating this as a hard failure.
 var ErrActiveMembershipExists = errors.New("user already has an active family membership")
 
-// ErrActiveTimelineMember is returned when code tries to remove a member
-// whose access is already active. Active member removal needs auth-session
-// invalidation/revalidation before it can be safely exposed.
-var ErrActiveTimelineMember = errors.New("timeline member is active")
-
 // Baby is a baby record as returned to API consumers.
 type Baby struct {
 	ID       uuid.UUID `json:"id"`

@@ -1,9 +1,9 @@
 # Timeline Access and Permissions
 
-Status: **draft**. This document captures the intended direction for managing
-who can see and contribute to a baby's timeline. It should guide the next few
-PRs so access management, family membership, relationships, and permissions
-grow as one coherent part of the platform rather than as one-off screens.
+Status: **living design doc**. This document captures the intended direction
+for managing who can see and contribute to a baby's timeline. Keep it updated
+as access management, family membership, relationships, and permissions grow
+as one coherent part of the platform rather than as one-off screens.
 
 ## Product language
 
@@ -68,18 +68,27 @@ from authorization roles.
 
 ## Current behavior
 
-Owners can invite another email from the dashboard. backend-api creates a
-pending `family_members` row, and auth-service sends an invite magic link.
-When the invitee verifies the link, backend-api activates the pending
-membership.
+Owners can invite another email from `/settings/timeline`. backend-api
+creates a pending `family_members` row, and auth-service sends an invite
+magic link. When the invitee verifies the link, backend-api activates the
+pending membership.
+
+Current behavior:
+
+* Owners can see who has access on `/settings/timeline`.
+* Owners can invite people to the timeline from that page.
+* Owners can set optional relationship labels such as Mum, Dad, Grandpa, or
+  Carer.
+* Owners can cancel pending invites.
+* Owners can remove active non-owner members. backend-api revokes the
+  member's auth-service sessions for the family before deleting the
+  membership row.
 
 Current limitations:
 
-* There is no page to see who has access.
-* There is no way to remove someone's access.
-* There is no relationship label such as Mum, Dad, Grandpa, Carer.
 * `owner` vs `member` is the only authorization split.
 * All active members can use the timeline in the same way.
+* Owners cannot yet transfer ownership or remove another owner.
 
 ## Design decisions
 
@@ -154,26 +163,26 @@ When this becomes necessary, prefer a capability-based model over multiplying
 roles like `grandparent_viewer` or `nanny_editor`. Relationships and
 permissions should remain independent.
 
-## Proposed next PR: timeline access settings
+## Implemented slice: timeline access settings
 
-Keep the first implementation narrow and useful.
+The first implementation is intentionally narrow and useful.
 
 ### Backend schema
 
-Add a migration:
+The schema adds:
 
 ```sql
 ALTER TABLE family_members
   ADD COLUMN IF NOT EXISTS relationship TEXT;
 ```
 
-Do not add `display_name` yet unless the UI needs it immediately. Email is
-enough to identify people for the first settings page, and relationship is
-the higher-value addition.
+`display_name` is intentionally not present yet. Email is enough to identify
+people for the first settings page, and relationship is the higher-value
+addition.
 
 ### Backend API
 
-Add user-facing endpoints under the current baby route:
+User-facing endpoints under the current baby route:
 
 * `GET /api/v1/babies/current/members`
 * `PATCH /api/v1/babies/current/members/{user_id}`
@@ -186,6 +195,8 @@ These routes should:
 * require active owner membership for management actions
 * list only members for the caller's current family
 * prevent deleting the caller's own owner membership
+* prevent deleting any owner membership for now
+* revoke auth-service sessions before deleting an active non-owner member
 
 Suggested response shape:
 
@@ -213,7 +224,7 @@ Patch request:
 
 ### Frontend
 
-Add `/settings/timeline`.
+Frontend route: `/settings/timeline`.
 
 The page should show:
 
@@ -240,11 +251,12 @@ Access-management code should protect these invariants:
 
 * A non-owner cannot list/manage other members.
 * A non-owner cannot invite, remove, or edit relationships.
-* An owner cannot remove themselves if they are the only active owner.
+* An owner cannot remove themselves.
+* Owner removal/transfer is not exposed yet.
 * Removing an invited user should be allowed; it cancels the invite.
-* Removing an active member should immediately prevent future token minting
-  from attaching that family on new sessions. Existing short-lived access
-  tokens may remain valid until expiry.
+* Removing an active member must revoke their still-valid auth-service
+  sessions for that family before deleting the membership row. Existing
+  short-lived access tokens may remain valid until expiry.
 * Auth-service should not make membership decisions. It should continue to ask
   backend-api about family membership.
 

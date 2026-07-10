@@ -196,6 +196,28 @@ func (s *PostgresStore) RevokeSession(ctx context.Context, sessionID uuid.UUID) 
 	return userID, nil
 }
 
+// RevokeFamilyMemberSessions marks every currently valid session for a
+// user/family pair as revoked. backend-api calls this before deleting an
+// active family_members row, because it owns the membership decision while
+// auth-service owns the revocable session rows.
+func (s *PostgresStore) RevokeFamilyMemberSessions(ctx context.Context, userID, familyID uuid.UUID) (int64, error) {
+	const query = `
+		UPDATE sessions
+		SET revoked_at = NOW()
+		WHERE user_id = $1
+			AND family_id = $2
+			AND revoked_at IS NULL
+			AND expires_at > NOW()
+	`
+
+	tag, err := s.pool.Exec(ctx, query, userID, familyID)
+	if err != nil {
+		return 0, fmt.Errorf("revoking family member sessions: %w", err)
+	}
+
+	return tag.RowsAffected(), nil
+}
+
 // AttachFamily binds a null-family session to familyID — called once, right
 // after onboarding's "add your baby" step creates a family. Only succeeds
 // while family_id is still NULL: sessions.family_id is fixed per session by

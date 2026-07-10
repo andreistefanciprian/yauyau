@@ -134,6 +134,47 @@ func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+type revokeFamilyMemberSessionsRequest struct {
+	UserID   string `json:"user_id"`
+	FamilyID string `json:"family_id"`
+}
+
+type revokeFamilyMemberSessionsResponse struct {
+	RevokedSessions int64 `json:"revoked_sessions"`
+}
+
+// RevokeFamilyMemberSessions revokes all still-valid sessions for a
+// user/family pair after backend-api has decided that member should lose
+// timeline access. auth-service treats the IDs as opaque; backend-api owns
+// whether the removal is allowed.
+func (h *Handlers) RevokeFamilyMemberSessions(w http.ResponseWriter, r *http.Request) {
+	var req revokeFamilyMemberSessionsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "user_id must be a valid uuid")
+		return
+	}
+	familyID, err := uuid.Parse(req.FamilyID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "family_id must be a valid uuid")
+		return
+	}
+
+	count, err := h.Store.RevokeFamilyMemberSessions(r.Context(), userID, familyID)
+	if err != nil {
+		log.Printf("revoke family member sessions: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to revoke sessions")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, revokeFamilyMemberSessionsResponse{RevokedSessions: count})
+}
+
 type attachFamilyRequest struct {
 	FamilyID string `json:"family_id"`
 }

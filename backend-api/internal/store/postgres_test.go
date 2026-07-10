@@ -532,7 +532,7 @@ func TestRemoveTimelineMember(t *testing.T) {
 	}
 }
 
-func TestRemoveTimelineMemberRejectsActiveMember(t *testing.T) {
+func TestRemoveTimelineMemberDeletesActiveMember(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()
 
@@ -550,17 +550,16 @@ func TestRemoveTimelineMemberRejectsActiveMember(t *testing.T) {
 		execCleanup(t, s, `DELETE FROM users WHERE id = $1`, owner.ID)
 	})
 
-	err = s.RemoveTimelineMember(ctx, familyID, owner.ID)
-	if !errors.Is(err, ErrActiveTimelineMember) {
-		t.Fatalf("expected ErrActiveTimelineMember, got %v", err)
+	if err := s.RemoveTimelineMember(ctx, familyID, owner.ID); err != nil {
+		t.Fatalf("remove active member: %v", err)
 	}
 
 	membership, err := s.GetFamilyMembershipForFamily(ctx, owner.ID, familyID)
 	if err != nil {
 		t.Fatalf("get membership: %v", err)
 	}
-	if !membership.Found || membership.Status != MembershipStatusActive {
-		t.Fatalf("expected active owner membership to remain, got %+v", membership)
+	if membership.Found {
+		t.Fatalf("expected active membership to be removed, got %+v", membership)
 	}
 }
 

@@ -48,35 +48,35 @@ Corrected split:
   becomes active on first login"). auth-service calls backend-api's internal
   API for all of this.
 
-This introduces a real consequence: backend-api currently has **no auth on
-any route** — it's a single hardcoded family today. Once auth-service starts
-calling it to create/look up users and families, backend-api needs two
+This introduces a real consequence: backend-api and auth-service have two
 distinct trust tiers:
 
-* **Internal routes** (`/internal/users`, `/internal/families`, ...) —
-  trusted callers only. Reachable exclusively from auth-service, over the
-  private network; since both services are already private-only, network
-  isolation may be sufficient, but a shared internal-service secret header
-  is a cheap extra layer worth adding now rather than after the routes
-  already exist unguarded.
+* **Internal routes** (`/internal/users`, `/internal/auth/...`, ...) —
+  trusted callers only, over the private network. backend-api's internal API
+  is called by auth-service with `INTERNAL_AUTH_SECRET`; auth-service's
+  internal auth API is called by frontend and backend-api with
+  `FRONTEND_AUTH_SECRET`.
 * **User-facing routes** (`/api/v1/babies/current/...`) — gated by the JWT
   access token minted by auth-service, checked by backend-api itself
   (signature + expiry, no DB call).
 
-**Concrete contract for both shared secrets** (internal-route secret and
-JWT signing key) — deliberately the simplest thing that works at this
-scale, not left as a hand-wave:
+**Concrete contract for shared secrets** — deliberately the simplest thing
+that works at this scale, not left as a hand-wave:
 
-* Both are single static random values (e.g. 32 bytes, base64-encoded),
-  set once as environment variables (`INTERNAL_AUTH_SECRET`,
-  `JWT_SIGNING_SECRET`) with the **same value on both services** that need
-  to agree on it. No per-request negotiation, no key rotation infra, no
-  asymmetric keys — those solve problems (multi-party trust, automated
-  rotation) this two-service, two-operator app doesn't have yet.
+* They are single static random values (e.g. 32 bytes, base64-encoded),
+  set once as environment variables with the **same value on the services**
+  that need to agree on them. No per-request negotiation, no key rotation
+  infra, no asymmetric keys — those solve problems (multi-party trust,
+  automated rotation) this small app doesn't have yet.
 * `INTERNAL_AUTH_SECRET` is sent as a header (e.g. `X-Internal-Secret`) on
   every auth-service → backend-api internal call; backend-api's middleware
   compares it with `crypto/subtle.ConstantTimeCompare`, not `==`, so the
   comparison itself doesn't leak timing information.
+* `FRONTEND_AUTH_SECRET` is sent as the same header on trusted calls into
+  auth-service's `/internal/auth/*` routes. Despite the historical name, it
+  is now shared by frontend and backend-api: frontend uses it for login/token
+  operations, and backend-api uses it to ask auth-service to revoke sessions
+  after removing active timeline access.
 * `JWT_SIGNING_SECRET` is HMAC-SHA256, used by auth-service to sign and by
   backend-api to verify — symmetric because both are our own services and
   fully trust each other; no third party ever needs to verify these tokens
@@ -207,7 +207,7 @@ sequenceDiagram
     participant Backend as backend-api
     actor Invitee
 
-    Owner->>Frontend: enters invitee email on the baby's dashboard
+    Owner->>Frontend: enters invitee email on Timeline access settings
     Frontend->>Backend: POST /api/v1/babies/{id}/invite { email } with Bearer access token
     Backend->>Backend: resolve baby's family_id and check caller is active owner
     Backend->>Backend: upsert user by email (may not exist yet)
@@ -218,6 +218,32 @@ sequenceDiagram
     Note over Auth,Backend: verify flow as above — GET /internal/family-membership?activate_if_invited=true sees the existing invited row for this user and flips it to active
 ```
 
+## Flow: removing timeline access
+
+```mermaid
+sequenceDiagram
+    actor Owner
+    participant Frontend
+    participant Backend as backend-api
+    participant Auth as auth-service
+
+    Owner->>Frontend: removes a person from Timeline access
+    Frontend->>Backend: DELETE /api/v1/babies/current/members/{user_id} with Bearer access token
+    Backend->>Backend: verify caller is active owner for the current family
+    Backend->>Backend: reject self-removal and owner removal
+    alt target is active member
+        Backend->>Auth: POST /internal/auth/sessions/revoke-family-member { user_id, family_id }
+        Auth->>Auth: set revoked_at on valid matching sessions
+    end
+    Backend->>Backend: delete family_members row
+    Backend-->>Frontend: 204 No Content
+```
+
+backend-api owns the membership decision. auth-service only revokes sessions
+for the opaque `user_id`/`family_id` pair it is given. Already-issued
+short-lived JWT access tokens may remain valid until expiry, but the removed
+member can no longer mint fresh access tokens from revoked sessions.
+
 ## Schema (new)
 
 Owned by **backend-api** (Core entities — business domain):
@@ -226,7 +252,7 @@ Owned by **backend-api** (Core entities — business domain):
 |---|---|
 | `users` | `id`, `email` (unique), `created_at`. No password — magic link is the only credential. |
 | `families` | `id`, `name`, `created_at`. |
-| `family_members` | `family_id`, `user_id`, `role` (`owner`/`member`), `status` (`invited`/`active`), `created_at`. Join table; replaces the hardcoded `FamilyID`. |
+| `family_members` | `family_id`, `user_id`, `role` (`owner`/`member`), `status` (`invited`/`active`), optional `relationship`, `created_at`. Join table; replaces the hardcoded `FamilyID`. |
 
 Owned by **auth-service** (Authentication entities — credentials/tokens only):
 
@@ -257,8 +283,8 @@ which will reuse the same JWT access-token minting/verification path.
 | Cookie content | Opaque session ID (not a JWT) |
 | Cookie flags | `HttpOnly`, `Secure` in production, `SameSite=Lax` |
 | JWT signing | HMAC-SHA256, static shared `JWT_SIGNING_SECRET` env var on both auth-service and backend-api (see "Concrete contract" above) |
-| Internal-route auth | Static shared `INTERNAL_AUTH_SECRET` header, checked with `crypto/subtle.ConstantTimeCompare` |
-| Revocation | Instant at the session level (logout, "sign out everywhere"); already-minted JWTs remain valid until their short expiry |
+| Internal-route auth | Static shared secret in `X-Internal-Secret`, checked with `crypto/subtle.ConstantTimeCompare`; `INTERNAL_AUTH_SECRET` gates auth-service → backend-api, `FRONTEND_AUTH_SECRET` gates frontend/backend-api → auth-service |
+| Revocation | Instant at the session level (logout, active timeline access removal, later "sign out everywhere"); already-minted JWTs remain valid until their short expiry |
 
 ## Network exposure note
 

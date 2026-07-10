@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/andreistefanciprian/yauli/backend-api/internal/authclient"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/authctx"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/handlers"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
@@ -37,6 +38,16 @@ func main() {
 		log.Fatal("JWT_SIGNING_SECRET is required")
 	}
 
+	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
+	if authServiceURL == "" {
+		log.Fatal("AUTH_SERVICE_URL is required")
+	}
+
+	frontendAuthSecret := os.Getenv("FRONTEND_AUTH_SECRET")
+	if frontendAuthSecret == "" {
+		log.Fatal("FRONTEND_AUTH_SECRET is required")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -50,7 +61,7 @@ func main() {
 		log.Fatalf("run migrations: %v", err)
 	}
 
-	h := handlers.New(store.NewPostgresStore(pool))
+	h := handlers.New(store.NewPostgresStore(pool), authclient.New(authServiceURL, frontendAuthSecret))
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)

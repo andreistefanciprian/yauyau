@@ -76,12 +76,13 @@ func main() {
 
 	r.Get("/healthz", h.Healthz)
 	r.Route("/internal/auth", func(r chi.Router) {
-		r.Use(requireFrontendSecret(frontendAuthSecret))
+		r.Use(requireAuthSecret(frontendAuthSecret))
 		r.Post("/request", h.RequestMagicLink)
 		r.Post("/invite", h.RequestInviteMagicLink)
 		r.Post("/verify", h.VerifyMagicLink)
 		r.Post("/token", h.MintToken)
 		r.Post("/logout", h.Logout)
+		r.Post("/sessions/revoke-family-member", h.RevokeFamilyMemberSessions)
 		r.Post("/session/{id}/attach-family", h.AttachFamily)
 	})
 
@@ -114,14 +115,13 @@ func configureMailer() mailer.Mailer {
 	return mailer.NewMailgun(apiKey, domain, from, os.Getenv("MAILGUN_BASE_URL"))
 }
 
-// requireFrontendSecret gates the frontend-facing API behind a single
-// static shared secret, set as the same env var value on both services —
-// mirrors backend-api's identical requireInternalSecret. Without this,
-// anyone with network reach to auth-service could mint access tokens or
-// revoke sessions for any known session_id with no credential check at all.
-// ConstantTimeCompare avoids leaking the secret's value one byte at a time
-// through response-timing differences.
-func requireFrontendSecret(secret string) func(http.Handler) http.Handler {
+// requireAuthSecret gates auth-service's internal API behind a single
+// static shared secret, set as the same env var value on trusted callers
+// (frontend and backend-api). Without this, anyone with network reach to
+// auth-service could mint access tokens or revoke sessions with no
+// credential check at all. ConstantTimeCompare avoids leaking the secret's
+// value one byte at a time through response-timing differences.
+func requireAuthSecret(secret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			given := r.Header.Get("X-Internal-Secret")

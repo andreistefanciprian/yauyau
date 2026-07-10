@@ -152,8 +152,11 @@ Responsibilities
 * summaries
 * reporting
 * validation
+* timeline access membership
 
-Owns the business domain.
+Owns the business domain. When membership changes affect authentication,
+backend-api makes the business decision and asks auth-service to update its
+session rows; auth-service must not decide who belongs to a family.
 
 ---
 
@@ -168,7 +171,9 @@ Responsibilities
 * refresh tokens
 * session management
 
-No baby domain logic.
+No baby domain logic. `user_id` and `family_id` are opaque identifiers here;
+auth-service can revoke sessions for those IDs when backend-api asks, but it
+does not read or decide family membership.
 
 ---
 
@@ -268,6 +273,17 @@ identity into context — see `internal/authctx`):
   caller's family's first-created baby, or 404 meaning "no baby yet").
 * `POST /api/v1/babies/{id}/invite` → `InviteHelper`, baby-scoped and
   owner-only; creates a pending helper invite for the supplied email.
+* `GET /api/v1/babies/current/members` → `ListTimelineMembers`, owner-only;
+  returns active and invited users with access to the current baby's
+  timeline.
+* `PATCH /api/v1/babies/current/members/{userID}` →
+  `UpdateTimelineMember`, owner-only; updates the member's relationship label
+  (profile context such as "Dad", not an authorization role).
+* `DELETE /api/v1/babies/current/members/{userID}` →
+  `RemoveTimelineMember`, owner-only; cancels pending invites or removes
+  active non-owner access. Active removal first asks auth-service to revoke
+  the member's still-valid sessions for the family, then deletes the
+  `family_members` row.
 * `GET /api/v1/babies/current/events` → `ListAllEvents`, the combined feed
   behind the frontend timeline: every event type, merged and ordered
   newest-first (`store.ListAllEvents`, capped at `allEventsLimit`).

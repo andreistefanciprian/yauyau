@@ -23,6 +23,7 @@ type Store interface {
 	WriteAuditLog(ctx context.Context, userID uuid.UUID, sessionID *uuid.UUID, eventType string) error
 	GetValidSession(ctx context.Context, sessionID uuid.UUID) (uuid.UUID, *uuid.UUID, error)
 	RevokeSession(ctx context.Context, sessionID uuid.UUID) (uuid.UUID, error)
+	RevokeFamilyMemberSessions(ctx context.Context, userID, familyID uuid.UUID) (int64, error)
 	AttachFamily(ctx context.Context, sessionID, familyID uuid.UUID) error
 }
 

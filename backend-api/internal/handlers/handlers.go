@@ -46,6 +46,12 @@ type FamilyStore interface {
 	RemoveTimelineMember(ctx context.Context, familyID, userID uuid.UUID) error
 }
 
+// AuthClient is the narrow auth-service boundary backend-api needs for
+// membership changes that must revoke durable sessions.
+type AuthClient interface {
+	RevokeFamilyMemberSessions(ctx context.Context, userID, familyID uuid.UUID) error
+}
+
 // allEventsLimit caps the combined /events endpoint. It's set higher than
 // each per-type List<X> endpoint's limit (20) since this one is shared
 // across every event type rather than counted per type.
@@ -123,16 +129,17 @@ func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 type Handlers struct {
 	Store       Store
 	FamilyStore FamilyStore
+	Auth        AuthClient
 }
 
 // New wires up Handlers from a single concrete store that satisfies both
-// Store and FamilyStore (as *store.PostgresStore does), so callers don't
-// need to pass the same value in twice.
+// Store and FamilyStore (as *store.PostgresStore does), plus the narrow
+// auth-service client needed for membership/session coordination.
 func New(s interface {
 	Store
 	FamilyStore
-}) *Handlers {
-	return &Handlers{Store: s, FamilyStore: s}
+}, auth AuthClient) *Handlers {
+	return &Handlers{Store: s, FamilyStore: s, Auth: auth}
 }
 
 func (h *Handlers) Healthz(w http.ResponseWriter, r *http.Request) {

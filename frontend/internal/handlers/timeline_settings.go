@@ -121,9 +121,9 @@ func (h *Handlers) RemoveTimelineMember(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		log.Printf("remove timeline member: %v", err)
-		h.renderTimelineSettings(w, r, inviteStatus{}, "Could not cancel invite. Please try again.")
+		h.renderTimelineSettings(w, r, inviteStatus{}, "Could not update access. Please try again.")
 		return
 	}
 
-	h.renderTimelineSettings(w, r, inviteStatus{}, "Invite cancelled.")
+	h.renderTimelineSettings(w, r, inviteStatus{}, "Access updated.")
 }

@@ -98,8 +98,8 @@ func (h *Handlers) UpdateTimelineMember(w http.ResponseWriter, r *http.Request) 
 }
 
 // RemoveTimelineMember removes a person's access to the current baby's
-// timeline. This first slice only supports cancelling pending invites;
-// active-member removal needs auth-session invalidation first.
+// timeline. Pending invites are deleted immediately; active members have
+// their auth-service sessions revoked before the membership row is removed.
 func (h *Handlers) RemoveTimelineMember(w http.ResponseWriter, r *http.Request) {
 	claims, baby, ok := h.requireTimelineOwner(w, r)
 	if !ok {
@@ -115,13 +115,31 @@ func (h *Handlers) RemoveTimelineMember(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	membership, err := h.FamilyStore.GetFamilyMembershipForFamily(r.Context(), memberID, baby.FamilyID)
+	if err != nil {
+		log.Printf("get target membership for removal: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load timeline member")
+		return
+	}
+	if !membership.Found {
+		writeError(w, http.StatusNotFound, "timeline member not found")
+		return
+	}
+	if membership.Role == store.MembershipRoleOwner {
+		writeError(w, http.StatusConflict, "owners cannot be removed yet")
+		return
+	}
+	if membership.Status == store.MembershipStatusActive {
+		if err := h.Auth.RevokeFamilyMemberSessions(r.Context(), memberID, baby.FamilyID); err != nil {
+			log.Printf("revoke removed member sessions: %v", err)
+			writeError(w, http.StatusInternalServerError, "failed to remove timeline member")
+			return
+		}
+	}
+
 	if err := h.FamilyStore.RemoveTimelineMember(r.Context(), baby.FamilyID, memberID); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "timeline member not found")
-			return
-		}
-		if errors.Is(err, store.ErrActiveTimelineMember) {
-			writeError(w, http.StatusConflict, "active timeline members cannot be removed yet")
 			return
 		}
 		log.Printf("remove timeline member: %v", err)

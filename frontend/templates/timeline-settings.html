@@ -70,6 +70,10 @@
           <form method="post" action="/settings/timeline/members/{{.UserID}}/remove" class="member-action-form">
             <button type="submit" class="danger-text-button">Cancel invite</button>
           </form>
+          {{else if eq .Role "member"}}
+          <form method="post" action="/settings/timeline/members/{{.UserID}}/remove" class="member-action-form">
+            <button type="submit" class="danger-text-button">Remove access</button>
+          </form>
           {{else}}
           <p class="member-state">Active</p>
           {{end}}

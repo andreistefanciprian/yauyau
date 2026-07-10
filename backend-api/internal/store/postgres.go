@@ -422,39 +422,21 @@ func (s *PostgresStore) UpdateTimelineMemberRelationship(ctx context.Context, fa
 	return nil
 }
 
-// RemoveTimelineMember cancels a pending invite to a family timeline. Active
-// members are deliberately rejected until removal can also revoke or
-// revalidate auth-service sessions that already carry this family_id.
+// RemoveTimelineMember removes a family_members row. Callers are responsible
+// for applying access-management policy before deletion, including revoking
+// auth-service sessions before removing an active member.
 func (s *PostgresStore) RemoveTimelineMember(ctx context.Context, familyID, userID uuid.UUID) error {
-	const query = `
-		WITH target AS (
-			SELECT status
-			FROM family_members
-			WHERE family_id = $1 AND user_id = $2
-		), deleted AS (
-			DELETE FROM family_members
-			WHERE family_id = $1 AND user_id = $2 AND status = $3
-			RETURNING 1
-		)
-		SELECT
-			EXISTS(SELECT 1 FROM deleted),
-			COALESCE((SELECT status FROM target), '')
-	`
+	const query = `DELETE FROM family_members WHERE family_id = $1 AND user_id = $2`
 
-	var deleted bool
-	var status string
-	if err := s.pool.QueryRow(ctx, query, familyID, userID, MembershipStatusInvited).Scan(&deleted, &status); err != nil {
+	tag, err := s.pool.Exec(ctx, query, familyID, userID)
+	if err != nil {
 		return fmt.Errorf("removing timeline member: %w", err)
 	}
-
-	switch {
-	case deleted:
-		return nil
-	case MembershipStatus(status) == MembershipStatusActive:
-		return ErrActiveTimelineMember
-	default:
+	if tag.RowsAffected() == 0 {
 		return ErrNotFound
 	}
+
+	return nil
 }
 
 // ActivateInvitedMembership flips a pending invite to active — called when
