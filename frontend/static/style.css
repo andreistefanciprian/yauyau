@@ -690,36 +690,41 @@ h2 {
 
 .event-edit,
 .event-delete {
+  display: inline-grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
   border: none;
-  background: none;
+  border-radius: 999px;
+  background: transparent;
   color: inherit;
   line-height: 1;
-  margin-left: 0.25rem;
+  margin-left: 0.15rem;
   opacity: 0.55;
+  padding: 0;
   cursor: pointer;
 }
 
 .event-edit {
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 0.2rem 0.35rem;
+  font-size: 0.95rem;
 }
 
 .event-delete {
   font-size: 1.1rem;
-  padding: 0.1rem 0.3rem;
 }
 
 .event-edit:hover,
 .event-edit:active {
   opacity: 1;
   color: var(--color-blue);
+  background: color-mix(in srgb, var(--color-blue) 10%, transparent);
 }
 
 .event-delete:hover,
 .event-delete:active {
   opacity: 1;
   color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
 }
 
 .event-nappy {

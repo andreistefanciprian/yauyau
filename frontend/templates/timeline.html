@@ -19,10 +19,11 @@
         data-duration-minutes="{{.DurationMinutes}}"
         data-notes="{{.Notes}}"
         data-text="{{.Text}}"
-        data-category="{{.Category}}">Edit</button>
+        data-category="{{.Category}}"
+        title="Edit event">&#9998;</button>
       <button type="button" class="event-delete" aria-label="Delete event"
         hx-delete="/events/{{.ID}}?range={{$.Selected}}" hx-target="#timeline" hx-swap="innerHTML"
-        hx-confirm="Delete this event?">&times;</button>
+        hx-confirm="Delete this event?" title="Delete event">&times;</button>
     </div>
     {{if .Detail}}<div class="event-detail">{{.Detail}}</div>{{end}}
   </article>
