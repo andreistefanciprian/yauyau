@@ -167,12 +167,12 @@ sequenceDiagram
     participant Auth as auth-service
     participant Backend as backend-api
 
-    User->>Frontend: GET /timeline (Cookie: yauli_session=<id>)
+    User->>Frontend: GET /app (Cookie: yauli_session=<id>)
     Frontend->>Auth: POST /internal/auth/token { session_id }
     Auth->>Auth: look up session, check not expired/revoked
     Auth->>Auth: sign JWT (sub=user_id, family_id, exp=now+10min)
     Auth-->>Frontend: { access_token }
-    Frontend->>Backend: GET /api/v1/babies/current/events (Authorization: Bearer <access_token>)
+    Frontend->>Backend: GET /api/v1/babies/current/events?range=today (Authorization: Bearer <access_token>)
     Backend->>Backend: verify JWT signature + expiry only (no DB call)
     Backend-->>Frontend: events scoped to family_id from JWT
     Frontend-->>User: rendered timeline

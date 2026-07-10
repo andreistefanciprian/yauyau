@@ -286,7 +286,9 @@ identity into context — see `internal/authctx`):
   `family_members` row.
 * `GET /api/v1/babies/current/events` → `ListAllEvents`, the combined feed
   behind the frontend timeline: every event type, merged and ordered
-  newest-first (`store.ListAllEvents`, capped at `allEventsLimit`).
+  newest-first (`store.ListAllEvents`, capped at `allEventsLimit`). Supports
+  `?range=today` (default), `?range=yesterday`, `?range=24h`, and
+  `?range=3d`; calendar ranges are calculated in the baby's timezone.
 * Per event type, nested under its plural resource name (`/nappies`,
   `/feeds`, `/baths`, `/observations`, ...):
   * `POST /api/v1/babies/current/<resource>` → `Create<Type>`
@@ -336,12 +338,12 @@ without a migration).
 ## Frontend wiring
 
 `frontend/internal/backendclient` has no per-event-type methods — just
-generic `ListEvents(ctx, resource string, out any)` and
+generic `ListEvents(ctx, resource string, rangeKey string, out any)` and
 `CreateEvent(ctx, resource string, payload map[string]any)` against
 `/api/v1/babies/current/<resource>`. Reads go through the combined
-`ListEvents(ctx, "events", &events)` (backend-api's `/events` endpoint,
-already merged and sorted newest-first across every event type); writes
-still go through `CreateEvent(ctx, "<resource>", payload)` per type
+`ListEvents(ctx, "events", rangeKey, &events)` (backend-api's `/events`
+endpoint, already merged, range-filtered, and sorted newest-first across
+every event type); writes still go through `CreateEvent(ctx, "<resource>", payload)` per type
 (`"nappies"`, `"feeds"`, `"baths"`, `"observations"`). The only shape
 `backendclient.go` decodes is the generic `Event` struct (`EventType` plus
 an `Attributes map[string]any`) — no per-event-type typed view structs.
@@ -360,9 +362,10 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   `timelineEvent(ev, loc, now)` dispatches to the right builder by
   `ev.EventType`, skipping (and logging) any type the frontend doesn't
   recognize.
-* `loadTimeline(ctx, loc)` makes one `ListEvents(ctx, "events", ...)` call
-  and converts each item to a `TimelineEvent` — no client-side merging or
-  sorting; the backend already returns one merged, ordered list.
+* `loadTimeline(ctx, loc, rangeKey)` makes one
+  `ListEvents(ctx, "events", rangeKey, ...)` call and converts each item to
+  a `TimelineEvent` — no client-side merging or sorting; the backend already
+  returns one merged, ordered list for the selected range.
 * `Index` calls `loadTimeline` and renders the full page.
 * Each `Create<X>` handler parses the HTML form, builds a `map[string]any`
   payload (plus `occurred_at` via `parseEventTime`), calls
@@ -370,7 +373,8 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   `renderTimeline` (itself `loadTimeline` + render), so every form's htmx
   response is the same re-sorted, all-types timeline partial
   (`templates/timeline.html`) swapped into `#timeline` — never a per-type
-  partial.
+  partial. The selected range is carried in each form/delete request so HTMX
+  refreshes preserve the parent's current view.
 
 On the client, `frontend/static/app.js` drives the "Add Event" dialog: a
 type-picker step (four buttons, one per event type) followed by a
@@ -480,6 +484,10 @@ Everything should be optimized around helping parents answer one question quickl
 "What happened today?"
 
 Users should understand their baby's day within 5 seconds.
+
+The main app view should default to today's timeline. Quick range controls
+for Yesterday, 24h, and 3 days should sit beside the timeline itself rather
+than behind settings or a secondary page.
 
 Every event should be immediately distinguishable using:
 

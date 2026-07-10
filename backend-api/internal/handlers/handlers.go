@@ -9,6 +9,10 @@ import (
 	"net/http"
 	"time"
 
+	// backend-api runs from a scratch image with no OS timezone database.
+	// Embed IANA tzdata so calendar timeline ranges can use baby.Timezone.
+	_ "time/tzdata"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
@@ -26,7 +30,7 @@ type Store interface {
 	GetCurrentBaby(ctx context.Context, familyID uuid.UUID) (store.Baby, error)
 	CreateBaby(ctx context.Context, familyID uuid.UUID, name, timezone string) (store.Baby, error)
 	CreateEvent(ctx context.Context, familyID, babyID uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
-	ListAllEvents(ctx context.Context, familyID, babyID uuid.UUID, limit int) ([]store.Event, error)
+	ListAllEvents(ctx context.Context, familyID, babyID uuid.UUID, from, to time.Time, limit int) ([]store.Event, error)
 	DeleteEvent(ctx context.Context, familyID, babyID, id uuid.UUID) error
 }
 
@@ -57,6 +61,15 @@ type AuthClient interface {
 // across every event type rather than counted per type.
 const allEventsLimit = 40
 
+const defaultTimelineRange = "today"
+
+var errUnsupportedTimelineRange = errors.New("unsupported timeline range")
+
+type timelineRangeWindow struct {
+	From time.Time
+	To   time.Time
+}
+
 // eventResponse is a generic event exactly as stored (event_type +
 // attributes, not a typed per-event shape), for consumers that need every
 // event type ordered together by occurred_at rather than filtered to one.
@@ -78,7 +91,18 @@ func (h *Handlers) ListAllEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	events, err := h.Store.ListAllEvents(r.Context(), baby.FamilyID, baby.ID, allEventsLimit)
+	window, err := timelineRangeFor(r.URL.Query().Get("range"), baby.Timezone)
+	if err != nil {
+		if errors.Is(err, errUnsupportedTimelineRange) {
+			writeError(w, http.StatusBadRequest, "invalid timeline range")
+			return
+		}
+		log.Printf("resolve timeline range: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to resolve timeline range")
+		return
+	}
+
+	events, err := h.Store.ListAllEvents(r.Context(), baby.FamilyID, baby.ID, window.From, window.To, allEventsLimit)
 	if err != nil {
 		log.Printf("list all events: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to load events")
@@ -98,6 +122,38 @@ func (h *Handlers) ListAllEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, mapped)
+}
+
+func timelineRangeFor(rawRange, timezone string) (timelineRangeWindow, error) {
+	rangeKey := rawRange
+	if rangeKey == "" {
+		rangeKey = defaultTimelineRange
+	}
+	if rangeKey != "today" && rangeKey != "yesterday" && rangeKey != "24h" && rangeKey != "3d" {
+		return timelineRangeWindow{}, fmt.Errorf("%w: %s", errUnsupportedTimelineRange, rawRange)
+	}
+
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return timelineRangeWindow{}, fmt.Errorf("load baby timezone %q: %w", timezone, err)
+	}
+
+	now := time.Now().In(loc)
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	switch rangeKey {
+	case "today":
+		return timelineRangeWindow{From: todayStart, To: todayStart.AddDate(0, 0, 1)}, nil
+	case "yesterday":
+		yesterdayStart := todayStart.AddDate(0, 0, -1)
+		return timelineRangeWindow{From: yesterdayStart, To: todayStart}, nil
+	case "24h":
+		return timelineRangeWindow{From: now.Add(-24 * time.Hour), To: now}, nil
+	case "3d":
+		return timelineRangeWindow{From: todayStart.AddDate(0, 0, -2), To: todayStart.AddDate(0, 0, 1)}, nil
+	default:
+		return timelineRangeWindow{}, fmt.Errorf("%w: %s", errUnsupportedTimelineRange, rawRange)
+	}
 }
 
 // DeleteEvent removes a single event by id, regardless of its event_type.

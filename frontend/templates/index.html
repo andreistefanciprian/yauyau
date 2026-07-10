@@ -16,7 +16,6 @@
       <img src="/static/logo.png" alt="Yauli" class="navbar-logo-image">
     </a>
     <div class="navbar-actions">
-      {{if .Baby.CanInvite}}<a href="/settings/timeline" class="navbar-text-link">Timeline access</a>{{end}}
       <form method="post" action="/logout">
         <button type="submit" class="navbar-text-button">Sign Out</button>
       </form>
@@ -24,9 +23,20 @@
   </nav>
 
   <main>
-    <header class="page-header">
-      <h1>{{.Baby.Name}}</h1>
+    <header class="page-header baby-workspace-header">
+      <div>
+        <p class="settings-kicker">Baby timeline</p>
+        <h1>{{.Baby.Name}}</h1>
+      </div>
+      {{if .Baby.CanInvite}}<a href="/settings/timeline" class="people-link">People</a>{{end}}
     </header>
+
+    <nav class="range-nav" aria-label="Timeline range">
+      {{range .Timeline.Ranges}}
+      <a href="{{.Href}}" class="range-pill{{if .Active}} active{{end}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}}</a>
+      {{end}}
+    </nav>
+
     <section id="timeline" class="timeline-section" aria-live="polite">
       {{template "timeline" .Timeline}}
     </section>
@@ -68,6 +78,7 @@
       </div>
 
       <form class="event-form" data-type="nappy" hx-post="/nappies" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <fieldset>
           <legend>Kind</legend>
           <label><input type="radio" name="kind" value="wet" required> Wet</label>
@@ -94,6 +105,7 @@
       </form>
 
       <form class="event-form" data-type="feed" hx-post="/feeds" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <fieldset>
           <legend>Type</legend>
           <label><input type="radio" name="type" value="breast" required> Breast</label>
@@ -125,6 +137,7 @@
       </form>
 
       <form class="event-form" data-type="bath" hx-post="/baths" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <fieldset>
           <legend>Type</legend>
           <label><input type="radio" name="type" value="whole_body" required> Whole body</label>
@@ -155,6 +168,7 @@
       </form>
 
       <form class="event-form" data-type="sleep" hx-post="/sleeps" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <fieldset>
           <legend>Type</legend>
           <label><input type="radio" name="type" value="nap" required> Nap</label>
@@ -185,6 +199,7 @@
       </form>
 
       <form class="event-form" data-type="observation" hx-post="/observations" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <label class="field-label">
           Note
           <textarea name="text" required placeholder="What did you notice?"></textarea>

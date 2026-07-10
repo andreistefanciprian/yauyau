@@ -60,8 +60,12 @@ func (c *HTTPClient) CreateBaby(ctx context.Context, name string) (Baby, error) 
 // URL segment: "nappies", "feeds", "baths", "observations", ...) into out,
 // which must be a pointer to a slice of the caller's typed view of that
 // resource (e.g. *[]Nappy).
-func (c *HTTPClient) ListEvents(ctx context.Context, resource string, out any) error {
-	return c.getJSON(ctx, "/api/v1/babies/current/"+resource, out)
+func (c *HTTPClient) ListEvents(ctx context.Context, resource, rangeKey string, out any) error {
+	path := "/api/v1/babies/current/" + resource
+	if rangeKey != "" {
+		path += "?range=" + url.QueryEscape(rangeKey)
+	}
+	return c.getJSON(ctx, path, out)
 }
 
 // CreateEvent posts payload (form fields plus "occurred_at") to the given

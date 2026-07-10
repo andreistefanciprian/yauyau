@@ -36,7 +36,7 @@ const (
 type Backend interface {
 	GetCurrentBaby(ctx context.Context) (backendclient.Baby, error)
 	CreateBaby(ctx context.Context, name string) (backendclient.Baby, error)
-	ListEvents(ctx context.Context, resource string, out any) error
+	ListEvents(ctx context.Context, resource, rangeKey string, out any) error
 	CreateEvent(ctx context.Context, resource string, payload map[string]any) error
 	DeleteEvent(ctx context.Context, id string) error
 	InviteHelper(ctx context.Context, babyID, email string) error
@@ -84,6 +84,20 @@ type TimelineEvent struct {
 	Time      string // pre-formatted for display, e.g. "11:15 AM" or "Jan 2, 11:15 AM"
 }
 
+type TimelineViewData struct {
+	Events       []TimelineEvent
+	Ranges       []TimelineRangeOption
+	Selected     string
+	EmptyMessage string
+}
+
+type TimelineRangeOption struct {
+	Key    string
+	Label  string
+	Href   string
+	Active bool
+}
+
 type inviteStatus struct {
 	Message string
 	Error   string
@@ -91,7 +105,7 @@ type inviteStatus struct {
 
 type indexPageData struct {
 	Baby     backendclient.Baby
-	Timeline []TimelineEvent
+	Timeline TimelineViewData
 	NowDate  string
 	NowTime  string
 }
@@ -108,7 +122,8 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	timeline, err := h.loadTimeline(r.Context(), loc)
+	rangeKey := selectedTimelineRange(r)
+	timeline, err := h.loadTimeline(r.Context(), loc, rangeKey)
 	if err != nil {
 		log.Printf("%v", err)
 		http.Error(w, "failed to load events", http.StatusBadGateway)
@@ -160,7 +175,7 @@ func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderTimeline(w, r.Context(), loc)
+	h.renderTimeline(w, r, loc)
 }
 
 func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
@@ -207,7 +222,7 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderTimeline(w, r.Context(), loc)
+	h.renderTimeline(w, r, loc)
 }
 
 func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
@@ -248,7 +263,7 @@ func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderTimeline(w, r.Context(), loc)
+	h.renderTimeline(w, r, loc)
 }
 
 func (h *Handlers) CreateSleep(w http.ResponseWriter, r *http.Request) {
@@ -289,7 +304,7 @@ func (h *Handlers) CreateSleep(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderTimeline(w, r.Context(), loc)
+	h.renderTimeline(w, r, loc)
 }
 
 func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
@@ -323,7 +338,7 @@ func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderTimeline(w, r.Context(), loc)
+	h.renderTimeline(w, r, loc)
 }
 
 // DeleteEvent removes a single event, regardless of its type, and re-renders
@@ -344,14 +359,14 @@ func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderTimeline(w, r.Context(), loc)
+	h.renderTimeline(w, r, loc)
 }
 
 // renderTimeline re-fetches every event type and writes the combined,
 // sorted timeline partial. It's the shared tail of every Create* handler,
 // since all four forms target the same #timeline container.
-func (h *Handlers) renderTimeline(w http.ResponseWriter, ctx context.Context, loc *time.Location) {
-	timeline, err := h.loadTimeline(ctx, loc)
+func (h *Handlers) renderTimeline(w http.ResponseWriter, r *http.Request, loc *time.Location) {
+	timeline, err := h.loadTimeline(r.Context(), loc, selectedTimelineRange(r))
 	if err != nil {
 		log.Printf("%v", err)
 		http.Error(w, "failed to load events", http.StatusBadGateway)
@@ -367,10 +382,10 @@ func (h *Handlers) renderTimeline(w http.ResponseWriter, ctx context.Context, lo
 // loadTimeline fetches the most recent events across every type from
 // backend-api's combined /events endpoint — already merged and ordered
 // newest-first by the store — and flattens each into a TimelineEvent.
-func (h *Handlers) loadTimeline(ctx context.Context, loc *time.Location) ([]TimelineEvent, error) {
+func (h *Handlers) loadTimeline(ctx context.Context, loc *time.Location, rangeKey string) (TimelineViewData, error) {
 	var events []backendclient.Event
-	if err := h.Backend.ListEvents(ctx, "events", &events); err != nil {
-		return nil, fmt.Errorf("list events: %w", err)
+	if err := h.Backend.ListEvents(ctx, "events", rangeKey, &events); err != nil {
+		return TimelineViewData{}, fmt.Errorf("list events: %w", err)
 	}
 
 	now := time.Now().In(loc)
@@ -384,7 +399,51 @@ func (h *Handlers) loadTimeline(ctx context.Context, loc *time.Location) ([]Time
 		timeline = append(timeline, te)
 	}
 
-	return timeline, nil
+	return TimelineViewData{
+		Events:       timeline,
+		Ranges:       timelineRangeOptions(rangeKey),
+		Selected:     rangeKey,
+		EmptyMessage: emptyTimelineMessage(rangeKey),
+	}, nil
+}
+
+func selectedTimelineRange(r *http.Request) string {
+	raw := r.FormValue("range")
+	switch raw {
+	case "", "today":
+		return "today"
+	case "yesterday", "24h", "3d":
+		return raw
+	default:
+		return "today"
+	}
+}
+
+func timelineRangeOptions(selected string) []TimelineRangeOption {
+	options := []TimelineRangeOption{
+		{Key: "today", Label: "Today"},
+		{Key: "yesterday", Label: "Yesterday"},
+		{Key: "24h", Label: "24h"},
+		{Key: "3d", Label: "3 days"},
+	}
+	for i := range options {
+		options[i].Href = "/app?range=" + options[i].Key
+		options[i].Active = options[i].Key == selected
+	}
+	return options
+}
+
+func emptyTimelineMessage(rangeKey string) string {
+	switch rangeKey {
+	case "yesterday":
+		return "No events logged yesterday."
+	case "24h":
+		return "No events logged in the last 24 hours."
+	case "3d":
+		return "No events logged in the last 3 days."
+	default:
+		return "No events logged today. Tap \"Add Event\" to log the first one."
+	}
 }
 
 // timelineEvent dispatches a generic Event to the builder for its type. ok

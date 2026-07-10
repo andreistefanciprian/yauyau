@@ -44,7 +44,9 @@ The user-facing access surface. A baby timeline contains:
 * later, permission levels for those people
 
 Today each baby belongs to one family and event routes resolve the current
-baby from the session's `family_id`.
+baby from the session's `family_id`. The main app defaults to the baby's
+current calendar day and lets parents quickly switch to Yesterday, the last
+24 hours, or the last 3 days without leaving the timeline.
 
 ### Membership
 
@@ -68,15 +70,19 @@ from authorization roles.
 
 ## Current behavior
 
-Owners can invite another email from `/settings/timeline`. backend-api
+Owners open People from the baby timeline to manage who has access. The
+backing route is `/settings/timeline`, but the UI should present this as
+part of the baby workspace rather than a separate settings area. backend-api
 creates a pending `family_members` row, and auth-service sends an invite
 magic link. When the invitee verifies the link, backend-api activates the
 pending membership.
 
 Current behavior:
 
-* Owners can see who has access on `/settings/timeline`.
-* Owners can invite people to the timeline from that page.
+* The timeline defaults to Today, with quick access to Yesterday, 24h, and 3
+  days.
+* Owners can open People from the baby header to see who has access.
+* Owners can invite people to the timeline from the People view.
 * Owners can set optional relationship labels such as Mum, Dad, Grandpa, or
   Carer.
 * Owners can cancel pending invites.
@@ -99,7 +105,7 @@ Current limitations:
 | Relationship storage | Add nullable `relationship TEXT` to `family_members`. |
 | Relationship validation | Store free text, but offer presets in the UI. |
 | Relationship vs permissions | Keep them separate. Relationship is identity/context, not authority. |
-| First settings page | Add `/settings/timeline` as an authenticated frontend route. |
+| First access UI | Keep `/settings/timeline` as the authenticated route, but expose it from the baby header as `People`. |
 | First permission model | Keep existing `owner` / `member` behavior; defer granular permissions. |
 | Removing access | Owner-only; do not allow removing the last/only owner. |
 
@@ -224,7 +230,8 @@ Patch request:
 
 ### Frontend
 
-Frontend route: `/settings/timeline`.
+Frontend route: `/settings/timeline`, entered from the baby header as
+`People`.
 
 The page should show:
 

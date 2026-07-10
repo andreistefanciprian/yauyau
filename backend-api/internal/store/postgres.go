@@ -191,16 +191,19 @@ func (s *PostgresStore) DeleteEvent(ctx context.Context, familyID, babyID, id uu
 // ListAllEvents returns the most recent events across every event type,
 // ordered newest-first, for consumers (the frontend timeline) that need a
 // single merged view instead of one list per type.
-func (s *PostgresStore) ListAllEvents(ctx context.Context, familyID, babyID uuid.UUID, limit int) ([]Event, error) {
+func (s *PostgresStore) ListAllEvents(ctx context.Context, familyID, babyID uuid.UUID, from, to time.Time, limit int) ([]Event, error) {
 	const query = `
 		SELECT id, baby_id, event_type, attributes, occurred_at, created_at
 		FROM events
-		WHERE family_id = $1 AND baby_id = $2
+		WHERE family_id = $1
+			AND baby_id = $2
+			AND occurred_at >= $3
+			AND occurred_at < $4
 		ORDER BY occurred_at DESC
-		LIMIT $3
+		LIMIT $5
 	`
 
-	rows, err := s.pool.Query(ctx, query, familyID, babyID, limit)
+	rows, err := s.pool.Query(ctx, query, familyID, babyID, from, to, limit)
 	if err != nil {
 		return nil, fmt.Errorf("querying events: %w", err)
 	}
