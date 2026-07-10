@@ -34,6 +34,9 @@ func testStore(t *testing.T) *PostgresStore {
 		t.Skipf("skipping: could not connect to postgres at %s (is `docker compose up postgres` running?): %v", dbURL, err)
 	}
 	t.Cleanup(pool.Close)
+	if err := Migrate(ctx, pool, "../../migrations"); err != nil {
+		t.Fatalf("migrate test database: %v", err)
+	}
 
 	return NewPostgresStore(pool)
 }
@@ -401,6 +404,163 @@ func TestGetFamilyMembershipForFamily_ReturnsSpecificMembership(t *testing.T) {
 	}
 	if membership.Status != MembershipStatusInvited {
 		t.Fatalf("expected status %q, got %q", MembershipStatusInvited, membership.Status)
+	}
+}
+
+func TestListTimelineMembers(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+
+	owner, err := s.UpsertUserByEmail(ctx, testEmail(t))
+	if err != nil {
+		t.Fatalf("upsert owner: %v", err)
+	}
+	familyID, err := s.CreateFamilyWithOwner(ctx, owner.ID, "test family")
+	if err != nil {
+		t.Fatalf("create family: %v", err)
+	}
+
+	inviteeEmail := testEmail(t)
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE email = ANY($1)`, []string{owner.Email, inviteeEmail})
+	})
+
+	if err := s.CreateInvite(ctx, familyID, inviteeEmail); err != nil {
+		t.Fatalf("create invite: %v", err)
+	}
+
+	members, err := s.ListTimelineMembers(ctx, familyID)
+	if err != nil {
+		t.Fatalf("list members: %v", err)
+	}
+	if len(members) != 2 {
+		t.Fatalf("expected 2 members, got %d: %+v", len(members), members)
+	}
+	if members[0].UserID != owner.ID || members[0].Email != owner.Email || members[0].Role != MembershipRoleOwner || members[0].Status != MembershipStatusActive {
+		t.Fatalf("expected owner first, got %+v", members[0])
+	}
+	if members[1].Email != inviteeEmail || members[1].Role != MembershipRoleMember || members[1].Status != MembershipStatusInvited {
+		t.Fatalf("expected invited member second, got %+v", members[1])
+	}
+}
+
+func TestUpdateTimelineMemberRelationship(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+
+	owner, err := s.UpsertUserByEmail(ctx, testEmail(t))
+	if err != nil {
+		t.Fatalf("upsert owner: %v", err)
+	}
+	familyID, err := s.CreateFamilyWithOwner(ctx, owner.ID, "test family")
+	if err != nil {
+		t.Fatalf("create family: %v", err)
+	}
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE id = $1`, owner.ID)
+	})
+
+	if err := s.UpdateTimelineMemberRelationship(ctx, familyID, owner.ID, "  Mum  "); err != nil {
+		t.Fatalf("update relationship: %v", err)
+	}
+
+	members, err := s.ListTimelineMembers(ctx, familyID)
+	if err != nil {
+		t.Fatalf("list members: %v", err)
+	}
+	if len(members) != 1 || members[0].Relationship != "Mum" {
+		t.Fatalf("expected relationship to be trimmed and stored, got %+v", members)
+	}
+
+	if err := s.UpdateTimelineMemberRelationship(ctx, familyID, owner.ID, " "); err != nil {
+		t.Fatalf("clear relationship: %v", err)
+	}
+	members, err = s.ListTimelineMembers(ctx, familyID)
+	if err != nil {
+		t.Fatalf("list members after clear: %v", err)
+	}
+	if len(members) != 1 || members[0].Relationship != "" {
+		t.Fatalf("expected relationship to be cleared, got %+v", members)
+	}
+}
+
+func TestRemoveTimelineMember(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+
+	owner, err := s.UpsertUserByEmail(ctx, testEmail(t))
+	if err != nil {
+		t.Fatalf("upsert owner: %v", err)
+	}
+	familyID, err := s.CreateFamilyWithOwner(ctx, owner.ID, "test family")
+	if err != nil {
+		t.Fatalf("create family: %v", err)
+	}
+
+	inviteeEmail := testEmail(t)
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE email = ANY($1)`, []string{owner.Email, inviteeEmail})
+	})
+
+	if err := s.CreateInvite(ctx, familyID, inviteeEmail); err != nil {
+		t.Fatalf("create invite: %v", err)
+	}
+	invitee, err := s.UpsertUserByEmail(ctx, inviteeEmail)
+	if err != nil {
+		t.Fatalf("resolve invitee: %v", err)
+	}
+
+	if err := s.RemoveTimelineMember(ctx, familyID, invitee.ID); err != nil {
+		t.Fatalf("remove member: %v", err)
+	}
+
+	members, err := s.ListTimelineMembers(ctx, familyID)
+	if err != nil {
+		t.Fatalf("list members: %v", err)
+	}
+	if len(members) != 1 || members[0].UserID != owner.ID {
+		t.Fatalf("expected only owner to remain, got %+v", members)
+	}
+	if err := s.RemoveTimelineMember(ctx, familyID, invitee.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound on repeat remove, got %v", err)
+	}
+}
+
+func TestRemoveTimelineMemberRejectsActiveMember(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+
+	owner, err := s.UpsertUserByEmail(ctx, testEmail(t))
+	if err != nil {
+		t.Fatalf("upsert owner: %v", err)
+	}
+	familyID, err := s.CreateFamilyWithOwner(ctx, owner.ID, "test family")
+	if err != nil {
+		t.Fatalf("create family: %v", err)
+	}
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE id = $1`, owner.ID)
+	})
+
+	err = s.RemoveTimelineMember(ctx, familyID, owner.ID)
+	if !errors.Is(err, ErrActiveTimelineMember) {
+		t.Fatalf("expected ErrActiveTimelineMember, got %v", err)
+	}
+
+	membership, err := s.GetFamilyMembershipForFamily(ctx, owner.ID, familyID)
+	if err != nil {
+		t.Fatalf("get membership: %v", err)
+	}
+	if !membership.Found || membership.Status != MembershipStatusActive {
+		t.Fatalf("expected active owner membership to remain, got %+v", membership)
 	}
 }
 

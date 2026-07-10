@@ -63,6 +63,11 @@ func main() {
 		r.Post("/{id}/invite", h.InviteHelper)
 		r.Route("/current", func(r chi.Router) {
 			r.Get("/", h.GetCurrentBaby)
+			r.Route("/members", func(r chi.Router) {
+				r.Get("/", h.ListTimelineMembers)
+				r.Patch("/{userID}", h.UpdateTimelineMember)
+				r.Delete("/{userID}", h.RemoveTimelineMember)
+			})
 			r.Route("/events", func(r chi.Router) {
 				r.Get("/", h.ListAllEvents)
 				r.Delete("/{id}", h.DeleteEvent)

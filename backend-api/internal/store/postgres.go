@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -360,6 +361,100 @@ func (s *PostgresStore) CreateInvite(ctx context.Context, familyID uuid.UUID, em
 	}
 
 	return nil
+}
+
+// ListTimelineMembers returns every active or invited user with access to
+// familyID, ordered by active owners first, then active members, then invites.
+func (s *PostgresStore) ListTimelineMembers(ctx context.Context, familyID uuid.UUID) ([]TimelineMember, error) {
+	const query = `
+		SELECT u.id, u.email, fm.role, fm.status, COALESCE(fm.relationship, '')
+		FROM family_members fm
+		JOIN users u ON u.id = fm.user_id
+		WHERE fm.family_id = $1
+		ORDER BY
+			(fm.status = 'active') DESC,
+			(fm.role = 'owner') DESC,
+			fm.created_at ASC,
+			u.email ASC
+	`
+
+	rows, err := s.pool.Query(ctx, query, familyID)
+	if err != nil {
+		return nil, fmt.Errorf("listing timeline members: %w", err)
+	}
+	defer rows.Close()
+
+	var members []TimelineMember
+	for rows.Next() {
+		var m TimelineMember
+		var role, status string
+		if err := rows.Scan(&m.UserID, &m.Email, &role, &status, &m.Relationship); err != nil {
+			return nil, fmt.Errorf("scanning timeline member: %w", err)
+		}
+		m.Role = MembershipRole(role)
+		m.Status = MembershipStatus(status)
+		members = append(members, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating timeline members: %w", err)
+	}
+
+	return members, nil
+}
+
+// UpdateTimelineMemberRelationship stores a user's relationship label for a
+// family timeline. Empty or all-whitespace input clears the label.
+func (s *PostgresStore) UpdateTimelineMemberRelationship(ctx context.Context, familyID, userID uuid.UUID, relationship string) error {
+	const query = `
+		UPDATE family_members
+		SET relationship = NULLIF($1, '')
+		WHERE family_id = $2 AND user_id = $3
+	`
+
+	tag, err := s.pool.Exec(ctx, query, strings.TrimSpace(relationship), familyID, userID)
+	if err != nil {
+		return fmt.Errorf("updating timeline member relationship: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+// RemoveTimelineMember cancels a pending invite to a family timeline. Active
+// members are deliberately rejected until removal can also revoke or
+// revalidate auth-service sessions that already carry this family_id.
+func (s *PostgresStore) RemoveTimelineMember(ctx context.Context, familyID, userID uuid.UUID) error {
+	const query = `
+		WITH target AS (
+			SELECT status
+			FROM family_members
+			WHERE family_id = $1 AND user_id = $2
+		), deleted AS (
+			DELETE FROM family_members
+			WHERE family_id = $1 AND user_id = $2 AND status = $3
+			RETURNING 1
+		)
+		SELECT
+			EXISTS(SELECT 1 FROM deleted),
+			COALESCE((SELECT status FROM target), '')
+	`
+
+	var deleted bool
+	var status string
+	if err := s.pool.QueryRow(ctx, query, familyID, userID, MembershipStatusInvited).Scan(&deleted, &status); err != nil {
+		return fmt.Errorf("removing timeline member: %w", err)
+	}
+
+	switch {
+	case deleted:
+		return nil
+	case MembershipStatus(status) == MembershipStatusActive:
+		return ErrActiveTimelineMember
+	default:
+		return ErrNotFound
+	}
 }
 
 // ActivateInvitedMembership flips a pending invite to active — called when

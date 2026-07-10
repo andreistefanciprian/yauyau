@@ -19,6 +19,11 @@ var ErrNotFound = errors.New("not found")
 // re-fetch the membership instead of treating this as a hard failure.
 var ErrActiveMembershipExists = errors.New("user already has an active family membership")
 
+// ErrActiveTimelineMember is returned when code tries to remove a member
+// whose access is already active. Active member removal needs auth-session
+// invalidation/revalidation before it can be safely exposed.
+var ErrActiveTimelineMember = errors.New("timeline member is active")
+
 // Baby is a baby record as returned to API consumers.
 type Baby struct {
 	ID       uuid.UUID `json:"id"`
@@ -78,4 +83,14 @@ type FamilyMembership struct {
 	FamilyID *uuid.UUID       `json:"family_id,omitempty"`
 	Role     MembershipRole   `json:"role,omitempty"`
 	Status   MembershipStatus `json:"status,omitempty"`
+}
+
+// TimelineMember is a person with access to a baby's underlying family
+// timeline, enriched with user-facing profile context.
+type TimelineMember struct {
+	UserID       uuid.UUID        `json:"user_id"`
+	Email        string           `json:"email"`
+	Role         MembershipRole   `json:"role"`
+	Status       MembershipStatus `json:"status"`
+	Relationship string           `json:"relationship,omitempty"`
 }
