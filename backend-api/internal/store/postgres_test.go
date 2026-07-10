@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/google/uuid"
@@ -18,10 +19,19 @@ import (
 func testStore(t *testing.T) *PostgresStore {
 	t.Helper()
 
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		// Same default docker-compose.yml/.env.example produce for local dev,
+		// kept here (rather than only reading the env var) so `go test ./...`
+		// works out of the box against `docker compose up postgres` without
+		// requiring DATABASE_URL to be exported manually first.
+		dbURL = "postgres://postgres:postgres@localhost:5432/yauli?sslmode=disable"
+	}
+
 	ctx := context.Background()
-	pool, err := Connect(ctx, "postgres://postgres:postgres@localhost:5432/yauli?sslmode=disable")
+	pool, err := Connect(ctx, dbURL)
 	if err != nil {
-		t.Skipf("skipping: could not connect to local postgres (is `docker compose up postgres` running?): %v", err)
+		t.Skipf("skipping: could not connect to postgres at %s (is `docker compose up postgres` running?): %v", dbURL, err)
 	}
 	t.Cleanup(pool.Close)
 
@@ -36,11 +46,21 @@ func testEmail(t *testing.T) string {
 	return fmt.Sprintf("test-%s@example.com", uuid.NewString())
 }
 
+// execCleanup runs a teardown statement and reports (rather than silently
+// swallows) any error, so a failed cleanup surfaces at its source instead of
+// causing a confusing failure in some later, unrelated test run.
+func execCleanup(t *testing.T, s *PostgresStore, query string, args ...any) {
+	t.Helper()
+	if _, err := s.pool.Exec(context.Background(), query, args...); err != nil {
+		t.Errorf("cleanup %q: %v", query, err)
+	}
+}
+
 func TestUpsertUserByEmail_Idempotent(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()
 	email := testEmail(t)
-	t.Cleanup(func() { s.pool.Exec(context.Background(), `DELETE FROM users WHERE email = $1`, email) })
+	t.Cleanup(func() { execCleanup(t, s, `DELETE FROM users WHERE email = $1`, email) })
 
 	first, err := s.UpsertUserByEmail(ctx, email)
 	if err != nil {
@@ -63,7 +83,7 @@ func TestGetFamilyMembership_NotFound(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()
 	email := testEmail(t)
-	t.Cleanup(func() { s.pool.Exec(context.Background(), `DELETE FROM users WHERE email = $1`, email) })
+	t.Cleanup(func() { execCleanup(t, s, `DELETE FROM users WHERE email = $1`, email) })
 
 	user, err := s.UpsertUserByEmail(ctx, email)
 	if err != nil {
@@ -94,10 +114,9 @@ func TestCreateFamilyWithOwner(t *testing.T) {
 		t.Fatalf("create family: %v", err)
 	}
 	t.Cleanup(func() {
-		bg := context.Background()
-		s.pool.Exec(bg, `DELETE FROM family_members WHERE family_id = $1`, familyID)
-		s.pool.Exec(bg, `DELETE FROM families WHERE id = $1`, familyID)
-		s.pool.Exec(bg, `DELETE FROM users WHERE id = $1`, user.ID)
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE id = $1`, user.ID)
 	})
 
 	membership, err := s.GetFamilyMembership(ctx, user.ID)
@@ -115,6 +134,45 @@ func TestCreateFamilyWithOwner(t *testing.T) {
 	}
 	if membership.Status != MembershipStatusActive {
 		t.Fatalf("expected status %q, got %q", MembershipStatusActive, membership.Status)
+	}
+}
+
+// TestCreateFamilyWithOwner_RejectsSecondActiveMembership guards the
+// idx_family_members_one_active_per_user constraint: a user who already has
+// an active membership must not be able to end up with a second one (e.g. a
+// retried "create family" request), rather than silently ending up owner of
+// two families with GetFamilyMembership returning an arbitrary one of them.
+func TestCreateFamilyWithOwner_RejectsSecondActiveMembership(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+
+	user, err := s.UpsertUserByEmail(ctx, testEmail(t))
+	if err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+
+	firstFamilyID, err := s.CreateFamilyWithOwner(ctx, user.ID, "first family")
+	if err != nil {
+		t.Fatalf("create first family: %v", err)
+	}
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, firstFamilyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, firstFamilyID)
+		execCleanup(t, s, `DELETE FROM users WHERE id = $1`, user.ID)
+	})
+
+	if _, err := s.CreateFamilyWithOwner(ctx, user.ID, "second family"); err == nil {
+		t.Fatalf("expected creating a second family for an already-active user to fail, got no error")
+	}
+
+	// The rejected second attempt must not have left anything behind: the
+	// user should still resolve to exactly the first family.
+	membership, err := s.GetFamilyMembership(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("get membership: %v", err)
+	}
+	if membership.FamilyID != firstFamilyID {
+		t.Fatalf("expected membership to still point at the first family %v, got %v", firstFamilyID, membership.FamilyID)
 	}
 }
 
@@ -137,10 +195,9 @@ func TestActivateInvitedMembership(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		bg := context.Background()
-		s.pool.Exec(bg, `DELETE FROM family_members WHERE family_id = $1`, familyID)
-		s.pool.Exec(bg, `DELETE FROM families WHERE id = $1`, familyID)
-		s.pool.Exec(bg, `DELETE FROM users WHERE id = ANY($1)`, []uuid.UUID{owner.ID, invitee.ID})
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE id = ANY($1)`, []uuid.UUID{owner.ID, invitee.ID})
 	})
 
 	// Simulate an invite (PR13 will do this via a real invite endpoint):

@@ -208,30 +208,25 @@ func (s *PostgresStore) GetFamilyMembership(ctx context.Context, userID uuid.UUI
 
 // CreateFamilyWithOwner creates a new family and makes userID its active
 // owner, atomically. familyName is never shown to users — the family is a
-// backend-only grouping, not a product concept.
+// backend-only grouping, not a product concept. A single data-modifying CTE
+// keeps both inserts in one round trip and one implicit statement-level
+// transaction, rather than an explicit Begin/Exec/Exec/Commit. If userID
+// already has an active membership elsewhere, idx_family_members_one_active_per_user
+// rejects the insert and this returns that error wrapped, rather than
+// silently creating a second active membership.
 func (s *PostgresStore) CreateFamilyWithOwner(ctx context.Context, userID uuid.UUID, familyName string) (uuid.UUID, error) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("beginning transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
+	const query = `
+		WITH new_family AS (
+			INSERT INTO families (id, name) VALUES ($1, $2)
+			RETURNING id
+		)
+		INSERT INTO family_members (family_id, user_id, role, status)
+		SELECT id, $3, $4, $5 FROM new_family
+	`
 
 	familyID := uuid.New()
-	const insertFamily = `INSERT INTO families (id, name) VALUES ($1, $2)`
-	if _, err := tx.Exec(ctx, insertFamily, familyID, familyName); err != nil {
-		return uuid.Nil, fmt.Errorf("creating family: %w", err)
-	}
-
-	const insertMembership = `
-		INSERT INTO family_members (family_id, user_id, role, status)
-		VALUES ($1, $2, $3, $4)
-	`
-	if _, err := tx.Exec(ctx, insertMembership, familyID, userID, MembershipRoleOwner, MembershipStatusActive); err != nil {
-		return uuid.Nil, fmt.Errorf("creating owner membership: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return uuid.Nil, fmt.Errorf("committing family creation: %w", err)
+	if _, err := s.pool.Exec(ctx, query, familyID, familyName, userID, MembershipRoleOwner, MembershipStatusActive); err != nil {
+		return uuid.Nil, fmt.Errorf("creating family with owner: %w", err)
 	}
 
 	return familyID, nil
