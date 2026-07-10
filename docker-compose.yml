@@ -27,6 +27,17 @@ services:
       postgres:
         condition: service_healthy
 
+  auth-service:
+    build: ./auth-service
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      PORT: ${AUTH_SERVICE_PORT}
+    ports:
+      - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   frontend:
     build: ./frontend
     environment:
