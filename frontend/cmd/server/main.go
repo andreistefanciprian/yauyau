@@ -54,7 +54,11 @@ func main() {
 		r.Post("/login", h.RequestMagicLink)
 		r.Post("/logout", h.Logout)
 
-		r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+		staticFiles := http.StripPrefix("/static/", http.FileServer(http.Dir("static")))
+		r.Handle("/static/*", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "no-cache")
+			staticFiles.ServeHTTP(w, r)
+		}))
 
 		r.Get("/", h.ShowIntro)
 

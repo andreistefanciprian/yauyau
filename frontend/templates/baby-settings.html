@@ -7,6 +7,26 @@
   <title>Baby settings · Yauli</title>
   <link rel="icon" type="image/png" sizes="512x512" href="/static/favicon-512x512.png">
   <link rel="stylesheet" href="/static/style.css">
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const form = document.getElementById("baby-profile-form");
+      const saveButton = document.getElementById("baby-profile-save");
+      if (!form || !saveButton) return;
+
+      const snapshot = () => new URLSearchParams(new FormData(form)).toString();
+      const initialState = snapshot();
+      const updateSaveState = () => {
+        saveButton.disabled = snapshot() === initialState;
+      };
+
+      form.addEventListener("input", updateSaveState);
+      form.addEventListener("change", updateSaveState);
+      form.addEventListener("submit", () => {
+        saveButton.disabled = true;
+      });
+      updateSaveState();
+    });
+  </script>
 </head>
 <body>
   <nav class="navbar">
@@ -35,7 +55,7 @@
     <section class="settings-section">
       <h2>Profile</h2>
       {{if .UpdateError}}<p class="invite-error">{{.UpdateError}}</p>{{end}}
-      <form method="post" action="/settings/baby" class="settings-form">
+      <form method="post" action="/settings/baby" class="settings-form" id="baby-profile-form">
         <label class="field-label">
           Baby's name
           <input type="text" name="name" value="{{.Baby.Name}}" required>
@@ -64,7 +84,7 @@
           Timezone
           <input type="text" name="timezone" value="{{.Baby.Timezone}}" required>
         </label>
-        <button type="submit">Save changes</button>
+        <button type="submit" id="baby-profile-save">Save changes</button>
       </form>
     </section>
 

@@ -85,6 +85,7 @@ type TimelineEvent struct {
 	Icon            string
 	TypeLabel       string
 	Kind            string // nappy's kind / feed & bath's type / observation's category — shown as "(Kind)" next to TypeLabel
+	InlineDetail    string // short high-signal detail shown beside the event type, e.g. pump amount
 	Detail          string
 	Time            string // pre-formatted for display, e.g. "11:15 AM" or "Jan 2, 11:15 AM"
 	DateValue       string
@@ -668,25 +669,21 @@ func pumpTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time
 	occurredAt := ev.OccurredAt.In(loc)
 	notes := attributeString(ev.Attributes, "notes")
 
-	detail := amountAndDuration(ev.Attributes, "amount_ml", "ml")
-	if notes != "" {
-		if detail != "" {
-			detail += " · "
-		}
-		detail += notes
-	}
+	inlineDetail := ""
 	amountMl := ""
 	if amount, ok := attributeInt(ev.Attributes, "amount_ml"); ok {
 		amountMl = strconv.Itoa(amount)
+		inlineDetail = fmt.Sprintf("%dml", amount)
 	}
 
 	return TimelineEvent{
-		CSSClass:  "pump",
-		TypeLabel: "Pump",
-		Detail:    detail,
-		Time:      formatEventTime(occurredAt, now),
-		AmountMl:  amountMl,
-		Notes:     notes,
+		CSSClass:     "pump",
+		TypeLabel:    "Pump",
+		InlineDetail: inlineDetail,
+		Detail:       notes,
+		Time:         formatEventTime(occurredAt, now),
+		AmountMl:     amountMl,
+		Notes:        notes,
 	}
 }
 

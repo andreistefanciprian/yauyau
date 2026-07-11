@@ -315,7 +315,7 @@ func validateOptionalPositiveDecimal(w http.ResponseWriter, value, field string,
 
 func validateBabySex(w http.ResponseWriter, sex string) bool {
 	switch sex {
-	case "", "female", "male", "intersex", "not_specified":
+	case "", "female", "male", "not_specified":
 		return true
 	default:
 		writeError(w, http.StatusBadRequest, "sex is invalid")

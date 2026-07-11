@@ -9,7 +9,7 @@ const closeButton = document.getElementById("add-event-close");
 const backButton = document.getElementById("add-event-back");
 const picker = document.getElementById("event-type-picker");
 const title = document.getElementById("add-event-title");
-const forms = Array.from(document.querySelectorAll(".event-form"));
+const addEventForms = Array.from(dialog.querySelectorAll(".event-form"));
 
 const typeLabels = {
   nappy: "Log a nappy",
@@ -24,7 +24,7 @@ function showPickerStep() {
   picker.hidden = false;
   backButton.hidden = true;
   title.textContent = "Add event";
-  forms.forEach((form) => {
+  addEventForms.forEach((form) => {
     form.hidden = true;
     // Clear whatever was entered so going Back and picking a type again
     // (the same one or a different one) never resubmits stale field
@@ -38,8 +38,8 @@ function showFormStep(type) {
   backButton.hidden = false;
   title.textContent = typeLabels[type] || "Add event";
 
-  const form = forms.find((f) => f.dataset.type === type);
-  forms.forEach((f) => {
+  const form = addEventForms.find((f) => f.dataset.type === type);
+  addEventForms.forEach((f) => {
     f.hidden = f !== form;
   });
   if (form) {
@@ -67,6 +67,21 @@ function setFormToNow(form) {
   }
 }
 
+function adjustNumberStepper(button) {
+  const stepper = button.closest(".number-stepper");
+  if (!stepper) return;
+
+  const input = stepper.querySelector('input[type="number"]');
+  if (!input) return;
+
+  const step = Number(button.dataset.stepAmount);
+  const current = Number(input.value || input.defaultValue || input.min || 0);
+  const min = input.min === "" ? Number.NEGATIVE_INFINITY : Number(input.min);
+  const next = Math.max(min, current + step);
+  input.value = String(next);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 function openDialog() {
   showPickerStep();
   dialog.showModal();
@@ -81,6 +96,11 @@ picker.addEventListener("click", (event) => {
   if (choice) showFormStep(choice.dataset.type);
 });
 
+document.body.addEventListener("click", (event) => {
+  const stepperButton = event.target.closest(".number-stepper-button");
+  if (stepperButton) adjustNumberStepper(stepperButton);
+});
+
 // Clicking the backdrop (outside the dialog's content box) closes it.
 dialog.addEventListener("click", (event) => {
   if (event.target === dialog) dialog.close();
@@ -89,7 +109,7 @@ dialog.addEventListener("click", (event) => {
 // Reset every form once the dialog is dismissed, however that happened
 // (close button, backdrop click, Esc, or a successful save).
 dialog.addEventListener("close", () => {
-  forms.forEach((form) => form.reset());
+  addEventForms.forEach((form) => form.reset());
 });
 
 function onEventSaved() {
@@ -130,6 +150,10 @@ function setFieldValue(form, name, value) {
   if (field) field.value = value || "";
 }
 
+function editSectionForType(type) {
+  return editSections.find((section) => section.dataset.editType === type);
+}
+
 function openEditDialog(button) {
   const type = button.dataset.eventType;
   const eventID = button.dataset.eventId;
@@ -145,37 +169,39 @@ function openEditDialog(button) {
   editSections.forEach((section) => {
     setSectionEnabled(section, section.dataset.editType === type);
   });
+  const activeSection = editSectionForType(type);
+  if (!activeSection) return;
 
   setFieldValue(editForm, "date", button.dataset.date);
   setFieldValue(editForm, "time", button.dataset.time);
 
   switch (type) {
     case "nappy":
-      setRadioValue(editForm, "kind", button.dataset.kind, "wet");
-      setFieldValue(editForm, "colour", button.dataset.colour);
+      setRadioValue(activeSection, "kind", button.dataset.kind, "wet");
+      setFieldValue(activeSection, "colour", button.dataset.colour);
       break;
     case "feed":
-      setRadioValue(editForm, "type", button.dataset.type, "breast");
-      setFieldValue(editForm, "amount_ml", button.dataset.amountMl);
-      setFieldValue(editForm, "duration_minutes", button.dataset.durationMinutes);
+      setRadioValue(activeSection, "type", button.dataset.type, "breast");
+      setFieldValue(activeSection, "amount_ml", button.dataset.amountMl);
+      setFieldValue(activeSection, "duration_minutes", button.dataset.durationMinutes);
       break;
     case "pump":
-      setFieldValue(editForm, "amount_ml", button.dataset.amountMl);
-      setFieldValue(editForm, "notes", button.dataset.notes);
+      setFieldValue(activeSection, "amount_ml", button.dataset.amountMl);
+      setFieldValue(activeSection, "notes", button.dataset.notes);
       break;
     case "bath":
-      setRadioValue(editForm, "type", button.dataset.type, "whole_body");
-      setFieldValue(editForm, "notes", button.dataset.notes);
-      setFieldValue(editForm, "duration_minutes", button.dataset.durationMinutes);
+      setRadioValue(activeSection, "type", button.dataset.type, "whole_body");
+      setFieldValue(activeSection, "notes", button.dataset.notes);
+      setFieldValue(activeSection, "duration_minutes", button.dataset.durationMinutes);
       break;
     case "sleep":
-      setRadioValue(editForm, "type", button.dataset.type, "nap");
-      setFieldValue(editForm, "notes", button.dataset.notes);
-      setFieldValue(editForm, "duration_minutes", button.dataset.durationMinutes);
+      setRadioValue(activeSection, "type", button.dataset.type, "nap");
+      setFieldValue(activeSection, "notes", button.dataset.notes);
+      setFieldValue(activeSection, "duration_minutes", button.dataset.durationMinutes);
       break;
     case "observation":
-      setFieldValue(editForm, "text", button.dataset.text);
-      setFieldValue(editForm, "category", button.dataset.category);
+      setFieldValue(activeSection, "text", button.dataset.text);
+      setFieldValue(activeSection, "category", button.dataset.category);
       break;
   }
 

@@ -135,7 +135,6 @@ func sexOptions(selected string) []babySexOption {
 		{Value: "", Label: "Not set"},
 		{Value: "female", Label: "Female"},
 		{Value: "male", Label: "Male"},
-		{Value: "intersex", Label: "Intersex"},
 		{Value: "not_specified", Label: "Prefer not to say"},
 	}
 	for i := range options {

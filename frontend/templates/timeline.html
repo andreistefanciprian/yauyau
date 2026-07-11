@@ -9,7 +9,7 @@
       {{else}}
       <span class="event-icon" aria-hidden="true">{{.Icon}}</span>
       {{end}}
-      <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">({{.Kind}})</span>{{end}}</span>
+      <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">({{.Kind}})</span>{{end}}{{if .InlineDetail}} <span class="event-inline-detail">· {{.InlineDetail}}</span>{{end}}</span>
       <span class="event-time">{{.Time}}</span>
       <button type="button" class="event-edit" aria-label="Edit event"
         data-event-id="{{.ID}}"
@@ -39,7 +39,7 @@
 {{end}}
 
 {{define "pump-icon"}}
-<svg viewBox="0 0 24 24" fill="none" focusable="false">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
   <path d="M7.6 6.2c3.3 0 5.8 2.5 5.8 5.8 0 3.5-2.7 6-6.2 6-2.9 0-5.1-1.8-5.8-4.4" fill="#F6D6BA"/>
   <path d="M7.8 9.2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2Z" fill="#C47B66"/>
   <path d="M12.6 9.2h3.4c1.6 0 2.8 1.2 2.8 2.8v1.2" stroke="#8B6B2F" stroke-width="1.8" stroke-linecap="round"/>

@@ -421,6 +421,14 @@ h2 {
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
+  margin-bottom: 0.65rem;
+}
+
+.baby-workspace-header h1 {
+  overflow-wrap: anywhere;
+  font-size: 1.15rem;
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .baby-header-actions {
@@ -511,6 +519,11 @@ h2 {
   font-size: 0.92rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.settings-form button:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .settings-form .danger-button {
@@ -674,18 +687,26 @@ h2 {
 }
 
 .pump-icon {
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
 }
 
 .pump-icon svg {
   display: block;
   width: 1.35rem;
   height: 1.35rem;
+  flex: 0 0 auto;
 }
 
 .event-kind {
   font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.event-inline-detail {
+  font-weight: 500;
   color: var(--color-text-secondary);
 }
 
@@ -1036,6 +1057,7 @@ input[type="email"],
 input[type="number"],
 input[type="date"],
 input[type="time"],
+select,
 textarea {
   padding: 0.5rem;
   font-size: 1rem;
@@ -1044,6 +1066,41 @@ textarea {
   font-family: inherit;
   background: Field;
   color: FieldText;
+}
+
+select {
+  min-height: 2.45rem;
+  padding-right: 2rem;
+}
+
+.number-stepper {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.4rem;
+}
+
+.number-stepper input[type="number"] {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+}
+
+.number-stepper-button {
+  min-width: 3.2rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.number-stepper-button:active {
+  background: var(--color-bg-secondary);
+  transform: scale(0.97);
 }
 
 textarea {

@@ -155,7 +155,11 @@
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <label class="field-label">
           Amount expressed (ml)
-          <input type="number" name="amount_ml" min="1" placeholder="e.g. 80" required>
+          <span class="number-stepper">
+            <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease expressed milk by 10ml">-10</button>
+            <input type="number" name="amount_ml" min="1" value="80" placeholder="e.g. 80" required>
+            <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase expressed milk by 10ml">+10</button>
+          </span>
         </label>
 
         <label class="field-label">
@@ -318,7 +322,11 @@
         <div class="edit-event-fields" data-edit-type="pump">
           <label class="field-label">
             Amount expressed (ml)
-            <input type="number" name="amount_ml" min="1" placeholder="e.g. 80" required>
+            <span class="number-stepper">
+              <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease expressed milk by 10ml">-10</button>
+              <input type="number" name="amount_ml" min="1" placeholder="e.g. 80" required>
+              <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase expressed milk by 10ml">+10</button>
+            </span>
           </label>
           <label class="field-label">
             Notes (optional)
