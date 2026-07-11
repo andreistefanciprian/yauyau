@@ -45,6 +45,14 @@
 </svg>
 {{end}}
 
+{{define "number-stepper"}}
+<span class="number-stepper">
+  <button type="button" class="number-stepper-button" data-step-amount="-{{.Step}}" aria-label="Decrease {{.Label}} by {{.Step}}{{.Unit}}">-{{.Step}}</button>
+  <input type="number" name="{{.Name}}" min="{{.Min}}"{{if .Value}} value="{{.Value}}"{{end}} placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}>
+  <button type="button" class="number-stepper-button" data-step-amount="{{.Step}}" aria-label="Increase {{.Label}} by {{.Step}}{{.Unit}}">+{{.Step}}</button>
+</span>
+{{end}}
+
 {{define "pump-icon"}}
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
   <path d="M7.6 6.2c3.3 0 5.8 2.5 5.8 5.8 0 3.5-2.7 6-6.2 6-2.9 0-5.1-1.8-5.8-4.4" fill="#F6D6BA"/>

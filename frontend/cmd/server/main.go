@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -13,6 +14,24 @@ import (
 	"github.com/andreistefanciprian/yauli/frontend/internal/backendclient"
 	"github.com/andreistefanciprian/yauli/frontend/internal/handlers"
 )
+
+// dict lets a template pass several named fields to {{template}} in one call
+// (e.g. {{template "number-stepper" (dict "Name" "duration_minutes" ...)}}),
+// since Go templates only pass a single value as the invoked template's ".".
+func dict(pairs ...any) (map[string]any, error) {
+	if len(pairs)%2 != 0 {
+		return nil, fmt.Errorf("dict: odd number of arguments")
+	}
+	m := make(map[string]any, len(pairs)/2)
+	for i := 0; i < len(pairs); i += 2 {
+		key, ok := pairs[i].(string)
+		if !ok {
+			return nil, fmt.Errorf("dict: key %v is not a string", pairs[i])
+		}
+		m[key] = pairs[i+1]
+	}
+	return m, nil
+}
 
 func main() {
 	backendURL := os.Getenv("BACKEND_API_URL")
@@ -37,7 +56,7 @@ func main() {
 
 	secureCookies := os.Getenv("ENV") == "production"
 
-	templates, err := template.ParseGlob("templates/*.html")
+	templates, err := template.New("").Funcs(template.FuncMap{"dict": dict}).ParseGlob("templates/*.html")
 	if err != nil {
 		log.Fatalf("parse templates: %v", err)
 	}

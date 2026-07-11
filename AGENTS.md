@@ -298,8 +298,10 @@ identity into context — see `internal/authctx`):
 * `GET /api/v1/babies/current/events` → `ListAllEvents`, the combined feed
   behind the frontend timeline: every event type, merged and ordered
   newest-first (`store.ListAllEvents`, capped at `allEventsLimit`). Supports
-  `?range=today` (default), `?range=yesterday`, `?range=24h`, and
-  `?range=3d`; calendar ranges are calculated in the baby's timezone.
+  `?range=today` (default), `?range=yesterday`, or `?range=day-N` for
+  `N` from 2 up to `timelineRangeDays - 1` (currently 2..6), each a single
+  calendar day that many days before today; ranges are calculated in the
+  baby's timezone.
 * `PATCH /api/v1/babies/current/events/{id}` → `UpdateEvent`, type-checked
   generic edit for an existing current-baby event.
 * `DELETE /api/v1/babies/current/events/{id}` → `DeleteEvent`, removes one
@@ -508,9 +510,9 @@ Everything should be optimized around helping parents answer one question quickl
 
 Users should understand their baby's day within 5 seconds.
 
-The main app view should default to today's timeline. Quick range controls
-for Yesterday, 24h, and 3 days should sit beside the timeline itself rather
-than behind settings or a secondary page.
+The main app view should default to today's timeline. A quick range nav for
+the rolling last 7 days (Today, Yesterday, then weekday names) should sit
+beside the timeline itself rather than behind settings or a secondary page.
 
 Every event should be immediately distinguishable using:
 

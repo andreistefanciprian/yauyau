@@ -20,6 +20,24 @@ const typeLabels = {
   observation: "Log an observation",
 };
 
+function hideDialogError(dialogEl) {
+  const errorEl = dialogEl.querySelector(".dialog-error");
+  if (errorEl) errorEl.hidden = true;
+}
+
+// A save/edit that fails (e.g. backend-api rejecting a future-dated event)
+// gets its message shown here instead of failing silently — htmx doesn't
+// swap non-2xx responses into the page by default, so without this the
+// dialog would just sit there with no indication anything went wrong.
+document.body.addEventListener("htmx:responseError", (event) => {
+  const dialogEl = event.target.closest("dialog");
+  if (!dialogEl) return;
+  const errorEl = dialogEl.querySelector(".dialog-error");
+  if (!errorEl) return;
+  errorEl.textContent = event.detail.xhr.responseText || "Something went wrong. Please try again.";
+  errorEl.hidden = false;
+});
+
 function showPickerStep() {
   picker.hidden = false;
   backButton.hidden = true;
@@ -116,6 +134,7 @@ dialog.addEventListener("click", (event) => {
 // (close button, backdrop click, Esc, or a successful save).
 dialog.addEventListener("close", () => {
   addEventForms.forEach((form) => form.reset());
+  hideDialogError(dialog);
 });
 
 function onEventSaved() {
@@ -237,6 +256,7 @@ editDialog.addEventListener("close", () => {
   editForm.reset();
   delete editForm.dataset.patchUrl;
   editSections.forEach((section) => setSectionEnabled(section, false));
+  hideDialogError(editDialog);
 });
 
 editForm.addEventListener("htmx:configRequest", (event) => {

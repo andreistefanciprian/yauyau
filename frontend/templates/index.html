@@ -65,6 +65,8 @@
         <button type="button" class="icon-button" id="add-event-close" aria-label="Close">&times;</button>
       </div>
 
+      <p class="dialog-error" id="add-event-error" hidden></p>
+
       <div id="event-type-picker" class="event-type-picker">
         <button type="button" class="type-choice type-choice-nappy" data-type="nappy">
           <span class="type-choice-icon" aria-hidden="true">💩</span>
@@ -121,25 +123,23 @@
 
       <form class="event-form" data-type="feed" hx-post="/feeds" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
-        <fieldset>
-          <legend>Type</legend>
-          <label><input type="radio" name="type" value="breast" required checked> Breast</label>
-          <label><input type="radio" name="type" value="formula"> Formula</label>
-          <label><input type="radio" name="type" value="expressed"> Expressed</label>
-        </fieldset>
+        <div class="field-row">
+          <fieldset>
+            <legend>Type</legend>
+            <label><input type="radio" name="type" value="breast" required checked> Breast</label>
+            <label><input type="radio" name="type" value="formula"> Formula</label>
+            <label><input type="radio" name="type" value="expressed"> Expressed</label>
+          </fieldset>
 
-        <label class="field-label">
-          Amount (ml, optional)
-          <input type="number" name="amount_ml" min="0" placeholder="e.g. 70">
-        </label>
+          <label class="field-label">
+            Amount (ml, optional)
+            <input type="number" name="amount_ml" min="0" placeholder="e.g. 70">
+          </label>
+        </div>
 
         <label class="field-label">
           Duration (minutes, optional)
-          <span class="number-stepper">
-            <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease feed duration by 10 minutes">-10</button>
-            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 15">
-            <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase feed duration by 10 minutes">+10</button>
-          </span>
+          {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 15" "Step" 10 "Label" "feed duration" "Unit" " minutes")}}
         </label>
 
         <label class="field-label">
@@ -159,11 +159,7 @@
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <label class="field-label">
           Amount expressed (ml)
-          <span class="number-stepper">
-            <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease expressed milk by 10ml">-10</button>
-            <input type="number" name="amount_ml" min="1" value="80" placeholder="e.g. 80" required>
-            <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase expressed milk by 10ml">+10</button>
-          </span>
+          {{template "number-stepper" (dict "Name" "amount_ml" "Min" "1" "Placeholder" "e.g. 80" "Step" 10 "Label" "expressed milk" "Unit" "ml" "Value" "80" "Required" true)}}
         </label>
 
         <label class="field-label">
@@ -186,24 +182,22 @@
 
       <form class="event-form" data-type="bath" hx-post="/baths" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
-        <fieldset>
-          <legend>Type</legend>
-          <label><input type="radio" name="type" value="whole_body" required checked> Whole body</label>
-          <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
-        </fieldset>
+        <div class="field-row">
+          <fieldset>
+            <legend>Type</legend>
+            <label><input type="radio" name="type" value="whole_body" required checked> Whole body</label>
+            <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
+          </fieldset>
+
+          <label class="field-label">
+            Duration (minutes, optional)
+            {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 10" "Step" 10 "Label" "bath duration" "Unit" " minutes" "Value" "10")}}
+          </label>
+        </div>
 
         <label class="field-label">
           Notes (optional)
           <input type="text" name="notes" placeholder="e.g. used baby shampoo">
-        </label>
-
-        <label class="field-label">
-          Duration (minutes, optional)
-          <span class="number-stepper">
-            <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease bath duration by 10 minutes">-10</button>
-            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 10">
-            <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase bath duration by 10 minutes">+10</button>
-          </span>
         </label>
 
         <label class="field-label">
@@ -232,23 +226,21 @@
           <input type="text" name="notes" placeholder="e.g. settled easily">
         </label>
 
-        <label class="field-label">
-          Duration (minutes, optional)
-          <span class="number-stepper">
-            <button type="button" class="number-stepper-button" data-step-amount="-20" aria-label="Decrease sleep duration by 20 minutes">-20</button>
-            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 90">
-            <button type="button" class="number-stepper-button" data-step-amount="20" aria-label="Increase sleep duration by 20 minutes">+20</button>
-          </span>
-        </label>
+        <div class="field-row">
+          <label class="field-label">
+            Duration (minutes, optional)
+            {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 90" "Step" 30 "Label" "sleep duration" "Unit" " minutes" "Value" "120")}}
+          </label>
+
+          <label class="field-label">
+            Time
+            <input type="time" name="time" value="{{.NowTime}}" required>
+          </label>
+        </div>
 
         <label class="field-label">
           Date
           <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
-        </label>
-
-        <label class="field-label">
-          Time
-          <input type="time" name="time" value="{{.NowTime}}" required>
         </label>
 
         <button type="submit">Save</button>
@@ -297,6 +289,8 @@
         <button type="button" class="icon-button" id="edit-event-close" aria-label="Close">&times;</button>
       </div>
 
+      <p class="dialog-error" id="edit-event-error" hidden></p>
+
       <form id="edit-event-form" class="event-form" hx-patch="/events/__event_id__" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventEdited()">
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <input type="hidden" name="event_type" id="edit-event-type">
@@ -315,34 +309,28 @@
         </div>
 
         <div class="edit-event-fields" data-edit-type="feed">
-          <fieldset>
-            <legend>Type</legend>
-            <label><input type="radio" name="type" value="breast"> Breast</label>
-            <label><input type="radio" name="type" value="formula"> Formula</label>
-            <label><input type="radio" name="type" value="expressed"> Expressed</label>
-          </fieldset>
-          <label class="field-label">
-            Amount (ml, optional)
-            <input type="number" name="amount_ml" min="0" placeholder="e.g. 70">
-          </label>
+          <div class="field-row">
+            <fieldset>
+              <legend>Type</legend>
+              <label><input type="radio" name="type" value="breast"> Breast</label>
+              <label><input type="radio" name="type" value="formula"> Formula</label>
+              <label><input type="radio" name="type" value="expressed"> Expressed</label>
+            </fieldset>
+            <label class="field-label">
+              Amount (ml, optional)
+              <input type="number" name="amount_ml" min="0" placeholder="e.g. 70">
+            </label>
+          </div>
           <label class="field-label">
             Duration (minutes, optional)
-            <span class="number-stepper">
-              <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease feed duration by 10 minutes">-10</button>
-              <input type="number" name="duration_minutes" min="0" placeholder="e.g. 15">
-              <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase feed duration by 10 minutes">+10</button>
-            </span>
+            {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 15" "Step" 10 "Label" "feed duration" "Unit" " minutes")}}
           </label>
         </div>
 
         <div class="edit-event-fields" data-edit-type="pump">
           <label class="field-label">
             Amount expressed (ml)
-            <span class="number-stepper">
-              <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease expressed milk by 10ml">-10</button>
-              <input type="number" name="amount_ml" min="1" placeholder="e.g. 80" required>
-              <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase expressed milk by 10ml">+10</button>
-            </span>
+            {{template "number-stepper" (dict "Name" "amount_ml" "Min" "1" "Placeholder" "e.g. 80" "Step" 10 "Label" "expressed milk" "Unit" "ml" "Required" true)}}
           </label>
           <label class="field-label">
             Notes (optional)
@@ -351,22 +339,20 @@
         </div>
 
         <div class="edit-event-fields" data-edit-type="bath">
-          <fieldset>
-            <legend>Type</legend>
-            <label><input type="radio" name="type" value="whole_body"> Whole body</label>
-            <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
-          </fieldset>
+          <div class="field-row">
+            <fieldset>
+              <legend>Type</legend>
+              <label><input type="radio" name="type" value="whole_body"> Whole body</label>
+              <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
+            </fieldset>
+            <label class="field-label">
+              Duration (minutes, optional)
+              {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 10" "Step" 10 "Label" "bath duration" "Unit" " minutes")}}
+            </label>
+          </div>
           <label class="field-label">
             Notes (optional)
             <input type="text" name="notes" placeholder="e.g. used baby shampoo">
-          </label>
-          <label class="field-label">
-            Duration (minutes, optional)
-            <span class="number-stepper">
-              <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease bath duration by 10 minutes">-10</button>
-              <input type="number" name="duration_minutes" min="0" placeholder="e.g. 10">
-              <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase bath duration by 10 minutes">+10</button>
-            </span>
           </label>
         </div>
 
@@ -382,11 +368,7 @@
           </label>
           <label class="field-label">
             Duration (minutes, optional)
-            <span class="number-stepper">
-              <button type="button" class="number-stepper-button" data-step-amount="-20" aria-label="Decrease sleep duration by 20 minutes">-20</button>
-              <input type="number" name="duration_minutes" min="0" placeholder="e.g. 90">
-              <button type="button" class="number-stepper-button" data-step-amount="20" aria-label="Increase sleep duration by 20 minutes">+20</button>
-            </span>
+            {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 90" "Step" 30 "Label" "sleep duration" "Unit" " minutes")}}
           </label>
         </div>
 

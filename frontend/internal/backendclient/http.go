@@ -171,8 +171,15 @@ func (c *HTTPClient) do(ctx context.Context, method, path string, body io.Reader
 		return nil, ErrNotFound
 	}
 	if resp.StatusCode >= 400 {
-		resp.Body.Close()
-		return nil, fmt.Errorf("backend returned status %d", resp.StatusCode)
+		defer resp.Body.Close()
+		message := fmt.Sprintf("backend returned status %d", resp.StatusCode)
+		var body struct {
+			Error string `json:"error"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&body); err == nil && body.Error != "" {
+			message = body.Error
+		}
+		return nil, &APIError{StatusCode: resp.StatusCode, Message: message}
 	}
 
 	return resp, nil
