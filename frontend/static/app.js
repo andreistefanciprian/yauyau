@@ -282,6 +282,14 @@ function setFiltersExpanded(expanded) {
   }
 }
 
+function loadFiltersExpanded() {
+  try {
+    return localStorage.getItem(FILTERS_EXPANDED_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function updateFiltersSummary() {
   const activeRange = document.querySelector(".range-pill.active");
   const rangeLabel = activeRange ? activeRange.textContent.trim() : "Today";
@@ -295,7 +303,7 @@ function updateFiltersSummary() {
 }
 
 if (filtersToggle && filtersBody) {
-  setFiltersExpanded(localStorage.getItem(FILTERS_EXPANDED_STORAGE_KEY) === "1");
+  setFiltersExpanded(loadFiltersExpanded());
 
   filtersToggle.addEventListener("click", () => {
     setFiltersExpanded(filtersBody.hidden);
