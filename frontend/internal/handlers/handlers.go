@@ -76,12 +76,12 @@ func New(backend Backend, auth AuthClient, templates *template.Template, secureC
 }
 
 // TimelineEvent is the single presentation shape every event type (nappy,
-// feed, bath, sleep, observation) is flattened into, so the timeline can
+// feed, pump, bath, sleep, observation) is flattened into, so the timeline can
 // render one kind of card regardless of how many event types exist.
 type TimelineEvent struct {
 	ID              string
 	EventType       string
-	CSSClass        string // "nappy", "feed", "bath", "observation" — drives card colour
+	CSSClass        string // "nappy", "feed", "pump", "bath", "observation" — drives card colour
 	Icon            string
 	TypeLabel       string
 	Kind            string // nappy's kind / feed & bath's type / observation's category — shown as "(Kind)" next to TypeLabel
@@ -238,6 +238,46 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 	if err := h.Backend.CreateEvent(r.Context(), "feeds", payload); err != nil {
 		log.Printf("create feed: %v", err)
 		http.Error(w, "failed to save feed event", http.StatusBadGateway)
+		return
+	}
+
+	h.renderTimeline(w, r, loc)
+}
+
+func (h *Handlers) CreatePump(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load baby", http.StatusBadGateway)
+		return
+	}
+
+	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
+	if err != nil {
+		log.Printf("parse pump time: %v", err)
+		http.Error(w, "invalid date/time", http.StatusBadRequest)
+		return
+	}
+
+	amountMl, err := parseRequiredPositiveInt(r.FormValue("amount_ml"))
+	if err != nil {
+		http.Error(w, "invalid amount", http.StatusBadRequest)
+		return
+	}
+
+	payload := map[string]any{
+		"amount_ml":   amountMl,
+		"notes":       r.FormValue("notes"),
+		"occurred_at": occurredAt.Format(time.RFC3339),
+	}
+	if err := h.Backend.CreateEvent(r.Context(), "pumps", payload); err != nil {
+		log.Printf("create pump: %v", err)
+		http.Error(w, "failed to save pump event", http.StatusBadGateway)
 		return
 	}
 
@@ -417,6 +457,13 @@ func (h *Handlers) eventUpdatePayloadFromForm(loc *time.Location, r *http.Reques
 		attributes["type"] = r.FormValue("type")
 		attributes["amount_ml"] = amountMl
 		attributes["duration_minutes"] = durationMinutes
+	case "pump":
+		amountMl, err := parseRequiredPositiveInt(r.FormValue("amount_ml"))
+		if err != nil {
+			return nil, err
+		}
+		attributes["amount_ml"] = amountMl
+		attributes["notes"] = r.FormValue("notes")
 	case "bath", "sleep":
 		durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
 		if err != nil {
@@ -554,6 +601,8 @@ func timelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) (T
 		te = nappyTimelineEvent(ev, loc, now)
 	case "feed":
 		te = feedTimelineEvent(ev, loc, now)
+	case "pump":
+		te = pumpTimelineEvent(ev, loc, now)
 	case "bath":
 		te = bathTimelineEvent(ev, loc, now)
 	case "sleep":
@@ -612,6 +661,32 @@ func feedTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time
 		TypeValue:       feedType,
 		AmountMl:        amountMl,
 		DurationMinutes: durationMinutes,
+	}
+}
+
+func pumpTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := ev.OccurredAt.In(loc)
+	notes := attributeString(ev.Attributes, "notes")
+
+	detail := amountAndDuration(ev.Attributes, "amount_ml", "ml")
+	if notes != "" {
+		if detail != "" {
+			detail += " · "
+		}
+		detail += notes
+	}
+	amountMl := ""
+	if amount, ok := attributeInt(ev.Attributes, "amount_ml"); ok {
+		amountMl = strconv.Itoa(amount)
+	}
+
+	return TimelineEvent{
+		CSSClass:  "pump",
+		TypeLabel: "Pump",
+		Detail:    detail,
+		Time:      formatEventTime(occurredAt, now),
+		AmountMl:  amountMl,
+		Notes:     notes,
 	}
 }
 
@@ -790,4 +865,15 @@ func parseOptionalInt(raw string) (*int, error) {
 		return nil, fmt.Errorf("parsing int %q: %w", raw, err)
 	}
 	return &v, nil
+}
+
+func parseRequiredPositiveInt(raw string) (int, error) {
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("parsing int %q: %w", raw, err)
+	}
+	if value <= 0 {
+		return 0, fmt.Errorf("expected positive int, got %d", value)
+	}
+	return value, nil
 }

@@ -4,7 +4,11 @@
   {{range .Events}}
   <article class="event-card event-{{.CSSClass}}">
     <div class="event-card-header">
+      {{if eq .EventType "pump"}}
+      <span class="event-icon pump-icon" aria-hidden="true">{{template "pump-icon" .}}</span>
+      {{else}}
       <span class="event-icon" aria-hidden="true">{{.Icon}}</span>
+      {{end}}
       <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">({{.Kind}})</span>{{end}}</span>
       <span class="event-time">{{.Time}}</span>
       <button type="button" class="event-edit" aria-label="Edit event"
@@ -32,4 +36,14 @@
 {{else}}
 <p class="empty">{{.EmptyMessage}}</p>
 {{end}}
+{{end}}
+
+{{define "pump-icon"}}
+<svg viewBox="0 0 24 24" fill="none" focusable="false">
+  <path d="M7.6 6.2c3.3 0 5.8 2.5 5.8 5.8 0 3.5-2.7 6-6.2 6-2.9 0-5.1-1.8-5.8-4.4" fill="#F6D6BA"/>
+  <path d="M7.8 9.2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2Z" fill="#C47B66"/>
+  <path d="M12.6 9.2h3.4c1.6 0 2.8 1.2 2.8 2.8v1.2" stroke="#8B6B2F" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M16.8 12.6h4.2v5.2c0 1.2-.9 2.1-2.1 2.1s-2.1-.9-2.1-2.1v-5.2Z" fill="#F7F1DE" stroke="#8B6B2F" stroke-width="1.6"/>
+  <path d="M18.3 10.2h2.5" stroke="#8B6B2F" stroke-width="1.6" stroke-linecap="round"/>
+</svg>
 {{end}}

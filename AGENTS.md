@@ -305,9 +305,8 @@ identity into context — see `internal/authctx`):
 * `DELETE /api/v1/babies/current/events/{id}` → `DeleteEvent`, removes one
   current-baby event regardless of type.
 * Per event type, nested under its plural resource name (`/nappies`,
-  `/feeds`, `/baths`, `/observations`, ...):
+  `/feeds`, `/pumps`, `/baths`, `/observations`, ...):
   * `POST /api/v1/babies/current/<resource>` → `Create<Type>`
-  * `GET /api/v1/babies/current/<resource>` → `List<Type>`
 
 ## The generic event store
 
@@ -326,7 +325,8 @@ No event-type-specific SQL exists anywhere — a new event type never touches
 ## Per-event-type handler file (backend-api)
 
 Each event type is one file in `backend-api/internal/handlers/` (`nappy.go`,
-`feed.go`, `bath.go`, `observation.go`) containing, and nothing else:
+`feed.go`, `pump.go`, `bath.go`, `observation.go`) containing, and nothing
+else:
 
 1. A `const eventType<X> = "<x>"` string.
 2. Any enum-like type for constrained fields (e.g. `NappyKind`, `FeedType`)
@@ -340,15 +340,16 @@ Each event type is one file in `backend-api/internal/handlers/` (`nappy.go`,
 6. `Create<X>` handler: decode request → validate/trim → build
    `map[string]any` attributes → call the shared
    `createAndRespond(w, r, h, eventType<X>, attributes, occurredAt, <x>FromEvent)`.
-7. `List<X>` handler: one line, `listAndRespond(w, r, h, eventType<X>, <x>FromEvent)`.
+7. Combined reads go through `ListAllEvents`; per-type files do not define
+   list handlers.
 
-`createAndRespond`/`listAndRespond` (generic helpers in `handlers.go`) own
-the actual `Store.CreateEvent`/`ListEvents` call, error logging, and JSON
-response — per-type handlers never call the store directly.
+`createAndRespond` (a generic helper in `handlers.go`) owns the actual
+`Store.CreateEvent` call, error logging, and JSON response — per-type create
+handlers never call the store directly.
 
 **To add a new event type on the backend:** create the new handler file
-following the 7 steps above, register its two routes in
-`cmd/server/main.go`, and add a migration only if the event needs no schema
+following the steps above, register its create route in `cmd/server/main.go`,
+and add a migration only if the event needs no schema
 changes beyond `attributes` (usually it doesn't — JSONB absorbs new fields
 without a migration).
 
@@ -362,8 +363,8 @@ generic `ListEvents(ctx, resource string, rangeKey string, out any)`,
 `ListEvents(ctx, "events", rangeKey, &events)` (backend-api's `/events`
 endpoint, already merged, range-filtered, and sorted newest-first across
 every event type); creates still go through `CreateEvent(ctx, "<resource>", payload)` per type
-(`"nappies"`, `"feeds"`, `"baths"`, `"observations"`), while edits go through
-the combined `UpdateEvent` route. The only shape
+(`"nappies"`, `"feeds"`, `"pumps"`, `"baths"`, `"observations"`), while edits
+go through the combined `UpdateEvent` route. The only shape
 `backendclient.go` decodes is the generic `Event` struct (`EventType` plus
 an `Attributes map[string]any`) — no per-event-type typed view structs.
 
@@ -374,7 +375,8 @@ type) fed by a single "Add Event" dialog (not one form per event type).
 * Every event type is flattened into one presentation shape,
   `TimelineEvent` (`CSSClass`, `Icon`, `TypeLabel`, `Kind`, `Detail`,
   `Time`). `Kind` is the per-type discriminator (nappy's kind, feed/bath's
-  type, observation's category), rendered as "(Kind)" next to `TypeLabel`.
+  type, observation's category; pump intentionally leaves it empty), rendered
+  as "(Kind)" next to `TypeLabel`.
   A `<x>TimelineEvent(ev, loc, now)` function builds one from a generic
   `backendclient.Event`, reading its `Attributes` map — this is where
   per-type display text (e.g. feed's "70 ml · 10 min") is decided.
@@ -398,10 +400,10 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   combined `/events/{id}` route.
 
 On the client, `frontend/static/app.js` drives the "Add Event" dialog: a
-type-picker step (four buttons, one per event type) followed by a
+type-picker step (one button per event type) followed by a
 form-fields step showing only the chosen type's `<form class="event-form"
 data-type="...">` block from `templates/index.html`. Each form still posts
-straight to its own existing endpoint (`/nappies`, `/feeds`, ...); the
+straight to its own existing endpoint (`/nappies`, `/feeds`, `/pumps`, ...); the
 dialog only changes what's *shown*, not the request shape.
 
 **To add a new event type on the frontend:** add a `<x>TimelineEvent`

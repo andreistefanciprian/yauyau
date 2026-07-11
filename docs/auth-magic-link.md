@@ -1,8 +1,9 @@
 # Magic Link Auth (Design)
 
-Status: **planned, not yet implemented**. This documents the design we agreed
-on before writing any code. See [AGENTS.md](../AGENTS.md) for the service
-architecture this builds on.
+Status: **implemented for magic-link sign in and invite/session flows**. This
+documents the production-grade auth shape that fits Yauli's service split; OAuth
+2.1 + PKCE remains planned for the future MCP/ChatGPT surface. See
+[AGENTS.md](../AGENTS.md) for the service architecture this builds on.
 
 ## Why this differs from a single-app magic link
 

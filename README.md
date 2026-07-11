@@ -14,7 +14,7 @@
 
 **Yauli** is an AI-first parenting companion designed to help families effortlessly record, organize and understand their baby's daily life.
 
-Instead of filling out endless forms, parents can simply talk naturally to ChatGPT or use the web application to record feeds, nappies, sleep, baths, observations and other important moments. Yauli builds a beautiful timeline of your child's journey while helping parents stay present and focus on what matters most.
+Instead of filling out endless forms, parents can use the web application today to record feeds, pumping, nappies, sleep, baths, observations and other important moments. Yauli builds a calm timeline of your child's day while helping parents stay present and focus on what matters most.
 
 ---
 
@@ -51,11 +51,16 @@ The website is a beautiful dashboard and timeline for reviewing your baby's hist
 **Current**
 
 * 🍼 Feed tracking
+* 🤱 Pump tracking
 * 💩 Nappy tracking
 * 😴 Sleep tracking
 * 🛁 Bath tracking
 * 📝 Observations
-* 📅 Chronological timeline
+* 📅 Timeline ranges for today, yesterday, the last 24 hours and the last 3 days
+* 🔐 Magic-link sign in with durable sessions and short-lived backend API JWTs
+* 👥 Timeline access management, invites and relationship labels
+* 👶 Baby profile settings, including birth date, birth weight, birth length and sex
+* 🗑 Owner-controlled timeline archive/delete flow
 
 **Planned**
 
@@ -66,35 +71,36 @@ The website is a beautiful dashboard and timeline for reviewing your baby's hist
 * ⭐ Milestones
 * 📊 Daily and weekly summaries
 * 📄 Pediatrician reports
-* 👨‍👩‍👧 Family sharing
 * 🤖 ChatGPT integration via MCP
-* 🔐 OAuth 2.1 + PKCE authentication
+* 🔐 OAuth 2.1 + PKCE for MCP/ChatGPT
 
 ---
 
 ## Architecture
 
-Yauli is built as a collection of small Go services. `frontend` and `backend-api` exist today; `auth-service` and `mcp-server` are on the roadmap.
+Yauli is built as a collection of small Go services. The browser talks to the server-rendered `frontend`; `frontend` talks privately to `auth-service` for sessions and to `backend-api` for baby/timeline data. `backend-api` is the source of truth for business rules and can ask `auth-service` to revoke sessions when timeline access changes.
 
 ```text
-                ChatGPT
-                   │
-             MCP Server           (planned)
-                   │
-            Backend API
-           /           \
-Frontend            Auth Service   (planned)
-           \           /
-             PostgreSQL
+Browser
+  │
+Frontend
+  ├── Auth Service
+  └── Backend API
+        └── PostgreSQL
+
+ChatGPT
+  │
+MCP Server (planned)
+  └── Backend API
 ```
 
 **Services**
 
 | Service | Status | Description |
 |---|---|---|
-| [`backend-api`](backend-api) | ✅ Active | Owns all business logic, validation, event creation and querying. Single source of truth. |
-| [`frontend`](frontend) | ✅ Active | Server-rendered dashboard and timeline. A thin client over the backend API. |
-| `auth-service` | 🚧 Planned | OAuth 2.1 + PKCE and magic-link authentication. |
+| [`backend-api`](backend-api) | ✅ Active | Owns business rules, users, baby profiles, timeline access, event creation and querying. |
+| [`frontend`](frontend) | ✅ Active | Server-rendered app for sign in, onboarding, timeline review, event entry and settings. |
+| [`auth-service`](auth-service) | ✅ Active | Magic links, sessions, JWT minting, logout, invite links and session revocation. |
 | `mcp-server` | 🚧 Planned | Exposes Yauli as MCP tools so ChatGPT can record and query events directly. |
 
 ---
@@ -111,14 +117,19 @@ Frontend            Auth Service   (planned)
 
 * Go Templates
 * HTMX
-* Alpine.js
-* Tailwind CSS
+* Plain CSS
 
-**Authentication** *(planned)*
+**Authentication**
+
+* Magic Links
+* Session cookies
+* JWT access tokens for backend-api
+* Mailgun for production email delivery
+
+**Planned Authentication**
 
 * OAuth 2.1
 * PKCE
-* Magic Links
 
 **Infrastructure**
 
@@ -143,10 +154,23 @@ cp .env.example .env
 docker compose up --build
 ```
 
-This starts PostgreSQL, `backend-api` and `frontend`.
+This starts PostgreSQL, `backend-api`, `auth-service` and `frontend`.
 
 * Frontend: [http://localhost:8080](http://localhost:8080)
 * Backend API: [http://localhost:8081](http://localhost:8081)
+* Auth Service: [http://localhost:8082](http://localhost:8082)
+
+In local development, magic links are logged to `auth-service` stdout instead of being emailed:
+
+```bash
+docker compose logs auth-service
+```
+
+To rebuild only the frontend after template or CSS changes:
+
+```bash
+docker compose up --build frontend
+```
 
 ---
 
@@ -172,6 +196,10 @@ Instead of opening an app and navigating multiple screens, simply tell ChatGPT:
 or
 
 > "Log a 70 ml bottle feed."
+
+or
+
+> "I pumped 90 ml."
 
 or
 

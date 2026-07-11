@@ -300,6 +300,17 @@ func normalizeEventAttributes(w http.ResponseWriter, eventType string, raw map[s
 			attributes["duration_minutes"] = durationMinutes
 		}
 		return attributes, true
+	case eventTypePump:
+		amountMl, ok := attributeRequiredPositiveInt(raw, "amount_ml")
+		if !ok {
+			writeError(w, http.StatusBadRequest, "amount_ml must be a positive number")
+			return nil, false
+		}
+		attributes := map[string]any{"amount_ml": amountMl}
+		if notes := strings.TrimSpace(attributeString(raw, "notes")); notes != "" {
+			attributes["notes"] = notes
+		}
+		return attributes, true
 	case eventTypeBath:
 		bathType := BathType(attributeString(raw, "type"))
 		if !bathType.Valid() {
@@ -365,6 +376,11 @@ func attributeOptionalInt(attributes map[string]any, key string) (int, bool) {
 	default:
 		return 0, false
 	}
+}
+
+func attributeRequiredPositiveInt(attributes map[string]any, key string) (int, bool) {
+	value, ok := attributeOptionalInt(attributes, key)
+	return value, ok && value > 0
 }
 
 // currentBabyForRequest resolves the authenticated caller's current baby.
