@@ -426,7 +426,7 @@ h2 {
 
 .baby-workspace-header h1 {
   overflow-wrap: anywhere;
-  font-size: 1.15rem;
+  font-size: 0.95rem;
   font-weight: 300;
   line-height: 1.2;
 }
@@ -746,6 +746,10 @@ h2 {
 
 .event-delete {
   font-size: 1.1rem;
+}
+
+.event-edit svg {
+  pointer-events: none;
 }
 
 .event-edit:hover,
