@@ -127,6 +127,11 @@ type indexPageData struct {
 	NowTime     string
 }
 
+type timelineWorkspaceData struct {
+	Timeline    TimelineViewData
+	DailyReport *backendclient.DailyReport
+}
+
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 	h.renderIndex(w, r)
 }
@@ -144,15 +149,7 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rangeKey := selectedTimelineRange(r)
-	var dailyReport *backendclient.DailyReport
-	if rangeKey == "today" {
-		report, err := h.Backend.GetDailyReport(r.Context())
-		if err != nil {
-			log.Printf("load daily report: %v", err)
-		} else {
-			dailyReport = &report
-		}
-	}
+	dailyReport := h.loadDailyReport(r.Context(), rangeKey)
 
 	timeline, err := h.loadTimeline(r.Context(), loc, rangeKey)
 	if err != nil {
@@ -542,21 +539,40 @@ func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 	h.renderTimeline(w, r, loc)
 }
 
-// renderTimeline re-fetches every event type and writes the combined,
-// sorted timeline partial. It's the shared tail of every Create* handler,
-// since all four forms target the same #timeline container.
+// renderTimeline re-fetches the daily report and combined timeline partial.
+// It's the shared tail of every Create*, Update*, and Delete* handler, since
+// event changes can affect both the visible event list and today's report.
 func (h *Handlers) renderTimeline(w http.ResponseWriter, r *http.Request, loc *time.Location) {
-	timeline, err := h.loadTimeline(r.Context(), loc, selectedTimelineRange(r))
+	rangeKey := selectedTimelineRange(r)
+	timeline, err := h.loadTimeline(r.Context(), loc, rangeKey)
 	if err != nil {
 		log.Printf("%v", err)
 		http.Error(w, "failed to load events", http.StatusBadGateway)
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.Templates.ExecuteTemplate(w, "timeline", timeline); err != nil {
-		log.Printf("render timeline template: %v", err)
+	data := timelineWorkspaceData{
+		Timeline:    timeline,
+		DailyReport: h.loadDailyReport(r.Context(), rangeKey),
 	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.Templates.ExecuteTemplate(w, "timeline-workspace", data); err != nil {
+		log.Printf("render timeline workspace template: %v", err)
+	}
+}
+
+func (h *Handlers) loadDailyReport(ctx context.Context, rangeKey string) *backendclient.DailyReport {
+	if rangeKey != "today" {
+		return nil
+	}
+
+	report, err := h.Backend.GetDailyReport(ctx)
+	if err != nil {
+		log.Printf("load daily report: %v", err)
+		return nil
+	}
+	return &report
 }
 
 // loadTimeline fetches the most recent events across every type from
