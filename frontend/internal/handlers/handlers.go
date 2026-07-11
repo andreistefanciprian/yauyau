@@ -191,7 +191,7 @@ func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Backend.CreateEvent(r.Context(), "nappies", payload); err != nil {
 		log.Printf("create nappy: %v", err)
-		http.Error(w, "failed to save nappy event", http.StatusBadGateway)
+		writeBackendEventError(w, err, "failed to save nappy event")
 		return
 	}
 
@@ -238,7 +238,7 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Backend.CreateEvent(r.Context(), "feeds", payload); err != nil {
 		log.Printf("create feed: %v", err)
-		http.Error(w, "failed to save feed event", http.StatusBadGateway)
+		writeBackendEventError(w, err, "failed to save feed event")
 		return
 	}
 
@@ -278,7 +278,7 @@ func (h *Handlers) CreatePump(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Backend.CreateEvent(r.Context(), "pumps", payload); err != nil {
 		log.Printf("create pump: %v", err)
-		http.Error(w, "failed to save pump event", http.StatusBadGateway)
+		writeBackendEventError(w, err, "failed to save pump event")
 		return
 	}
 
@@ -319,7 +319,7 @@ func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Backend.CreateEvent(r.Context(), "baths", payload); err != nil {
 		log.Printf("create bath: %v", err)
-		http.Error(w, "failed to save bath event", http.StatusBadGateway)
+		writeBackendEventError(w, err, "failed to save bath event")
 		return
 	}
 
@@ -360,7 +360,7 @@ func (h *Handlers) CreateSleep(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Backend.CreateEvent(r.Context(), "sleeps", payload); err != nil {
 		log.Printf("create sleep: %v", err)
-		http.Error(w, "failed to save sleep event", http.StatusBadGateway)
+		writeBackendEventError(w, err, "failed to save sleep event")
 		return
 	}
 
@@ -394,7 +394,7 @@ func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Backend.CreateEvent(r.Context(), "observations", payload); err != nil {
 		log.Printf("create observation: %v", err)
-		http.Error(w, "failed to save observation event", http.StatusBadGateway)
+		writeBackendEventError(w, err, "failed to save observation event")
 		return
 	}
 
@@ -427,7 +427,7 @@ func (h *Handlers) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.Backend.UpdateEvent(r.Context(), id, payload); err != nil {
 		log.Printf("update event: %v", err)
-		http.Error(w, "failed to update event", http.StatusBadGateway)
+		writeBackendEventError(w, err, "failed to update event")
 		return
 	}
 
@@ -896,6 +896,21 @@ func parseEventTime(loc *time.Location, date, hhmm string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("parsing date %q time %q: %w", date, hhmm, err)
 	}
 	return parsed, nil
+}
+
+// writeBackendEventError responds to a failed create/update-event call. When
+// err is a backendclient.APIError from a 4xx response, its message (e.g.
+// "occurred_at cannot be in the future") is a validation problem the user
+// caused and can fix, so it's shown as-is with a matching 400. Anything else
+// (a network failure, a 5xx) is an upstream problem, not the user's fault, so
+// fallback is shown with 502 instead of leaking an internal error string.
+func writeBackendEventError(w http.ResponseWriter, err error, fallback string) {
+	var apiErr *backendclient.APIError
+	if errors.As(err, &apiErr) && apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 {
+		http.Error(w, apiErr.Message, http.StatusBadRequest)
+		return
+	}
+	http.Error(w, fallback, http.StatusBadGateway)
 }
 
 // parseOptionalInt parses a form field that may be blank, returning nil

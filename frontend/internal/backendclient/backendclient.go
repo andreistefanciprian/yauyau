@@ -11,6 +11,18 @@ import (
 var ErrForbidden = errors.New("forbidden")
 var ErrNotFound = errors.New("not found")
 
+// APIError carries backend-api's own {"error": "..."} message through to the
+// caller, so a 400 validation failure (e.g. "occurred_at cannot be in the
+// future") can be shown to the user instead of a generic failure message.
+type APIError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e *APIError) Error() string {
+	return e.Message
+}
+
 type Baby struct {
 	ID               string `json:"id"`
 	FamilyID         string `json:"family_id"`

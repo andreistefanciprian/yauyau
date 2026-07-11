@@ -56,7 +56,7 @@ The website is a beautiful dashboard and timeline for reviewing your baby's hist
 * 😴 Sleep tracking
 * 🛁 Bath tracking
 * 📝 Observations
-* 📅 Timeline ranges for today, yesterday, the last 24 hours and the last 3 days
+* 📅 Rolling 7-day timeline nav (today, yesterday, then each day by name)
 * 🔐 Magic-link sign in with durable sessions and short-lived backend API JWTs
 * 👥 Timeline access management, invites and relationship labels
 * 👶 Baby profile settings, including birth date, birth weight, birth length and sex

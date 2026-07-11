@@ -280,10 +280,17 @@ func (h *Handlers) Healthz(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// futureToleranceForOccurredAt absorbs clock skew between the client that
+// picked "now" and this server, plus the time form field's minute-only
+// granularity (which can round up to 59s ahead of the true instant) — without
+// this, a legitimate "log this right now" submission can be rejected as
+// future-dated for reasons that have nothing to do with the user's input.
+const futureToleranceForOccurredAt = 5 * time.Minute
+
 // parseOccurredAt parses an optional RFC3339 "occurred_at" from a request
 // body, defaulting to the current server time when raw is empty. Writes the
-// appropriate 400 response and returns ok=false if it's malformed or in the
-// future — events record things that have already happened.
+// appropriate 400 response and returns ok=false if it's malformed or too far
+// in the future — events record things that have already happened.
 func parseOccurredAt(w http.ResponseWriter, raw string) (time.Time, bool) {
 	if raw == "" {
 		return time.Now(), true
@@ -293,7 +300,7 @@ func parseOccurredAt(w http.ResponseWriter, raw string) (time.Time, bool) {
 		writeError(w, http.StatusBadRequest, "occurred_at must be RFC3339 formatted")
 		return time.Time{}, false
 	}
-	if parsed.After(time.Now()) {
+	if parsed.After(time.Now().Add(futureToleranceForOccurredAt)) {
 		writeError(w, http.StatusBadRequest, "occurred_at cannot be in the future")
 		return time.Time{}, false
 	}

@@ -45,8 +45,9 @@ The user-facing access surface. A baby timeline contains:
 
 Today each baby belongs to one family and event routes resolve the current
 baby from the session's `family_id`. The main app defaults to the baby's
-current calendar day and lets parents quickly switch to Yesterday, the last
-24 hours, or the last 3 days without leaving the timeline.
+current calendar day and lets parents quickly switch to any of the 6 days
+before it (Yesterday, then each day by weekday name) without leaving the
+timeline.
 
 ### Membership
 
@@ -79,8 +80,8 @@ pending membership.
 
 Current behavior:
 
-* The timeline defaults to Today, with quick access to Yesterday, 24h, and 3
-  days.
+* The timeline defaults to Today, with quick access to the 6 days before it
+  (Yesterday, then each day by weekday name).
 * Owners can open People from the baby header to see who has access.
 * Owners can invite people to the timeline from the People view.
 * Owners can set optional relationship labels such as Mum, Dad, Grandpa, or
