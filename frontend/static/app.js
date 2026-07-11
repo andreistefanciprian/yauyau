@@ -189,13 +189,14 @@ function openEditDialog(button) {
   switch (type) {
     case "nappy":
       setRadioValue(activeSection, "kind", button.dataset.kind, "wet");
-      setFieldValue(activeSection, "colour", button.dataset.colour);
+      setFieldValue(activeSection, "notes", button.dataset.notes);
       break;
     case "feed":
       setRadioValue(activeSection, "type", button.dataset.type, "breast");
       setRadioValue(activeSection, "feed_time_basis", "start", "start");
       setFieldValue(activeSection, "amount_ml", button.dataset.amountMl);
       setFieldValue(activeSection, "duration_minutes", button.dataset.durationMinutes);
+      setFieldValue(activeSection, "notes", button.dataset.notes);
       break;
     case "pump":
       setFieldValue(activeSection, "amount_ml", button.dataset.amountMl);

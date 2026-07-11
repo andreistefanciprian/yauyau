@@ -123,8 +123,8 @@
         </fieldset>
 
         <label class="field-label">
-          Colour (optional)
-          <input type="text" name="colour" placeholder="e.g. mustard yellow">
+          Notes (optional)
+          <input type="text" name="notes" placeholder="e.g. mustard yellow">
         </label>
 
         <label class="field-label">
@@ -148,6 +148,11 @@
           <label><input type="radio" name="type" value="formula"> Formula</label>
           <label><input type="radio" name="type" value="expressed"> Expressed</label>
         </fieldset>
+
+        <label class="field-label">
+          Notes (optional)
+          <input type="text" name="notes" placeholder="e.g. left side">
+        </label>
 
         <label class="field-label">
           Amount (ml, optional)
@@ -337,8 +342,8 @@
             <label><input type="radio" name="kind" value="both"> Both</label>
           </fieldset>
           <label class="field-label">
-            Colour (optional)
-            <input type="text" name="colour" placeholder="e.g. mustard yellow">
+            Notes (optional)
+            <input type="text" name="notes" placeholder="e.g. mustard yellow">
           </label>
         </div>
 
@@ -349,6 +354,10 @@
             <label><input type="radio" name="type" value="formula"> Formula</label>
             <label><input type="radio" name="type" value="expressed"> Expressed</label>
           </fieldset>
+          <label class="field-label">
+            Notes (optional)
+            <input type="text" name="notes" placeholder="e.g. left side">
+          </label>
           <label class="field-label">
             Amount (ml, optional)
             {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "300" "SliderStep" "10" "Label" "feed amount")}}

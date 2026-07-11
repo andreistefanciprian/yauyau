@@ -92,7 +92,6 @@ type TimelineEvent struct {
 	TimeValue       string
 	KindValue       string
 	TypeValue       string
-	Colour          string
 	AmountMl        string
 	DurationMinutes string
 	Notes           string
@@ -186,7 +185,7 @@ func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
 
 	payload := map[string]any{
 		"kind":        r.FormValue("kind"),
-		"colour":      r.FormValue("colour"),
+		"notes":       r.FormValue("notes"),
 		"occurred_at": occurredAt.Format(time.RFC3339),
 	}
 	if err := h.Backend.CreateEvent(r.Context(), "nappies", payload); err != nil {
@@ -234,6 +233,7 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 		"type":             r.FormValue("type"),
 		"amount_ml":        amountMl,
 		"duration_minutes": durationMinutes,
+		"notes":            r.FormValue("notes"),
 		"occurred_at":      occurredAt.Format(time.RFC3339),
 	}
 	if err := h.Backend.CreateEvent(r.Context(), "feeds", payload); err != nil {
@@ -445,7 +445,7 @@ func (h *Handlers) eventUpdatePayloadFromForm(loc *time.Location, r *http.Reques
 	switch eventType {
 	case "nappy":
 		attributes["kind"] = r.FormValue("kind")
-		attributes["colour"] = r.FormValue("colour")
+		attributes["notes"] = r.FormValue("notes")
 	case "feed":
 		amountMl, err := parseOptionalInt(r.FormValue("amount_ml"))
 		if err != nil {
@@ -462,6 +462,7 @@ func (h *Handlers) eventUpdatePayloadFromForm(loc *time.Location, r *http.Reques
 		attributes["type"] = r.FormValue("type")
 		attributes["amount_ml"] = amountMl
 		attributes["duration_minutes"] = durationMinutes
+		attributes["notes"] = r.FormValue("notes")
 	case "pump":
 		amountMl, err := parseRequiredPositiveInt(r.FormValue("amount_ml"))
 		if err != nil {
@@ -691,17 +692,20 @@ func timelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) (T
 func nappyTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
 	occurredAt := ev.OccurredAt.In(loc)
 	kind := attributeString(ev.Attributes, "kind")
-	colour := attributeString(ev.Attributes, "colour")
+	notes := attributeString(ev.Attributes, "notes")
+	if notes == "" {
+		notes = attributeString(ev.Attributes, "colour")
+	}
 
 	return TimelineEvent{
 		CSSClass:  "nappy",
 		Icon:      "💩",
 		TypeLabel: "Nappy",
 		Kind:      titleCase(kind),
-		Detail:    colour,
+		Detail:    notes,
 		Time:      formatEventTime(occurredAt, now),
 		KindValue: kind,
-		Colour:    colour,
+		Notes:     notes,
 	}
 }
 
@@ -710,6 +714,13 @@ func feedTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time
 	feedType := attributeString(ev.Attributes, "type")
 
 	detail := amountAndDuration(ev.Attributes, "amount_ml", "ml")
+	notes := attributeString(ev.Attributes, "notes")
+	if notes != "" {
+		if detail != "" {
+			detail += " · "
+		}
+		detail += notes
+	}
 	amountMl := ""
 	if amount, ok := attributeInt(ev.Attributes, "amount_ml"); ok {
 		amountMl = strconv.Itoa(amount)
@@ -729,6 +740,7 @@ func feedTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time
 		TypeValue:       feedType,
 		AmountMl:        amountMl,
 		DurationMinutes: durationMinutes,
+		Notes:           notes,
 	}
 }
 
@@ -856,8 +868,8 @@ func amountAndDuration(attributes map[string]any, amountKey, unit string) string
 }
 
 // attributeString reads a string field out of an event's attributes map,
-// returning "" if the key is absent (an optional field, like nappy colour
-// or bath notes, that wasn't recorded).
+// returning "" if the key is absent (an optional field, like event notes, that
+// wasn't recorded).
 func attributeString(attributes map[string]any, key string) string {
 	s, _ := attributes[key].(string)
 	return s

@@ -34,6 +34,7 @@ type createFeedRequest struct {
 	Type            string `json:"type"`
 	AmountMl        *int   `json:"amount_ml"`
 	DurationMinutes *int   `json:"duration_minutes"`
+	Notes           string `json:"notes"`
 	OccurredAt      string `json:"occurred_at"`
 }
 
@@ -44,6 +45,7 @@ type feedResponse struct {
 	Type            FeedType  `json:"type"`
 	AmountMl        *int      `json:"amount_ml,omitempty"`
 	DurationMinutes *int      `json:"duration_minutes,omitempty"`
+	Notes           string    `json:"notes,omitempty"`
 	OccurredAt      time.Time `json:"occurred_at"`
 	CreatedAt       time.Time `json:"created_at"`
 }
@@ -73,6 +75,9 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 	if req.DurationMinutes != nil {
 		attributes["duration_minutes"] = *req.DurationMinutes
 	}
+	if req.Notes != "" {
+		attributes["notes"] = req.Notes
+	}
 
 	createAndRespond(w, r, h, eventTypeFeed, attributes, occurredAt, feedFromEvent)
 }
@@ -87,6 +92,9 @@ func feedFromEvent(ev store.Event) feedResponse {
 	}
 	if v, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
 		resp.DurationMinutes = &v
+	}
+	if notes, ok := ev.Attributes["notes"].(string); ok {
+		resp.Notes = notes
 	}
 	return resp
 }

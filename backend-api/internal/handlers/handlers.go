@@ -316,8 +316,10 @@ func normalizeEventAttributes(w http.ResponseWriter, eventType string, raw map[s
 			return nil, false
 		}
 		attributes := map[string]any{"kind": string(kind)}
-		if colour := strings.TrimSpace(attributeString(raw, "colour")); colour != "" {
-			attributes["colour"] = colour
+		if notes := strings.TrimSpace(attributeString(raw, "notes")); notes != "" {
+			attributes["notes"] = notes
+		} else if colour := strings.TrimSpace(attributeString(raw, "colour")); colour != "" {
+			attributes["notes"] = colour
 		}
 		return attributes, true
 	case eventTypeFeed:
@@ -332,6 +334,9 @@ func normalizeEventAttributes(w http.ResponseWriter, eventType string, raw map[s
 		}
 		if durationMinutes, ok := attributeOptionalInt(raw, "duration_minutes"); ok {
 			attributes["duration_minutes"] = durationMinutes
+		}
+		if notes := strings.TrimSpace(attributeString(raw, "notes")); notes != "" {
+			attributes["notes"] = notes
 		}
 		return attributes, true
 	case eventTypePump:

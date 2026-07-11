@@ -32,7 +32,7 @@ func (k NappyKind) Valid() bool {
 
 type createNappyRequest struct {
 	Kind       string `json:"kind"`
-	Colour     string `json:"colour"`
+	Notes      string `json:"notes"`
 	OccurredAt string `json:"occurred_at"`
 }
 
@@ -41,7 +41,7 @@ type nappyResponse struct {
 	ID         uuid.UUID `json:"id"`
 	BabyID     uuid.UUID `json:"baby_id"`
 	Kind       NappyKind `json:"kind"`
-	Colour     string    `json:"colour,omitempty"`
+	Notes      string    `json:"notes,omitempty"`
 	OccurredAt time.Time `json:"occurred_at"`
 	CreatedAt  time.Time `json:"created_at"`
 }
@@ -65,8 +65,8 @@ func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	attributes := map[string]any{"kind": string(kind)}
-	if req.Colour != "" {
-		attributes["colour"] = req.Colour
+	if req.Notes != "" {
+		attributes["notes"] = req.Notes
 	}
 
 	createAndRespond(w, r, h, eventTypeNappy, attributes, occurredAt, nappyFromEvent)
@@ -77,8 +77,10 @@ func nappyFromEvent(ev store.Event) nappyResponse {
 	if kind, ok := ev.Attributes["kind"].(string); ok {
 		resp.Kind = NappyKind(kind)
 	}
-	if colour, ok := ev.Attributes["colour"].(string); ok {
-		resp.Colour = colour
+	if notes, ok := ev.Attributes["notes"].(string); ok {
+		resp.Notes = notes
+	} else if colour, ok := ev.Attributes["colour"].(string); ok {
+		resp.Notes = colour
 	}
 	return resp
 }
