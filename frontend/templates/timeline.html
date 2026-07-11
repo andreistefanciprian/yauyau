@@ -1,3 +1,30 @@
+{{define "timeline-workspace"}}
+<div id="timeline-workspace" aria-live="polite">
+  {{with .DailyReport}}
+  <section class="daily-report" aria-labelledby="daily-report-title">
+    <div class="daily-report-header">
+      <span class="daily-report-icon" aria-hidden="true">✨</span>
+      <div>
+        <h2 id="daily-report-title">{{.Title}}</h2>
+        <p>{{.Summary}}</p>
+      </div>
+    </div>
+    {{if .Highlights}}
+    <ul class="daily-report-highlights">
+      {{range .Highlights}}
+      <li>{{.}}</li>
+      {{end}}
+    </ul>
+    {{end}}
+  </section>
+  {{end}}
+
+  <section id="timeline" class="timeline-section">
+    {{template "timeline" .Timeline}}
+  </section>
+</div>
+{{end}}
+
 {{define "timeline"}}
 {{if .Events}}
 <div class="timeline">
@@ -25,7 +52,7 @@
         data-category="{{.Category}}"
         title="Edit event">{{template "edit-icon"}}</button>
       <button type="button" class="event-delete" aria-label="Delete event"
-        hx-delete="/events/{{.ID}}?range={{$.Selected}}" hx-target="#timeline" hx-swap="innerHTML"
+        hx-delete="/events/{{.ID}}?range={{$.Selected}}" hx-target="#timeline-workspace" hx-swap="outerHTML"
         hx-confirm="Delete this event?" title="Delete event">&times;</button>
     </div>
     {{if .Detail}}<div class="event-detail">{{.Detail}}</div>{{end}}

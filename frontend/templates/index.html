@@ -42,25 +42,6 @@
     </section>
     {{end}}
 
-    {{with .DailyReport}}
-    <section class="daily-report" aria-labelledby="daily-report-title">
-      <div class="daily-report-header">
-        <span class="daily-report-icon" aria-hidden="true">✨</span>
-        <div>
-          <h2 id="daily-report-title">{{.Title}}</h2>
-          <p>{{.Summary}}</p>
-        </div>
-      </div>
-      {{if .Highlights}}
-      <ul class="daily-report-highlights">
-        {{range .Highlights}}
-        <li>{{.}}</li>
-        {{end}}
-      </ul>
-      {{end}}
-    </section>
-    {{end}}
-
     <div class="timeline-filters">
       <button type="button" class="timeline-filters-toggle" id="timeline-filters-toggle" aria-expanded="false" aria-controls="timeline-filters-body">
         <span id="timeline-filters-summary">Today · All events</span>
@@ -86,9 +67,7 @@
       </div>
     </div>
 
-    <section id="timeline" class="timeline-section" aria-live="polite">
-      {{template "timeline" .Timeline}}
-    </section>
+    {{template "timeline-workspace" (dict "Timeline" .Timeline "DailyReport" .DailyReport)}}
 
     <button type="button" class="fab" id="add-event-button" aria-haspopup="dialog" aria-controls="add-event-dialog">
       <span class="fab-plus" aria-hidden="true">+</span>
@@ -132,7 +111,7 @@
         </button>
       </div>
 
-      <form class="event-form" data-type="nappy" hx-post="/nappies" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+      <form class="event-form" data-type="nappy" hx-post="/nappies" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <fieldset>
           <legend>Kind</legend>
@@ -159,7 +138,7 @@
         <button type="submit">Save</button>
       </form>
 
-      <form class="event-form" data-type="feed" hx-post="/feeds" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+      <form class="event-form" data-type="feed" hx-post="/feeds" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <fieldset>
           <legend>Type</legend>
@@ -203,7 +182,7 @@
         <button type="submit">Save</button>
       </form>
 
-      <form class="event-form" data-type="pump" hx-post="/pumps" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+      <form class="event-form" data-type="pump" hx-post="/pumps" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <label class="field-label">
           Amount expressed (ml)
@@ -228,7 +207,7 @@
         <button type="submit">Save</button>
       </form>
 
-      <form class="event-form" data-type="bath" hx-post="/baths" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+      <form class="event-form" data-type="bath" hx-post="/baths" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <fieldset>
           <legend>Type</legend>
@@ -266,7 +245,7 @@
         <button type="submit">Save</button>
       </form>
 
-      <form class="event-form" data-type="sleep" hx-post="/sleeps" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+      <form class="event-form" data-type="sleep" hx-post="/sleeps" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <fieldset>
           <legend>Type</legend>
@@ -304,7 +283,7 @@
         <button type="submit">Save</button>
       </form>
 
-      <form class="event-form" data-type="observation" hx-post="/observations" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+      <form class="event-form" data-type="observation" hx-post="/observations" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <label class="field-label">
           Note
@@ -349,7 +328,7 @@
 
       <p class="dialog-error" id="edit-event-error" hidden></p>
 
-      <form id="edit-event-form" class="event-form" hx-patch="/events/__event_id__" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventEdited()">
+      <form id="edit-event-form" class="event-form" hx-patch="/events/__event_id__" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventEdited()">
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <input type="hidden" name="event_type" id="edit-event-type">
 
