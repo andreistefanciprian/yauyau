@@ -547,48 +547,95 @@ func (h *Handlers) loadTimeline(ctx context.Context, loc *time.Location, rangeKe
 
 	return TimelineViewData{
 		Events:       timeline,
-		Ranges:       timelineRangeOptions(rangeKey),
+		Ranges:       timelineRangeOptions(rangeKey, now),
 		Selected:     rangeKey,
-		EmptyMessage: emptyTimelineMessage(rangeKey),
+		EmptyMessage: emptyTimelineMessage(rangeKey, now),
 	}, nil
+}
+
+// timelineRangeDays is how many days back the range nav reaches: today plus
+// the six days before it, matching backend-api's timelineRangeDays so every
+// key this frontend can produce resolves to a real window.
+const timelineRangeDays = 7
+
+// timelineRangeKey returns the range key for "offset" days before today (0
+// is today, 1 is yesterday, ...). "day-N" for days further back is labelled
+// with the weekday name instead of a fixed word, so the nav reads as a
+// rolling week rather than a set of unrelated presets.
+func timelineRangeKey(offset int) string {
+	switch offset {
+	case 0:
+		return "today"
+	case 1:
+		return "yesterday"
+	default:
+		return fmt.Sprintf("day-%d", offset)
+	}
+}
+
+// timelineRangeOffset is timelineRangeKey's inverse, used to validate an
+// incoming ?range= value and to resolve a selected key back to a day for
+// building the empty-state message.
+func timelineRangeOffset(rangeKey string) (int, bool) {
+	for offset := 0; offset < timelineRangeDays; offset++ {
+		if timelineRangeKey(offset) == rangeKey {
+			return offset, true
+		}
+	}
+	return 0, false
 }
 
 func selectedTimelineRange(r *http.Request) string {
 	raw := r.FormValue("range")
-	switch raw {
-	case "", "today":
-		return "today"
-	case "yesterday", "24h", "3d":
-		return raw
-	default:
+	if raw == "" {
 		return "today"
 	}
+	if _, ok := timelineRangeOffset(raw); ok {
+		return raw
+	}
+	return "today"
 }
 
-func timelineRangeOptions(selected string) []TimelineRangeOption {
-	options := []TimelineRangeOption{
-		{Key: "today", Label: "Today"},
-		{Key: "yesterday", Label: "Yesterday"},
-		{Key: "24h", Label: "24h"},
-		{Key: "3d", Label: "3 days"},
-	}
-	for i := range options {
-		options[i].Href = "/app?range=" + options[i].Key
-		options[i].Active = options[i].Key == selected
+func timelineRangeOptions(selected string, now time.Time) []TimelineRangeOption {
+	options := make([]TimelineRangeOption, timelineRangeDays)
+	for offset := 0; offset < timelineRangeDays; offset++ {
+		key := timelineRangeKey(offset)
+		options[offset] = TimelineRangeOption{
+			Key:    key,
+			Label:  timelineRangeLabel(offset, now),
+			Href:   "/app?range=" + key,
+			Active: key == selected,
+		}
 	}
 	return options
 }
 
-func emptyTimelineMessage(rangeKey string) string {
-	switch rangeKey {
-	case "yesterday":
-		return "No events logged yesterday."
-	case "24h":
-		return "No events logged in the last 24 hours."
-	case "3d":
-		return "No events logged in the last 3 days."
+// timelineRangeLabel names each pill: "Today" and "Yesterday" for the most
+// recent two days, then the short weekday name (e.g. "Thu") for the five
+// days before that.
+func timelineRangeLabel(offset int, now time.Time) string {
+	switch offset {
+	case 0:
+		return "Today"
+	case 1:
+		return "Yesterday"
 	default:
+		return now.AddDate(0, 0, -offset).Format("Mon")
+	}
+}
+
+func emptyTimelineMessage(rangeKey string, now time.Time) string {
+	offset, ok := timelineRangeOffset(rangeKey)
+	if !ok {
+		offset = 0
+	}
+	switch offset {
+	case 0:
 		return "No events logged today. Tap \"Add Event\" to log the first one."
+	case 1:
+		return "No events logged yesterday."
+	default:
+		return fmt.Sprintf("No events logged on %s.", now.AddDate(0, 0, -offset).Format("Monday"))
 	}
 }
 

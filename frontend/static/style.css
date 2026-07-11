@@ -848,6 +848,30 @@ dialog#add-event-dialog::backdrop {
   background: rgba(0, 0, 0, 0.4);
 }
 
+/* Edit Event dialog (same bottom-sheet treatment as Add Event) */
+
+dialog#edit-event-dialog {
+  position: fixed;
+  inset: auto 0 0 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  margin: 0;
+  border: none;
+  border-radius: 1.25rem 1.25rem 0 0;
+  padding: 0;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.12);
+}
+
+dialog#edit-event-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
 /* Confirm dialog (replaces the native, unstyleable window.confirm() that
    htmx's hx-confirm triggers by default — see app.js's htmx:confirm
    listener) */

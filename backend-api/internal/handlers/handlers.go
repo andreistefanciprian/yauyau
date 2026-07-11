@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -67,6 +68,11 @@ type AuthClient interface {
 const allEventsLimit = 40
 
 const defaultTimelineRange = "today"
+
+// timelineRangeDays is how many days back the timeline nav reaches: today
+// plus the six days before it, so a full week is selectable one day at a
+// time.
+const timelineRangeDays = 7
 
 var errUnsupportedTimelineRange = errors.New("unsupported timeline range")
 
@@ -140,7 +146,8 @@ func timelineRangeFor(rawRange, timezone string) (timelineRangeWindow, error) {
 	if rangeKey == "" {
 		rangeKey = defaultTimelineRange
 	}
-	if rangeKey != "today" && rangeKey != "yesterday" && rangeKey != "24h" && rangeKey != "3d" {
+	offset, ok := timelineRangeOffset(rangeKey)
+	if !ok {
 		return timelineRangeWindow{}, fmt.Errorf("%w: %s", errUnsupportedTimelineRange, rawRange)
 	}
 
@@ -151,20 +158,30 @@ func timelineRangeFor(rawRange, timezone string) (timelineRangeWindow, error) {
 
 	now := time.Now().In(loc)
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	dayStart := todayStart.AddDate(0, 0, -offset)
+	return timelineRangeWindow{From: dayStart, To: dayStart.AddDate(0, 0, 1)}, nil
+}
 
+// timelineRangeOffset maps a range key to how many days before today it
+// selects: "today" and "yesterday" are 0 and 1, and earlier days use
+// "day-N" (2 through timelineRangeDays-1) since the frontend labels them
+// with the weekday name rather than a fixed word.
+func timelineRangeOffset(rangeKey string) (int, bool) {
 	switch rangeKey {
 	case "today":
-		return timelineRangeWindow{From: todayStart, To: todayStart.AddDate(0, 0, 1)}, nil
+		return 0, true
 	case "yesterday":
-		yesterdayStart := todayStart.AddDate(0, 0, -1)
-		return timelineRangeWindow{From: yesterdayStart, To: todayStart}, nil
-	case "24h":
-		return timelineRangeWindow{From: now.Add(-24 * time.Hour), To: now}, nil
-	case "3d":
-		return timelineRangeWindow{From: todayStart.AddDate(0, 0, -2), To: todayStart.AddDate(0, 0, 1)}, nil
-	default:
-		return timelineRangeWindow{}, fmt.Errorf("%w: %s", errUnsupportedTimelineRange, rawRange)
+		return 1, true
 	}
+	suffix, ok := strings.CutPrefix(rangeKey, "day-")
+	if !ok {
+		return 0, false
+	}
+	offset, err := strconv.Atoi(suffix)
+	if err != nil || offset < 2 || offset >= timelineRangeDays {
+		return 0, false
+	}
+	return offset, true
 }
 
 // UpdateEvent edits a single event by id, regardless of its event_type.
@@ -186,9 +203,8 @@ func (h *Handlers) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	occurredAt, err := parseOccurredAt(req.OccurredAt)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "occurred_at must be RFC3339 formatted")
+	occurredAt, ok := parseOccurredAt(w, req.OccurredAt)
+	if !ok {
 		return
 	}
 
@@ -264,13 +280,24 @@ func (h *Handlers) Healthz(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// parseOccurredAt parses an optional RFC3339 timestamp from a request body,
-// defaulting to the current server time when raw is empty.
-func parseOccurredAt(raw string) (time.Time, error) {
+// parseOccurredAt parses an optional RFC3339 "occurred_at" from a request
+// body, defaulting to the current server time when raw is empty. Writes the
+// appropriate 400 response and returns ok=false if it's malformed or in the
+// future — events record things that have already happened.
+func parseOccurredAt(w http.ResponseWriter, raw string) (time.Time, bool) {
 	if raw == "" {
-		return time.Now(), nil
+		return time.Now(), true
 	}
-	return time.Parse(time.RFC3339, raw)
+	parsed, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "occurred_at must be RFC3339 formatted")
+		return time.Time{}, false
+	}
+	if parsed.After(time.Now()) {
+		writeError(w, http.StatusBadRequest, "occurred_at cannot be in the future")
+		return time.Time{}, false
+	}
+	return parsed, true
 }
 
 func normalizeEventAttributes(w http.ResponseWriter, eventType string, raw map[string]any) (map[string]any, bool) {

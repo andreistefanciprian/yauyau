@@ -9,7 +9,7 @@
       {{else}}
       <span class="event-icon" aria-hidden="true">{{.Icon}}</span>
       {{end}}
-      <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">({{.Kind}})</span>{{end}}{{if .InlineDetail}} <span class="event-inline-detail">· {{.InlineDetail}}</span>{{end}}</span>
+      <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">· {{.Kind}}</span>{{end}}{{if .InlineDetail}} <span class="event-inline-detail">· {{.InlineDetail}}</span>{{end}}</span>
       <span class="event-time">{{.Time}}</span>
       <button type="button" class="event-edit" aria-label="Edit event"
         data-event-id="{{.ID}}"

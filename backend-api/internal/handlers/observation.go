@@ -53,9 +53,8 @@ func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
 		category = defaultObservationCategory
 	}
 
-	occurredAt, err := parseOccurredAt(req.OccurredAt)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "occurred_at must be RFC3339 formatted")
+	occurredAt, ok := parseOccurredAt(w, req.OccurredAt)
+	if !ok {
 		return
 	}
 

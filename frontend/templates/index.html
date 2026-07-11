@@ -108,7 +108,7 @@
 
         <label class="field-label">
           Date
-          <input type="date" name="date" value="{{.NowDate}}" required>
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
         </label>
 
         <label class="field-label">
@@ -135,12 +135,16 @@
 
         <label class="field-label">
           Duration (minutes, optional)
-          <input type="number" name="duration_minutes" min="0" placeholder="e.g. 15">
+          <span class="number-stepper">
+            <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease feed duration by 10 minutes">-10</button>
+            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 15">
+            <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase feed duration by 10 minutes">+10</button>
+          </span>
         </label>
 
         <label class="field-label">
           Date
-          <input type="date" name="date" value="{{.NowDate}}" required>
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
         </label>
 
         <label class="field-label">
@@ -169,7 +173,7 @@
 
         <label class="field-label">
           Date
-          <input type="date" name="date" value="{{.NowDate}}" required>
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
         </label>
 
         <label class="field-label">
@@ -195,12 +199,16 @@
 
         <label class="field-label">
           Duration (minutes, optional)
-          <input type="number" name="duration_minutes" min="0" placeholder="e.g. 10">
+          <span class="number-stepper">
+            <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease bath duration by 10 minutes">-10</button>
+            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 10">
+            <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase bath duration by 10 minutes">+10</button>
+          </span>
         </label>
 
         <label class="field-label">
           Date
-          <input type="date" name="date" value="{{.NowDate}}" required>
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
         </label>
 
         <label class="field-label">
@@ -226,12 +234,16 @@
 
         <label class="field-label">
           Duration (minutes, optional)
-          <input type="number" name="duration_minutes" min="0" placeholder="e.g. 90">
+          <span class="number-stepper">
+            <button type="button" class="number-stepper-button" data-step-amount="-20" aria-label="Decrease sleep duration by 20 minutes">-20</button>
+            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 90">
+            <button type="button" class="number-stepper-button" data-step-amount="20" aria-label="Increase sleep duration by 20 minutes">+20</button>
+          </span>
         </label>
 
         <label class="field-label">
           Date
-          <input type="date" name="date" value="{{.NowDate}}" required>
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
         </label>
 
         <label class="field-label">
@@ -265,7 +277,7 @@
 
         <label class="field-label">
           Date
-          <input type="date" name="date" value="{{.NowDate}}" required>
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
         </label>
 
         <label class="field-label">
@@ -315,7 +327,11 @@
           </label>
           <label class="field-label">
             Duration (minutes, optional)
-            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 15">
+            <span class="number-stepper">
+              <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease feed duration by 10 minutes">-10</button>
+              <input type="number" name="duration_minutes" min="0" placeholder="e.g. 15">
+              <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase feed duration by 10 minutes">+10</button>
+            </span>
           </label>
         </div>
 
@@ -346,7 +362,11 @@
           </label>
           <label class="field-label">
             Duration (minutes, optional)
-            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 10">
+            <span class="number-stepper">
+              <button type="button" class="number-stepper-button" data-step-amount="-10" aria-label="Decrease bath duration by 10 minutes">-10</button>
+              <input type="number" name="duration_minutes" min="0" placeholder="e.g. 10">
+              <button type="button" class="number-stepper-button" data-step-amount="10" aria-label="Increase bath duration by 10 minutes">+10</button>
+            </span>
           </label>
         </div>
 
@@ -362,7 +382,11 @@
           </label>
           <label class="field-label">
             Duration (minutes, optional)
-            <input type="number" name="duration_minutes" min="0" placeholder="e.g. 90">
+            <span class="number-stepper">
+              <button type="button" class="number-stepper-button" data-step-amount="-20" aria-label="Decrease sleep duration by 20 minutes">-20</button>
+              <input type="number" name="duration_minutes" min="0" placeholder="e.g. 90">
+              <button type="button" class="number-stepper-button" data-step-amount="20" aria-label="Increase sleep duration by 20 minutes">+20</button>
+            </span>
           </label>
         </div>
 

@@ -49,6 +49,11 @@ function showFormStep(type) {
   }
 }
 
+function localDateValue(date) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 // Set a form's date/time fields to the current local date/time. Called each
 // time a form is shown, since a value baked in at page load would go stale
 // if the dialog is opened later in the same session.
@@ -58,7 +63,8 @@ function setFormToNow(form) {
 
   const dateInput = form.querySelector('input[type="date"]');
   if (dateInput) {
-    dateInput.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    dateInput.value = localDateValue(now);
+    dateInput.max = localDateValue(now);
   }
 
   const timeInput = form.querySelector('input[type="time"]');
@@ -171,6 +177,9 @@ function openEditDialog(button) {
   });
   const activeSection = editSectionForType(type);
   if (!activeSection) return;
+
+  const editDateInput = editForm.querySelector('input[type="date"]');
+  if (editDateInput) editDateInput.max = localDateValue(new Date());
 
   setFieldValue(editForm, "date", button.dataset.date);
   setFieldValue(editForm, "time", button.dataset.time);
