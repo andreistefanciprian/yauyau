@@ -211,13 +211,6 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
-	if err != nil {
-		log.Printf("parse feed time: %v", err)
-		http.Error(w, "invalid date/time", http.StatusBadRequest)
-		return
-	}
-
 	amountMl, err := parseOptionalInt(r.FormValue("amount_ml"))
 	if err != nil {
 		http.Error(w, "invalid amount", http.StatusBadRequest)
@@ -227,6 +220,13 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 	durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
 	if err != nil {
 		http.Error(w, "invalid duration", http.StatusBadRequest)
+		return
+	}
+
+	occurredAt, err := resolveDurationBasedOccurredAt(loc, r.FormValue("date"), r.FormValue("time"), r.FormValue("feed_time_basis"), durationMinutes)
+	if err != nil {
+		log.Printf("parse feed time: %v", err)
+		http.Error(w, "invalid date/time", http.StatusBadRequest)
 		return
 	}
 
@@ -298,16 +298,16 @@ func (h *Handlers) CreateBath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
-	if err != nil {
-		log.Printf("parse bath time: %v", err)
-		http.Error(w, "invalid date/time", http.StatusBadRequest)
-		return
-	}
-
 	durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
 	if err != nil {
 		http.Error(w, "invalid duration", http.StatusBadRequest)
+		return
+	}
+
+	occurredAt, err := resolveDurationBasedOccurredAt(loc, r.FormValue("date"), r.FormValue("time"), r.FormValue("bath_time_basis"), durationMinutes)
+	if err != nil {
+		log.Printf("parse bath time: %v", err)
+		http.Error(w, "invalid date/time", http.StatusBadRequest)
 		return
 	}
 
@@ -339,16 +339,16 @@ func (h *Handlers) CreateSleep(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
-	if err != nil {
-		log.Printf("parse sleep time: %v", err)
-		http.Error(w, "invalid date/time", http.StatusBadRequest)
-		return
-	}
-
 	durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
 	if err != nil {
 		http.Error(w, "invalid duration", http.StatusBadRequest)
+		return
+	}
+
+	occurredAt, err := resolveDurationBasedOccurredAt(loc, r.FormValue("date"), r.FormValue("time"), r.FormValue("sleep_time_basis"), durationMinutes)
+	if err != nil {
+		log.Printf("parse sleep time: %v", err)
+		http.Error(w, "invalid date/time", http.StatusBadRequest)
 		return
 	}
 
@@ -455,6 +455,10 @@ func (h *Handlers) eventUpdatePayloadFromForm(loc *time.Location, r *http.Reques
 		if err != nil {
 			return nil, err
 		}
+		occurredAt, err = resolveDurationBasedOccurredAt(loc, r.FormValue("date"), r.FormValue("time"), r.FormValue("feed_time_basis"), durationMinutes)
+		if err != nil {
+			return nil, err
+		}
 		attributes["type"] = r.FormValue("type")
 		attributes["amount_ml"] = amountMl
 		attributes["duration_minutes"] = durationMinutes
@@ -465,8 +469,24 @@ func (h *Handlers) eventUpdatePayloadFromForm(loc *time.Location, r *http.Reques
 		}
 		attributes["amount_ml"] = amountMl
 		attributes["notes"] = r.FormValue("notes")
-	case "bath", "sleep":
+	case "bath":
 		durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
+		if err != nil {
+			return nil, err
+		}
+		occurredAt, err = resolveDurationBasedOccurredAt(loc, r.FormValue("date"), r.FormValue("time"), r.FormValue("bath_time_basis"), durationMinutes)
+		if err != nil {
+			return nil, err
+		}
+		attributes["type"] = r.FormValue("type")
+		attributes["notes"] = r.FormValue("notes")
+		attributes["duration_minutes"] = durationMinutes
+	case "sleep":
+		durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
+		if err != nil {
+			return nil, err
+		}
+		occurredAt, err = resolveDurationBasedOccurredAt(loc, r.FormValue("date"), r.FormValue("time"), r.FormValue("sleep_time_basis"), durationMinutes)
 		if err != nil {
 			return nil, err
 		}
@@ -785,13 +805,20 @@ func sleepTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Tim
 		CSSClass:        "sleep",
 		Icon:            "😴",
 		TypeLabel:       "Sleep",
-		Kind:            titleCase(sleepType),
+		Kind:            sleepTypeLabel(sleepType),
 		Detail:          detail,
 		Time:            formatEventTime(occurredAt, now),
 		TypeValue:       sleepType,
 		Notes:           notes,
 		DurationMinutes: durationMinutes,
 	}
+}
+
+func sleepTypeLabel(sleepType string) string {
+	if sleepType == "nap" {
+		return "Day"
+	}
+	return titleCase(sleepType)
 }
 
 func observationTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
@@ -896,6 +923,25 @@ func parseEventTime(loc *time.Location, date, hhmm string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("parsing date %q time %q: %w", date, hhmm, err)
 	}
 	return parsed, nil
+}
+
+func resolveDurationBasedOccurredAt(loc *time.Location, date, hhmm, basis string, durationMinutes *int) (time.Time, error) {
+	occurredAt, err := parseEventTime(loc, date, hhmm)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	switch basis {
+	case "", "start":
+		return occurredAt, nil
+	case "end":
+		if durationMinutes == nil {
+			return occurredAt, nil
+		}
+		return occurredAt.Add(-time.Duration(*durationMinutes) * time.Minute), nil
+	default:
+		return time.Time{}, fmt.Errorf("unsupported time basis %q", basis)
+	}
 }
 
 // writeBackendEventError responds to a failed create/update-event call. When

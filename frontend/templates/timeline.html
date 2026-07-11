@@ -61,7 +61,7 @@
 {{define "number-slider"}}
 <div class="number-slider">
   <input type="range" class="number-slider-range" min="{{.SliderMin}}" max="{{.SliderMax}}" step="{{.SliderStep}}"{{if .Value}} value="{{.Value}}"{{end}} aria-label="{{.Label}} slider">
-  <input type="number" name="{{.Name}}" class="number-slider-input" min="{{.Min}}"{{if .Max}} max="{{.Max}}"{{end}}{{if .InputStep}} step="{{.InputStep}}"{{end}}{{if .InputMode}} inputmode="{{.InputMode}}"{{end}}{{if .Value}} value="{{.Value}}"{{end}} placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}>
+  <input type="number" name="{{.Name}}" class="number-slider-input" min="{{.Min}}"{{if .Max}} max="{{.Max}}"{{end}}{{if .InputStep}} step="{{.InputStep}}"{{end}}{{if .InputMode}} inputmode="{{.InputMode}}"{{end}}{{if .Value}} value="{{.Value}}"{{end}}{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Required}} required{{end}}>
 </div>
 {{end}}
 
