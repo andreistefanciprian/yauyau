@@ -193,6 +193,7 @@ function openEditDialog(button) {
       break;
     case "feed":
       setRadioValue(activeSection, "type", button.dataset.type, "breast");
+      setRadioValue(activeSection, "feed_time_basis", "start", "start");
       setFieldValue(activeSection, "amount_ml", button.dataset.amountMl);
       setFieldValue(activeSection, "duration_minutes", button.dataset.durationMinutes);
       break;
@@ -202,11 +203,13 @@ function openEditDialog(button) {
       break;
     case "bath":
       setRadioValue(activeSection, "type", button.dataset.type, "whole_body");
+      setRadioValue(activeSection, "bath_time_basis", "start", "start");
       setFieldValue(activeSection, "notes", button.dataset.notes);
       setFieldValue(activeSection, "duration_minutes", button.dataset.durationMinutes);
       break;
     case "sleep":
       setRadioValue(activeSection, "type", button.dataset.type, "nap");
+      setRadioValue(activeSection, "sleep_time_basis", "start", "start");
       setFieldValue(activeSection, "notes", button.dataset.notes);
       setFieldValue(activeSection, "duration_minutes", button.dataset.durationMinutes);
       break;

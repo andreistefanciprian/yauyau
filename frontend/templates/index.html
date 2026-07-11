@@ -128,13 +128,13 @@
         </label>
 
         <label class="field-label">
-          Date
-          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+          Time
+          <input type="time" name="time" value="{{.NowTime}}" required>
         </label>
 
         <label class="field-label">
-          Time
-          <input type="time" name="time" value="{{.NowTime}}" required>
+          Date
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
         </label>
 
         <button type="submit">Save</button>
@@ -142,33 +142,38 @@
 
       <form class="event-form" data-type="feed" hx-post="/feeds" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
+        <fieldset>
+          <legend>Type</legend>
+          <label><input type="radio" name="type" value="breast" required checked> Breast</label>
+          <label><input type="radio" name="type" value="formula"> Formula</label>
+          <label><input type="radio" name="type" value="expressed"> Expressed</label>
+        </fieldset>
+
+        <label class="field-label">
+          Amount (ml, optional)
+          {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "300" "SliderStep" "10" "Label" "feed amount" "Value" "80")}}
+        </label>
+
+        <label class="field-label">
+          Duration (minutes, optional)
+          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed duration" "Value" "20")}}
+        </label>
+
         <div class="field-row">
           <fieldset>
-            <legend>Type</legend>
-            <label><input type="radio" name="type" value="breast" required checked> Breast</label>
-            <label><input type="radio" name="type" value="formula"> Formula</label>
-            <label><input type="radio" name="type" value="expressed"> Expressed</label>
+            <legend>Time is</legend>
+            <label><input type="radio" name="feed_time_basis" value="start" required> Start time</label>
+            <label><input type="radio" name="feed_time_basis" value="end" checked> End time</label>
           </fieldset>
-
           <label class="field-label">
-            Amount (ml, optional)
-            {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "300" "SliderStep" "10" "Label" "feed amount" "Placeholder" "e.g. 70")}}
+            Time
+            <input type="time" name="time" value="{{.NowTime}}" required>
           </label>
         </div>
 
         <label class="field-label">
-          Duration (minutes, optional)
-          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed duration" "Placeholder" "e.g. 15")}}
-        </label>
-
-        <label class="field-label">
           Date
           <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
-        </label>
-
-        <label class="field-label">
-          Time
-          <input type="time" name="time" value="{{.NowTime}}" required>
         </label>
 
         <button type="submit">Save</button>
@@ -178,7 +183,7 @@
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <label class="field-label">
           Amount expressed (ml)
-          {{template "number-slider" (dict "Name" "amount_ml" "Min" "1" "Max" "9999" "SliderMin" "10" "SliderMax" "300" "SliderStep" "10" "Label" "expressed milk" "Placeholder" "e.g. 80" "Value" "80" "Required" true)}}
+          {{template "number-slider" (dict "Name" "amount_ml" "Min" "1" "Max" "9999" "SliderMin" "10" "SliderMax" "300" "SliderStep" "10" "Label" "expressed milk" "Value" "80" "Required" true)}}
         </label>
 
         <label class="field-label">
@@ -187,13 +192,13 @@
         </label>
 
         <label class="field-label">
-          Date
-          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+          Time
+          <input type="time" name="time" value="{{.NowTime}}" required>
         </label>
 
         <label class="field-label">
-          Time
-          <input type="time" name="time" value="{{.NowTime}}" required>
+          Date
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
         </label>
 
         <button type="submit">Save</button>
@@ -201,18 +206,11 @@
 
       <form class="event-form" data-type="bath" hx-post="/baths" hx-target="#timeline" hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
-        <div class="field-row">
-          <fieldset>
-            <legend>Type</legend>
-            <label><input type="radio" name="type" value="whole_body" required checked> Whole body</label>
-            <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
-          </fieldset>
-
-          <label class="field-label">
-            Duration (minutes, optional)
-            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "bath duration" "Placeholder" "e.g. 10" "Value" "10")}}
-          </label>
-        </div>
+        <fieldset>
+          <legend>Type</legend>
+          <label><input type="radio" name="type" value="whole_body" required checked> Whole body</label>
+          <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
+        </fieldset>
 
         <label class="field-label">
           Notes (optional)
@@ -220,13 +218,25 @@
         </label>
 
         <label class="field-label">
-          Date
-          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+          Duration (minutes, optional)
+          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "bath duration" "Value" "10")}}
         </label>
 
+        <div class="field-row">
+          <fieldset>
+            <legend>Time is</legend>
+            <label><input type="radio" name="bath_time_basis" value="start" required checked> Start time</label>
+            <label><input type="radio" name="bath_time_basis" value="end"> End time</label>
+          </fieldset>
+          <label class="field-label">
+            Time
+            <input type="time" name="time" value="{{.NowTime}}" required>
+          </label>
+        </div>
+
         <label class="field-label">
-          Time
-          <input type="time" name="time" value="{{.NowTime}}" required>
+          Date
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
         </label>
 
         <button type="submit">Save</button>
@@ -236,8 +246,8 @@
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <fieldset>
           <legend>Type</legend>
-          <label><input type="radio" name="type" value="nap" required checked> Nap</label>
-          <label><input type="radio" name="type" value="night"> Night sleep</label>
+          <label><input type="radio" name="type" value="nap" required checked> Day</label>
+          <label><input type="radio" name="type" value="night"> Night</label>
         </fieldset>
 
         <label class="field-label">
@@ -245,12 +255,17 @@
           <input type="text" name="notes" placeholder="e.g. settled easily">
         </label>
 
-        <div class="field-row">
-          <label class="field-label">
-            Duration (minutes, optional)
-            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "720" "SliderStep" "15" "Label" "sleep duration" "Placeholder" "e.g. 90" "Value" "120")}}
-          </label>
+        <label class="field-label">
+          Duration (minutes, optional)
+          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "720" "SliderStep" "15" "Label" "sleep duration" "Value" "120")}}
+        </label>
 
+        <div class="field-row">
+          <fieldset>
+            <legend>Time is</legend>
+            <label><input type="radio" name="sleep_time_basis" value="start" required checked> Start time</label>
+            <label><input type="radio" name="sleep_time_basis" value="end"> End time</label>
+          </fieldset>
           <label class="field-label">
             Time
             <input type="time" name="time" value="{{.NowTime}}" required>
@@ -287,13 +302,13 @@
         </label>
 
         <label class="field-label">
-          Date
-          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+          Time
+          <input type="time" name="time" value="{{.NowTime}}" required>
         </label>
 
         <label class="field-label">
-          Time
-          <input type="time" name="time" value="{{.NowTime}}" required>
+          Date
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
         </label>
 
         <button type="submit">Save</button>
@@ -328,28 +343,31 @@
         </div>
 
         <div class="edit-event-fields" data-edit-type="feed">
-          <div class="field-row">
-            <fieldset>
-              <legend>Type</legend>
-              <label><input type="radio" name="type" value="breast"> Breast</label>
-              <label><input type="radio" name="type" value="formula"> Formula</label>
-              <label><input type="radio" name="type" value="expressed"> Expressed</label>
-            </fieldset>
-            <label class="field-label">
-              Amount (ml, optional)
-              {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "300" "SliderStep" "10" "Label" "feed amount" "Placeholder" "e.g. 70")}}
-            </label>
-          </div>
+          <fieldset>
+            <legend>Type</legend>
+            <label><input type="radio" name="type" value="breast"> Breast</label>
+            <label><input type="radio" name="type" value="formula"> Formula</label>
+            <label><input type="radio" name="type" value="expressed"> Expressed</label>
+          </fieldset>
+          <label class="field-label">
+            Amount (ml, optional)
+            {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "300" "SliderStep" "10" "Label" "feed amount")}}
+          </label>
           <label class="field-label">
             Duration (minutes, optional)
-            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed duration" "Placeholder" "e.g. 15")}}
+            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed duration")}}
           </label>
+          <fieldset>
+            <legend>Time is</legend>
+            <label><input type="radio" name="feed_time_basis" value="start"> Start time</label>
+            <label><input type="radio" name="feed_time_basis" value="end"> End time</label>
+          </fieldset>
         </div>
 
         <div class="edit-event-fields" data-edit-type="pump">
           <label class="field-label">
             Amount expressed (ml)
-            {{template "number-slider" (dict "Name" "amount_ml" "Min" "1" "Max" "9999" "SliderMin" "10" "SliderMax" "300" "SliderStep" "10" "Label" "expressed milk" "Placeholder" "e.g. 80" "Required" true)}}
+            {{template "number-slider" (dict "Name" "amount_ml" "Min" "1" "Max" "9999" "SliderMin" "10" "SliderMax" "300" "SliderStep" "10" "Label" "expressed milk" "Required" true)}}
           </label>
           <label class="field-label">
             Notes (optional)
@@ -358,28 +376,31 @@
         </div>
 
         <div class="edit-event-fields" data-edit-type="bath">
-          <div class="field-row">
-            <fieldset>
-              <legend>Type</legend>
-              <label><input type="radio" name="type" value="whole_body"> Whole body</label>
-              <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
-            </fieldset>
-            <label class="field-label">
-              Duration (minutes, optional)
-              {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "bath duration" "Placeholder" "e.g. 10")}}
-            </label>
-          </div>
+          <fieldset>
+            <legend>Type</legend>
+            <label><input type="radio" name="type" value="whole_body"> Whole body</label>
+            <label><input type="radio" name="type" value="bottom_part"> Bottom part</label>
+          </fieldset>
           <label class="field-label">
             Notes (optional)
             <input type="text" name="notes" placeholder="e.g. used baby shampoo">
           </label>
+          <label class="field-label">
+            Duration (minutes, optional)
+            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "bath duration")}}
+          </label>
+          <fieldset>
+            <legend>Time is</legend>
+            <label><input type="radio" name="bath_time_basis" value="start"> Start time</label>
+            <label><input type="radio" name="bath_time_basis" value="end"> End time</label>
+          </fieldset>
         </div>
 
         <div class="edit-event-fields" data-edit-type="sleep">
           <fieldset>
             <legend>Type</legend>
-            <label><input type="radio" name="type" value="nap"> Nap</label>
-            <label><input type="radio" name="type" value="night"> Night sleep</label>
+            <label><input type="radio" name="type" value="nap"> Day</label>
+            <label><input type="radio" name="type" value="night"> Night</label>
           </fieldset>
           <label class="field-label">
             Notes (optional)
@@ -387,8 +408,13 @@
           </label>
           <label class="field-label">
             Duration (minutes, optional)
-            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "720" "SliderStep" "15" "Label" "sleep duration" "Placeholder" "e.g. 90")}}
+            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "720" "SliderStep" "15" "Label" "sleep duration")}}
           </label>
+          <fieldset>
+            <legend>Time is</legend>
+            <label><input type="radio" name="sleep_time_basis" value="start"> Start time</label>
+            <label><input type="radio" name="sleep_time_basis" value="end"> End time</label>
+          </fieldset>
         </div>
 
         <div class="edit-event-fields" data-edit-type="observation">
@@ -403,13 +429,13 @@
         </div>
 
         <label class="field-label">
-          Date
-          <input type="date" name="date" required>
+          Time
+          <input type="time" name="time" required>
         </label>
 
         <label class="field-label">
-          Time
-          <input type="time" name="time" required>
+          Date
+          <input type="date" name="date" required>
         </label>
 
         <button type="submit">Save changes</button>
