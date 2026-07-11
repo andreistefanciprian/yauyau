@@ -94,6 +94,14 @@ func (c *HTTPClient) ListEvents(ctx context.Context, resource, rangeKey string, 
 	return c.getJSON(ctx, path, out)
 }
 
+func (c *HTTPClient) GetDailyReport(ctx context.Context) (DailyReport, error) {
+	var report DailyReport
+	if err := c.getJSON(ctx, "/api/v1/babies/current/reports/daily", &report); err != nil {
+		return DailyReport{}, err
+	}
+	return report, nil
+}
+
 // CreateEvent posts payload (form fields plus "occurred_at") to the given
 // resource's create endpoint.
 func (c *HTTPClient) CreateEvent(ctx context.Context, resource string, payload map[string]any) error {

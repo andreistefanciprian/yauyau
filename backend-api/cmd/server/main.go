@@ -86,6 +86,9 @@ func main() {
 				r.Patch("/{id}", h.UpdateEvent)
 				r.Delete("/{id}", h.DeleteEvent)
 			})
+			r.Route("/reports", func(r chi.Router) {
+				r.Get("/daily", h.GetDailyReport)
+			})
 			r.Route("/nappies", func(r chi.Router) {
 				r.Post("/", h.CreateNappy)
 			})
