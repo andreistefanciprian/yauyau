@@ -194,8 +194,7 @@ body {
   margin-top: 2rem;
 }
 
-.intro-primary,
-.intro-secondary {
+.intro-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -204,18 +203,9 @@ body {
   border-radius: 999px;
   font-weight: 800;
   text-decoration: none;
-}
-
-.intro-primary {
   background: var(--color-teal);
   color: white;
   box-shadow: 0 10px 24px rgba(116, 199, 195, 0.25);
-}
-
-.intro-secondary {
-  border: 1px solid var(--color-border);
-  color: var(--color-heading);
-  background: var(--color-surface);
 }
 
 .intro-points {
