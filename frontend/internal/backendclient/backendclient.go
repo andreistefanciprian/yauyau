@@ -60,3 +60,12 @@ type Event struct {
 	OccurredAt time.Time      `json:"occurred_at"`
 	CreatedAt  time.Time      `json:"created_at"`
 }
+
+type DailyReport struct {
+	Title       string    `json:"title"`
+	Summary     string    `json:"summary"`
+	Highlights  []string  `json:"highlights"`
+	GeneratedAt time.Time `json:"generated_at"`
+	RangeStart  time.Time `json:"range_start"`
+	RangeEnd    time.Time `json:"range_end"`
+}

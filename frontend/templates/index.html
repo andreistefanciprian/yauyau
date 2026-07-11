@@ -42,6 +42,25 @@
     </section>
     {{end}}
 
+    {{with .DailyReport}}
+    <section class="daily-report" aria-labelledby="daily-report-title">
+      <div class="daily-report-header">
+        <span class="daily-report-icon" aria-hidden="true">✨</span>
+        <div>
+          <h2 id="daily-report-title">{{.Title}}</h2>
+          <p>{{.Summary}}</p>
+        </div>
+      </div>
+      {{if .Highlights}}
+      <ul class="daily-report-highlights">
+        {{range .Highlights}}
+        <li>{{.}}</li>
+        {{end}}
+      </ul>
+      {{end}}
+    </section>
+    {{end}}
+
     <div class="timeline-filters">
       <button type="button" class="timeline-filters-toggle" id="timeline-filters-toggle" aria-expanded="false" aria-controls="timeline-filters-body">
         <span id="timeline-filters-summary">Today · All events</span>

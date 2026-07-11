@@ -40,6 +40,7 @@ type Backend interface {
 	UpdateCurrentBaby(ctx context.Context, baby backendclient.Baby) (backendclient.Baby, error)
 	ArchiveCurrentBaby(ctx context.Context, confirmName string) error
 	ListEvents(ctx context.Context, resource, rangeKey string, out any) error
+	GetDailyReport(ctx context.Context) (backendclient.DailyReport, error)
 	CreateEvent(ctx context.Context, resource string, payload map[string]any) error
 	UpdateEvent(ctx context.Context, id string, payload map[string]any) error
 	DeleteEvent(ctx context.Context, id string) error
@@ -119,10 +120,11 @@ type inviteStatus struct {
 }
 
 type indexPageData struct {
-	Baby     backendclient.Baby
-	Timeline TimelineViewData
-	NowDate  string
-	NowTime  string
+	Baby        backendclient.Baby
+	Timeline    TimelineViewData
+	DailyReport *backendclient.DailyReport
+	NowDate     string
+	NowTime     string
 }
 
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
@@ -142,6 +144,16 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rangeKey := selectedTimelineRange(r)
+	var dailyReport *backendclient.DailyReport
+	if rangeKey == "today" {
+		report, err := h.Backend.GetDailyReport(r.Context())
+		if err != nil {
+			log.Printf("load daily report: %v", err)
+		} else {
+			dailyReport = &report
+		}
+	}
+
 	timeline, err := h.loadTimeline(r.Context(), loc, rangeKey)
 	if err != nil {
 		log.Printf("%v", err)
@@ -151,10 +163,11 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().In(loc)
 	data := indexPageData{
-		Baby:     baby,
-		Timeline: timeline,
-		NowDate:  now.Format(dateFieldLayout),
-		NowTime:  now.Format(timeFieldLayout),
+		Baby:        baby,
+		Timeline:    timeline,
+		DailyReport: dailyReport,
+		NowDate:     now.Format(dateFieldLayout),
+		NowTime:     now.Format(timeFieldLayout),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
