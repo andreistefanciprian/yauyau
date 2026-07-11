@@ -690,6 +690,8 @@ h2 {
 
 .event-edit,
 .event-delete {
+  -webkit-appearance: none;
+  appearance: none;
   display: inline-grid;
   width: 1.65rem;
   height: 1.65rem;
@@ -703,6 +705,8 @@ h2 {
   opacity: 0.55;
   padding: 0;
   cursor: pointer;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .event-edit {
@@ -899,17 +903,26 @@ dialog#confirm-dialog::backdrop {
 
 .back-button,
 .icon-button {
+  -webkit-appearance: none;
+  appearance: none;
   border: none;
-  background: none;
+  background: transparent;
   font-size: 1rem;
   color: inherit;
   cursor: pointer;
   padding: 0.25rem 0.4rem;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .icon-button {
+  display: inline-grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
   font-size: 1.4rem;
   line-height: 1;
+  padding: 0;
 }
 
 .event-type-picker {
