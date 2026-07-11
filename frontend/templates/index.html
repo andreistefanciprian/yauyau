@@ -8,6 +8,7 @@
   <link rel="icon" type="image/png" sizes="512x512" href="/static/favicon-512x512.png">
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/htmx.min.js"></script>
+  <script src="/static/number-stepper.js" defer></script>
   <script src="/static/app.js" defer></script>
 </head>
 <body>
@@ -29,24 +30,42 @@
       </div>
       {{if .Baby.CanInvite}}
       <div class="baby-header-actions">
-        <a href="/settings/baby" class="people-link">Baby</a>
-        <a href="/settings/timeline" class="people-link">People</a>
+        <a href="/settings" class="settings-link">Settings</a>
       </div>
       {{end}}
     </header>
 
     {{if .Baby.HasPendingInvite}}
     <section class="timeline-notice">
-      <p>You have an invitation to another baby's timeline. To join it, delete this current timeline from Baby settings, then use the invitation link again.</p>
-      <a href="/settings/baby">Open Baby settings</a>
+      <p>You have an invitation to another baby's timeline. To join it, delete this current timeline from Settings, then use the invitation link again.</p>
+      <a href="/settings">Open Settings</a>
     </section>
     {{end}}
 
-    <nav class="range-nav" aria-label="Timeline range">
-      {{range .Timeline.Ranges}}
-      <a href="{{.Href}}" class="range-pill{{if .Active}} active{{end}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}}</a>
-      {{end}}
-    </nav>
+    <div class="timeline-filters">
+      <button type="button" class="timeline-filters-toggle" id="timeline-filters-toggle" aria-expanded="false" aria-controls="timeline-filters-body">
+        <span id="timeline-filters-summary">Today · All events</span>
+        <span class="chevron" aria-hidden="true">&#9662;</span>
+      </button>
+
+      <div class="timeline-filters-body" id="timeline-filters-body" hidden>
+        <nav class="range-nav" aria-label="Timeline range">
+          {{range .Timeline.Ranges}}
+          <a href="{{.Href}}" class="range-pill{{if .Active}} active{{end}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}}</a>
+          {{end}}
+        </nav>
+
+        <div class="type-filter" id="type-filter" role="group" aria-label="Filter by event type">
+          <button type="button" class="type-filter-chip type-filter-chip-all active" data-filter-type="all" title="All events">All</button>
+          <button type="button" class="type-filter-chip" data-filter-type="nappy" title="Nappy" aria-label="Filter to nappy events">💩</button>
+          <button type="button" class="type-filter-chip" data-filter-type="feed" title="Feed" aria-label="Filter to feed events">🍼</button>
+          <button type="button" class="type-filter-chip" data-filter-type="pump" title="Pump" aria-label="Filter to pump events"><span class="pump-icon" aria-hidden="true">{{template "pump-icon" .}}</span></button>
+          <button type="button" class="type-filter-chip" data-filter-type="bath" title="Bath" aria-label="Filter to bath events">🛁</button>
+          <button type="button" class="type-filter-chip" data-filter-type="sleep" title="Sleep" aria-label="Filter to sleep events">😴</button>
+          <button type="button" class="type-filter-chip" data-filter-type="observation" title="Notes" aria-label="Filter to observation events">📝</button>
+        </div>
+      </div>
+    </div>
 
     <section id="timeline" class="timeline-section" aria-live="polite">
       {{template "timeline" .Timeline}}

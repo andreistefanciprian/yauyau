@@ -91,21 +91,6 @@ function setFormToNow(form) {
   }
 }
 
-function adjustNumberStepper(button) {
-  const stepper = button.closest(".number-stepper");
-  if (!stepper) return;
-
-  const input = stepper.querySelector('input[type="number"]');
-  if (!input) return;
-
-  const step = Number(button.dataset.stepAmount);
-  const current = Number(input.value || input.defaultValue || input.min || 0);
-  const min = input.min === "" ? Number.NEGATIVE_INFINITY : Number(input.min);
-  const next = Math.max(min, current + step);
-  input.value = String(next);
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-}
-
 function openDialog() {
   showPickerStep();
   dialog.showModal();
@@ -118,11 +103,6 @@ backButton.addEventListener("click", showPickerStep);
 picker.addEventListener("click", (event) => {
   const choice = event.target.closest(".type-choice");
   if (choice) showFormStep(choice.dataset.type);
-});
-
-document.body.addEventListener("click", (event) => {
-  const stepperButton = event.target.closest(".number-stepper-button");
-  if (stepperButton) adjustNumberStepper(stepperButton);
 });
 
 // Clicking the backdrop (outside the dialog's content box) closes it.
@@ -268,6 +248,145 @@ function onEventEdited() {
 }
 
 window.onEventEdited = onEventEdited;
+
+// The day-range nav and event-type filter live inside a collapsible section
+// so they don't take up screen space when the timeline itself is what's
+// wanted. Collapsed is the default; the expand/collapse state is remembered
+// per device, same as the type filter below.
+
+const filtersToggle = document.getElementById("timeline-filters-toggle");
+const filtersBody = document.getElementById("timeline-filters-body");
+const filtersSummary = document.getElementById("timeline-filters-summary");
+const FILTERS_EXPANDED_STORAGE_KEY = "yauli-filters-expanded";
+
+const typeFilterChipLabels = {
+  nappy: "Nappy",
+  feed: "Feed",
+  pump: "Pump",
+  bath: "Bath",
+  sleep: "Sleep",
+  observation: "Notes",
+};
+
+function setFiltersExpanded(expanded) {
+  filtersBody.hidden = !expanded;
+  filtersToggle.setAttribute("aria-expanded", String(expanded));
+  try {
+    localStorage.setItem(FILTERS_EXPANDED_STORAGE_KEY, expanded ? "1" : "0");
+  } catch {
+    // Storage can be unavailable (e.g. private browsing) - the toggle still
+    // works for the current page view, it just won't be remembered.
+  }
+}
+
+function updateFiltersSummary() {
+  const activeRange = document.querySelector(".range-pill.active");
+  const rangeLabel = activeRange ? activeRange.textContent.trim() : "Today";
+
+  const activeTypes = activeEventFilterTypes();
+  const typeLabel = activeTypes.length === 0
+    ? "All events"
+    : activeTypes.map((type) => typeFilterChipLabels[type] || type).join(", ");
+
+  filtersSummary.textContent = `${rangeLabel} · ${typeLabel}`;
+}
+
+if (filtersToggle && filtersBody) {
+  setFiltersExpanded(localStorage.getItem(FILTERS_EXPANDED_STORAGE_KEY) === "1");
+
+  filtersToggle.addEventListener("click", () => {
+    setFiltersExpanded(filtersBody.hidden);
+  });
+}
+
+// Event type filter: purely client-side, hiding/showing already-rendered
+// cards, so switching types is instant and needs no round trip to the
+// backend. The selection is remembered per device so it doesn't reset every
+// time the page loads or the date range changes.
+
+const typeFilter = document.getElementById("type-filter");
+const TYPE_FILTER_STORAGE_KEY = "yauli-event-filter";
+
+function loadStoredEventFilter() {
+  try {
+    const types = JSON.parse(localStorage.getItem(TYPE_FILTER_STORAGE_KEY) || "[]");
+    return Array.isArray(types) ? types : [];
+  } catch {
+    return [];
+  }
+}
+
+function storeEventFilter(types) {
+  try {
+    localStorage.setItem(TYPE_FILTER_STORAGE_KEY, JSON.stringify(types));
+  } catch {
+    // Storage can be unavailable (e.g. private browsing) - the filter still
+    // works for the current page view, it just won't be remembered.
+  }
+}
+
+function activeEventFilterTypes() {
+  return Array.from(typeFilter.querySelectorAll('.type-filter-chip.active[data-filter-type]:not([data-filter-type="all"])'))
+    .map((chip) => chip.dataset.filterType);
+}
+
+function setActiveEventFilterChips(types) {
+  const hasSelection = types.length > 0;
+  typeFilter.querySelectorAll(".type-filter-chip").forEach((chip) => {
+    const isAll = chip.dataset.filterType === "all";
+    chip.classList.toggle("active", isAll ? !hasSelection : types.includes(chip.dataset.filterType));
+  });
+}
+
+function applyEventFilter() {
+  const activeTypes = activeEventFilterTypes();
+  const cards = Array.from(document.querySelectorAll("#timeline .event-card"));
+  let anyVisible = false;
+  cards.forEach((card) => {
+    const visible = activeTypes.length === 0 || activeTypes.includes(card.dataset.eventType);
+    card.hidden = !visible;
+    if (visible) anyVisible = true;
+  });
+
+  const filterEmptyMessage = document.getElementById("timeline-filter-empty");
+  if (filterEmptyMessage) filterEmptyMessage.hidden = cards.length === 0 || anyVisible;
+}
+
+if (typeFilter) {
+  setActiveEventFilterChips(loadStoredEventFilter());
+  applyEventFilter();
+  if (filtersSummary) updateFiltersSummary();
+
+  typeFilter.addEventListener("click", (event) => {
+    const chip = event.target.closest(".type-filter-chip");
+    if (!chip) return;
+
+    let types;
+    if (chip.dataset.filterType === "all") {
+      types = [];
+    } else {
+      const selected = new Set(activeEventFilterTypes());
+      if (selected.has(chip.dataset.filterType)) {
+        selected.delete(chip.dataset.filterType);
+      } else {
+        selected.add(chip.dataset.filterType);
+      }
+      types = Array.from(selected);
+    }
+
+    setActiveEventFilterChips(types);
+    storeEventFilter(types);
+    applyEventFilter();
+    if (filtersSummary) updateFiltersSummary();
+  });
+
+  // Re-apply the filter every time htmx swaps in a fresh #timeline (after
+  // creating, editing, or deleting an event), since the new markup starts
+  // with every card visible.
+  document.body.addEventListener("htmx:afterSwap", (event) => {
+    if (event.target.id === "timeline") applyEventFilter();
+  });
+}
 
 // Replaces the native window.confirm() that htmx's hx-confirm would
 // otherwise trigger (e.g. for event deletion) with a styled dialog, since

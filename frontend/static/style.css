@@ -301,17 +301,6 @@ body {
   margin: 0;
 }
 
-.navbar-text-link {
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 0.45rem 0.85rem;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--color-heading);
-  background: var(--color-surface);
-  text-decoration: none;
-}
-
 .navbar-text-button {
   border: 1px solid var(--color-border);
   border-radius: 999px;
@@ -409,13 +398,6 @@ h2 {
 
 /* Settings */
 
-.settings-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
 .baby-workspace-header {
   display: flex;
   align-items: flex-end;
@@ -439,36 +421,58 @@ h2 {
   gap: 0.45rem;
 }
 
-.settings-kicker {
-  margin: 0 0 0.2rem;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.settings-back-link,
-.people-link {
+.settings-link {
   flex: 0 0 auto;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 0.42rem 0.8rem;
-  color: var(--color-heading);
-  background: var(--color-surface);
-  font-size: 0.88rem;
-  font-weight: 700;
+  padding: 0.3rem 0.1rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 400;
   text-decoration: none;
 }
 
-.people-link {
-  padding-inline: 1rem;
-  background: color-mix(in srgb, var(--color-teal) 10%, var(--color-surface));
-  color: var(--color-heading);
+.settings-link:hover,
+.settings-link:focus-visible {
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+}
+
+.timeline-filters {
+  margin: -0.35rem 0 0.9rem;
+}
+
+.timeline-filters-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.timeline-filters-toggle .chevron {
+  font-size: 0.7rem;
+  transition: transform 0.15s ease;
+}
+
+.timeline-filters-toggle[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+
+.timeline-filters-body {
+  margin-top: 0.6rem;
 }
 
 .range-nav {
   display: flex;
   gap: 0.45rem;
-  margin: -0.35rem 0 0.9rem;
+  margin: 0 0 0.65rem;
   overflow-x: auto;
   padding-bottom: 0.1rem;
 }
@@ -477,15 +481,68 @@ h2 {
   flex: 0 0 auto;
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  padding: 0.45rem 0.75rem;
+  padding: 0.4rem 0.65rem;
   background: var(--color-surface);
   color: var(--color-text-secondary);
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 400;
   text-decoration: none;
 }
 
 .range-pill.active {
+  border-color: color-mix(in srgb, var(--color-teal) 45%, var(--color-border));
+  background: var(--color-teal);
+  color: white;
+}
+
+.type-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.85rem;
+  overflow-x: auto;
+  padding-bottom: 0.1rem;
+}
+
+.type-filter-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: none;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.type-filter-chip-all {
+  width: auto;
+  height: 1.7rem;
+  border-radius: 999px;
+  padding: 0 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.type-filter-chip .pump-icon svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.type-filter-chip[data-filter-type="nappy"].active { border-color: color-mix(in srgb, var(--color-event-nappy) 55%, var(--color-border)); background: var(--card-bg-nappy); }
+.type-filter-chip[data-filter-type="feed"].active { border-color: color-mix(in srgb, var(--color-event-feed) 55%, var(--color-border)); background: var(--card-bg-feed); }
+.type-filter-chip[data-filter-type="pump"].active { border-color: color-mix(in srgb, var(--color-event-pump) 55%, var(--color-border)); background: var(--card-bg-pump); }
+.type-filter-chip[data-filter-type="bath"].active { border-color: color-mix(in srgb, var(--color-event-bath) 55%, var(--color-border)); background: var(--card-bg-bath); }
+.type-filter-chip[data-filter-type="sleep"].active { border-color: color-mix(in srgb, var(--color-event-sleep) 55%, var(--color-border)); background: var(--card-bg-sleep); }
+.type-filter-chip[data-filter-type="observation"].active { border-color: color-mix(in srgb, var(--color-event-observation) 55%, var(--color-border)); background: var(--card-bg-observation); }
+
+.type-filter-chip-all.active {
   border-color: color-mix(in srgb, var(--color-teal) 45%, var(--color-border));
   background: var(--color-teal);
   color: white;
@@ -1102,6 +1159,15 @@ select {
   padding-right: 2rem;
 }
 
+/* Chrome/Firefox/Edge on desktop render the dropdown list using each
+   option's own background/color; without this they default to plain
+   black-on-white regardless of the select's own theming above. Mobile
+   Safari/Chrome show a native picker sheet that ignores this either way. */
+select option {
+  background: Field;
+  color: FieldText;
+}
+
 .number-stepper {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1130,6 +1196,24 @@ select {
 .number-stepper-button:active {
   background: var(--color-bg-secondary);
   transform: scale(0.97);
+}
+
+.number-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.number-slider-range {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--color-teal);
+}
+
+.number-slider-input {
+  flex: 0 0 5rem;
+  min-width: 0;
+  text-align: center;
 }
 
 textarea {

@@ -2,7 +2,7 @@
 {{if .Events}}
 <div class="timeline">
   {{range .Events}}
-  <article class="event-card event-{{.CSSClass}}">
+  <article class="event-card event-{{.CSSClass}}" data-event-type="{{.EventType}}">
     <div class="event-card-header">
       {{if eq .EventType "pump"}}
       <span class="event-icon pump-icon" aria-hidden="true">{{template "pump-icon" .}}</span>
@@ -33,6 +33,7 @@
   </article>
   {{end}}
 </div>
+<p class="empty" id="timeline-filter-empty" hidden>No events match this filter.</p>
 {{else}}
 <p class="empty">{{.EmptyMessage}}</p>
 {{end}}
@@ -48,9 +49,20 @@
 {{define "number-stepper"}}
 <span class="number-stepper">
   <button type="button" class="number-stepper-button" data-step-amount="-{{.Step}}" aria-label="Decrease {{.Label}} by {{.Step}}{{.Unit}}">-{{.Step}}</button>
-  <input type="number" name="{{.Name}}" min="{{.Min}}"{{if .Value}} value="{{.Value}}"{{end}} placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}>
+  <input type="number" name="{{.Name}}" min="{{.Min}}"{{if .Max}} max="{{.Max}}"{{end}}{{if .InputStep}} step="{{.InputStep}}"{{end}}{{if .InputMode}} inputmode="{{.InputMode}}"{{end}}{{if .Value}} value="{{.Value}}"{{end}} placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}>
   <button type="button" class="number-stepper-button" data-step-amount="{{.Step}}" aria-label="Increase {{.Label}} by {{.Step}}{{.Unit}}">+{{.Step}}</button>
 </span>
+{{end}}
+
+{{/* A drag slider paired with a precise number field. SliderMin/SliderMax/
+     SliderStep bound the comfortable drag range (e.g. 0.5-6kg); Min/Max/
+     InputStep are the number field's own, wider validity bounds, so an
+     edge-case value the slider can't reach is still typeable and valid. */}}
+{{define "number-slider"}}
+<div class="number-slider">
+  <input type="range" class="number-slider-range" min="{{.SliderMin}}" max="{{.SliderMax}}" step="{{.SliderStep}}"{{if .Value}} value="{{.Value}}"{{end}} aria-label="{{.Label}} slider">
+  <input type="number" name="{{.Name}}" class="number-slider-input" min="{{.Min}}"{{if .Max}} max="{{.Max}}"{{end}}{{if .InputStep}} step="{{.InputStep}}"{{end}}{{if .InputMode}} inputmode="{{.InputMode}}"{{end}}{{if .Value}} value="{{.Value}}"{{end}} placeholder="{{.Placeholder}}"{{if .Required}} required{{end}}>
+</div>
 {{end}}
 
 {{define "pump-icon"}}

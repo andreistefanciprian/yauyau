@@ -1,12 +1,13 @@
-{{define "baby-settings"}}
+{{define "settings"}}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Baby settings · Yauli</title>
+  <title>Settings · Yauli</title>
   <link rel="icon" type="image/png" sizes="512x512" href="/static/favicon-512x512.png">
   <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/number-stepper.js" defer></script>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const form = document.getElementById("baby-profile-form");
@@ -34,7 +35,6 @@
       <img src="/static/logo.png" alt="Yauli" class="navbar-logo-image">
     </a>
     <div class="navbar-actions">
-      <a href="/app" class="navbar-text-link">Timeline</a>
       <form method="post" action="/logout">
         <button type="submit" class="navbar-text-button">Sign Out</button>
       </form>
@@ -42,18 +42,18 @@
   </nav>
 
   <main>
-    <header class="page-header settings-header">
+    <header class="page-header baby-workspace-header">
       <div>
-        <p class="settings-kicker">{{.Baby.Name}}</p>
-        <h1>Baby settings</h1>
+        <h1>{{.Baby.Name}}'s settings</h1>
       </div>
-      <a href="/app" class="settings-back-link">Back</a>
+      <div class="baby-header-actions">
+        <a href="/app" class="settings-link">Back</a>
+      </div>
     </header>
-
-    {{if .Notice}}<p class="settings-message">{{.Notice}}</p>{{end}}
 
     <section class="settings-section">
       <h2>Profile</h2>
+      {{if .BabyNotice}}<p class="settings-message">{{.BabyNotice}}</p>{{end}}
       {{if .UpdateError}}<p class="invite-error">{{.UpdateError}}</p>{{end}}
       <form method="post" action="/settings/baby" class="settings-form" id="baby-profile-form">
         <label class="field-label">
@@ -66,11 +66,11 @@
         </label>
         <label class="field-label">
           Birth weight (kg, up to 2 decimals, e.g. 3.12)
-          <input type="number" name="birth_weight_kg" value="{{.Baby.BirthWeightKg}}" min="0.01" max="999.99" step="0.01" inputmode="decimal">
+          {{template "number-slider" (dict "Name" "birth_weight_kg" "Min" "0.01" "Max" "999.99" "InputStep" "0.01" "InputMode" "decimal" "SliderMin" "0.5" "SliderMax" "6" "SliderStep" "0.01" "Label" "birth weight" "Placeholder" "e.g. 3.12" "Value" .Baby.BirthWeightKg)}}
         </label>
         <label class="field-label">
           Birth length (cm)
-          <input type="number" name="birth_length_cm" value="{{.Baby.BirthLengthCm}}" min="0.1" max="9999.9" step="0.1" inputmode="decimal">
+          {{template "number-slider" (dict "Name" "birth_length_cm" "Min" "0.1" "Max" "9999.9" "InputStep" "0.1" "InputMode" "decimal" "SliderMin" "30" "SliderMax" "60" "SliderStep" "0.1" "Label" "birth length" "Placeholder" "e.g. 50.5" "Value" .Baby.BirthLengthCm)}}
         </label>
         <label class="field-label">
           Sex
@@ -88,6 +88,61 @@
       </form>
     </section>
 
+    {{if .CanManageAccess}}
+    <section class="settings-section">
+      <h2>Invite someone</h2>
+      {{if .Invite.Message}}<p class="invite-message">{{.Invite.Message}}</p>{{end}}
+      {{if .Invite.Error}}<p class="invite-error">{{.Invite.Error}}</p>{{end}}
+      <form method="post" action="/settings/timeline/invite" class="invite-form">
+        <label class="field-label">
+          Email
+          <input type="email" name="email" placeholder="helper@example.com" required>
+        </label>
+        <button type="submit">Invite</button>
+      </form>
+    </section>
+
+    <section class="settings-section">
+      <h2>People with access</h2>
+      {{if .TimelineNotice}}<p class="settings-message">{{.TimelineNotice}}</p>{{end}}
+      <div class="member-list">
+        {{range .Members}}
+        <article class="member-row">
+          <div class="member-main">
+            <p class="member-email">{{.Email}}</p>
+            <p class="member-meta">
+              <span>{{.Status}}</span>
+              <span>{{.Role}}</span>
+            </p>
+          </div>
+
+          <form method="post" action="/settings/timeline/members/{{.UserID}}/relationship" class="relationship-form">
+            <label class="field-label">
+              Relationship
+              <input type="text" name="relationship" list="relationship-options" value="{{.Relationship}}" placeholder="e.g. Mum">
+            </label>
+            <button type="submit">Save</button>
+          </form>
+
+          {{if eq .Status "invited"}}
+          <form method="post" action="/settings/timeline/members/{{.UserID}}/remove" class="member-action-form">
+            <button type="submit" class="danger-text-button">Cancel invite</button>
+          </form>
+          {{else if eq .Role "member"}}
+          <form method="post" action="/settings/timeline/members/{{.UserID}}/remove" class="member-action-form">
+            <button type="submit" class="danger-text-button">Remove access</button>
+          </form>
+          {{else}}
+          <p class="member-state">Active</p>
+          {{end}}
+        </article>
+        {{else}}
+        <p class="settings-empty">No one has access yet.</p>
+        {{end}}
+      </div>
+    </section>
+    {{end}}
+
     <section class="settings-section danger-section">
       <h2>Delete timeline</h2>
       <p class="settings-message">This removes {{.Baby.Name}} from the active app and hides their timeline. If you need to join another baby's timeline, delete this one first, then use the invitation link you received. Type the baby name to confirm.</p>
@@ -101,6 +156,18 @@
       </form>
     </section>
   </main>
+
+  <datalist id="relationship-options">
+    <option value="Mum">
+    <option value="Dad">
+    <option value="Parent">
+    <option value="Grandma">
+    <option value="Grandpa">
+    <option value="Auntie">
+    <option value="Uncle">
+    <option value="Carer">
+    <option value="Nanny">
+  </datalist>
 </body>
 </html>
 {{end}}

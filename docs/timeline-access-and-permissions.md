@@ -71,19 +71,18 @@ from authorization roles.
 
 ## Current behavior
 
-Owners open People from the baby timeline to manage who has access. The
-backing route is `/settings/timeline`, but the UI should present this as
-part of the baby workspace rather than a separate settings area. backend-api
-creates a pending `family_members` row, and auth-service sends an invite
-magic link. When the invitee verifies the link, backend-api activates the
-pending membership.
+Owners open Settings from the baby timeline to manage who has access. Baby
+profile and timeline access live on the same page (`/settings`), under
+"Profile" and "People with access" sections. backend-api creates a pending
+`family_members` row, and auth-service sends an invite magic link. When the
+invitee verifies the link, backend-api activates the pending membership.
 
 Current behavior:
 
 * The timeline defaults to Today, with quick access to the 6 days before it
   (Yesterday, then each day by weekday name).
-* Owners can open People from the baby header to see who has access.
-* Owners can invite people to the timeline from the People view.
+* Owners can open Settings from the baby header to see who has access.
+* Owners can invite people to the timeline from the Settings page.
 * Owners can set optional relationship labels such as Mum, Dad, Grandpa, or
   Carer.
 * Owners can cancel pending invites.
@@ -111,7 +110,7 @@ Current limitations:
 | Relationship storage | Add nullable `relationship TEXT` to `family_members`. |
 | Relationship validation | Store free text, but offer presets in the UI. |
 | Relationship vs permissions | Keep them separate. Relationship is identity/context, not authority. |
-| First access UI | Keep `/settings/timeline` as the authenticated route, but expose it from the baby header as `People`. |
+| First access UI | Merged into the single `/settings` page (Profile + People with access), reached from the baby header as one `Settings` link. |
 | First permission model | Keep existing `owner` / `member` behavior; defer granular permissions. |
 | Removing access | Owner-only; do not allow removing the last/only owner. |
 
