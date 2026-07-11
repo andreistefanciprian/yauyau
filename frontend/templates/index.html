@@ -152,13 +152,13 @@
 
           <label class="field-label">
             Amount (ml, optional)
-            <input type="number" name="amount_ml" min="0" placeholder="e.g. 70">
+            {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "300" "SliderStep" "10" "Label" "feed amount" "Placeholder" "e.g. 70")}}
           </label>
         </div>
 
         <label class="field-label">
           Duration (minutes, optional)
-          {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 15" "Step" 10 "Label" "feed duration" "Unit" " minutes")}}
+          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed duration" "Placeholder" "e.g. 15")}}
         </label>
 
         <label class="field-label">
@@ -178,7 +178,7 @@
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <label class="field-label">
           Amount expressed (ml)
-          {{template "number-stepper" (dict "Name" "amount_ml" "Min" "1" "Placeholder" "e.g. 80" "Step" 10 "Label" "expressed milk" "Unit" "ml" "Value" "80" "Required" true)}}
+          {{template "number-slider" (dict "Name" "amount_ml" "Min" "1" "Max" "9999" "SliderMin" "10" "SliderMax" "300" "SliderStep" "10" "Label" "expressed milk" "Placeholder" "e.g. 80" "Value" "80" "Required" true)}}
         </label>
 
         <label class="field-label">
@@ -210,7 +210,7 @@
 
           <label class="field-label">
             Duration (minutes, optional)
-            {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 10" "Step" 10 "Label" "bath duration" "Unit" " minutes" "Value" "10")}}
+            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "bath duration" "Placeholder" "e.g. 10" "Value" "10")}}
           </label>
         </div>
 
@@ -248,7 +248,7 @@
         <div class="field-row">
           <label class="field-label">
             Duration (minutes, optional)
-            {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 90" "Step" 30 "Label" "sleep duration" "Unit" " minutes" "Value" "120")}}
+            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "720" "SliderStep" "15" "Label" "sleep duration" "Placeholder" "e.g. 90" "Value" "120")}}
           </label>
 
           <label class="field-label">
@@ -337,19 +337,19 @@
             </fieldset>
             <label class="field-label">
               Amount (ml, optional)
-              <input type="number" name="amount_ml" min="0" placeholder="e.g. 70">
+              {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "300" "SliderStep" "10" "Label" "feed amount" "Placeholder" "e.g. 70")}}
             </label>
           </div>
           <label class="field-label">
             Duration (minutes, optional)
-            {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 15" "Step" 10 "Label" "feed duration" "Unit" " minutes")}}
+            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed duration" "Placeholder" "e.g. 15")}}
           </label>
         </div>
 
         <div class="edit-event-fields" data-edit-type="pump">
           <label class="field-label">
             Amount expressed (ml)
-            {{template "number-stepper" (dict "Name" "amount_ml" "Min" "1" "Placeholder" "e.g. 80" "Step" 10 "Label" "expressed milk" "Unit" "ml" "Required" true)}}
+            {{template "number-slider" (dict "Name" "amount_ml" "Min" "1" "Max" "9999" "SliderMin" "10" "SliderMax" "300" "SliderStep" "10" "Label" "expressed milk" "Placeholder" "e.g. 80" "Required" true)}}
           </label>
           <label class="field-label">
             Notes (optional)
@@ -366,7 +366,7 @@
             </fieldset>
             <label class="field-label">
               Duration (minutes, optional)
-              {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 10" "Step" 10 "Label" "bath duration" "Unit" " minutes")}}
+              {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "bath duration" "Placeholder" "e.g. 10")}}
             </label>
           </div>
           <label class="field-label">
@@ -387,7 +387,7 @@
           </label>
           <label class="field-label">
             Duration (minutes, optional)
-            {{template "number-stepper" (dict "Name" "duration_minutes" "Min" "0" "Placeholder" "e.g. 90" "Step" 30 "Label" "sleep duration" "Unit" " minutes")}}
+            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "720" "SliderStep" "15" "Label" "sleep duration" "Placeholder" "e.g. 90")}}
           </label>
         </div>
 

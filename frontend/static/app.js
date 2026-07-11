@@ -152,7 +152,10 @@ function setRadioValue(form, name, value, fallback) {
 
 function setFieldValue(form, name, value) {
   const field = form.querySelector(`[name="${name}"]`);
-  if (field) field.value = value || "";
+  if (field) {
+    field.value = value || "";
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  }
 }
 
 function editSectionForType(type) {

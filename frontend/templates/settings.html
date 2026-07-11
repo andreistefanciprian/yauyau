@@ -65,7 +65,7 @@
           <input type="date" name="birth_date" value="{{.Baby.BirthDate}}">
         </label>
         <label class="field-label">
-          Birth weight (kg, up to 2 decimals, e.g. 3.12)
+          Birth weight (kg)
           {{template "number-slider" (dict "Name" "birth_weight_kg" "Min" "0.01" "Max" "999.99" "InputStep" "0.01" "InputMode" "decimal" "SliderMin" "0.5" "SliderMax" "6" "SliderStep" "0.01" "Label" "birth weight" "Placeholder" "e.g. 3.12" "Value" .Baby.BirthWeightKg)}}
         </label>
         <label class="field-label">
