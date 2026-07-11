@@ -92,6 +92,9 @@ func main() {
 			r.Route("/feeds", func(r chi.Router) {
 				r.Post("/", h.CreateFeed)
 			})
+			r.Route("/pumps", func(r chi.Router) {
+				r.Post("/", h.CreatePump)
+			})
 			r.Route("/baths", func(r chi.Router) {
 				r.Post("/", h.CreateBath)
 			})

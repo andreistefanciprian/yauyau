@@ -71,6 +71,7 @@ func main() {
 			r.Post("/settings/timeline/members/{userID}/remove", h.RemoveTimelineMember)
 			r.Post("/nappies", h.CreateNappy)
 			r.Post("/feeds", h.CreateFeed)
+			r.Post("/pumps", h.CreatePump)
 			r.Post("/baths", h.CreateBath)
 			r.Post("/sleeps", h.CreateSleep)
 			r.Post("/observations", h.CreateObservation)

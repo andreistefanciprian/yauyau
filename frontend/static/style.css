@@ -24,6 +24,7 @@
 
   --color-event-nappy: #74C7C3;
   --color-event-feed: #F28B72;
+  --color-event-pump: #D6A65A;
   --color-event-bath: #7EC8E3;
   --color-event-observation: #A3A380;
   --color-event-sleep: #8A84E2;
@@ -35,6 +36,7 @@
      dark base below so the same hues carry through in dark mode. */
   --card-bg-nappy: color-mix(in srgb, var(--color-event-nappy) 18%, white);
   --card-bg-feed: color-mix(in srgb, var(--color-event-feed) 18%, white);
+  --card-bg-pump: color-mix(in srgb, var(--color-event-pump) 18%, white);
   --card-bg-bath: color-mix(in srgb, var(--color-event-bath) 18%, white);
   --card-bg-sleep: color-mix(in srgb, var(--color-event-sleep) 18%, white);
   --card-bg-observation: color-mix(in srgb, var(--color-event-observation) 18%, white);
@@ -58,6 +60,7 @@
 
     --card-bg-nappy: color-mix(in srgb, var(--color-event-nappy) 28%, #14181a);
     --card-bg-feed: color-mix(in srgb, var(--color-event-feed) 28%, #14181a);
+    --card-bg-pump: color-mix(in srgb, var(--color-event-pump) 28%, #14181a);
     --card-bg-bath: color-mix(in srgb, var(--color-event-bath) 28%, #14181a);
     --card-bg-sleep: color-mix(in srgb, var(--color-event-sleep) 28%, #14181a);
     --card-bg-observation: color-mix(in srgb, var(--color-event-observation) 28%, #14181a);
@@ -670,6 +673,17 @@ h2 {
   line-height: 1;
 }
 
+.pump-icon {
+  display: inline-grid;
+  place-items: center;
+}
+
+.pump-icon svg {
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
 .event-kind {
   font-weight: 400;
   color: var(--color-text-secondary);
@@ -737,6 +751,10 @@ h2 {
 
 .event-feed {
   background: var(--card-bg-feed);
+}
+
+.event-pump {
+  background: var(--card-bg-pump);
 }
 
 .event-bath {
@@ -950,12 +968,21 @@ dialog#confirm-dialog::backdrop {
   font-size: 1.75rem;
 }
 
+.type-choice-icon.pump-icon svg {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
 .type-choice-nappy {
   background: var(--card-bg-nappy);
 }
 
 .type-choice-feed {
   background: var(--card-bg-feed);
+}
+
+.type-choice-pump {
+  background: var(--card-bg-pump);
 }
 
 .type-choice-bath {
