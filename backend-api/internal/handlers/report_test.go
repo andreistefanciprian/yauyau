@@ -22,6 +22,7 @@ func TestBuildDailyReportSummarizesTimelineEvents(t *testing.T) {
 		{EventType: eventTypePump, Attributes: map[string]any{"amount_ml": float64(80)}},
 		{EventType: eventTypeBath, Attributes: map[string]any{"type": "whole_body"}},
 		{EventType: eventTypeObservation, Attributes: map[string]any{"text": "smiley"}},
+		{EventType: eventTypeTemperature, Attributes: map[string]any{"temperature_c": float64(37.2)}},
 	}, window, window.To, period)
 
 	if report.Title != "Today so far" {
@@ -38,6 +39,7 @@ func TestBuildDailyReportSummarizesTimelineEvents(t *testing.T) {
 		"1 pump recorded totalling 80 ml.",
 		"1 bath logged.",
 		"1 observation captured.",
+		"1 temperature recorded.",
 	}
 	if len(report.Highlights) != len(wantHighlights) {
 		t.Fatalf("len(Highlights) = %d, want %d: %#v", len(report.Highlights), len(wantHighlights), report.Highlights)

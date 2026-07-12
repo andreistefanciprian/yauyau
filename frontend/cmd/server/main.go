@@ -97,6 +97,7 @@ func main() {
 			r.Post("/baths", h.CreateBath)
 			r.Post("/sleeps", h.CreateSleep)
 			r.Post("/observations", h.CreateObservation)
+			r.Post("/temperatures", h.CreateTemperature)
 			r.Post("/events/{id}/finish-sleep", h.FinishSleepNow)
 			r.Patch("/events/{id}", h.UpdateEvent)
 			r.Delete("/events/{id}", h.DeleteEvent)

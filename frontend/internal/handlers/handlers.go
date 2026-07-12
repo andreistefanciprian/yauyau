@@ -99,6 +99,8 @@ type TimelineEvent struct {
 	TypeValue       string
 	AmountMl        string
 	DurationMinutes string
+	TemperatureC    string
+	Method          string
 	Notes           string
 	Text            string
 	Category        string
@@ -417,6 +419,47 @@ func (h *Handlers) CreateObservation(w http.ResponseWriter, r *http.Request) {
 	h.renderTimeline(w, r, loc)
 }
 
+func (h *Handlers) CreateTemperature(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load baby", http.StatusBadGateway)
+		return
+	}
+
+	temperatureC, err := parseRequiredFloat(r.FormValue("temperature_c"))
+	if err != nil {
+		http.Error(w, "invalid temperature", http.StatusBadRequest)
+		return
+	}
+
+	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
+	if err != nil {
+		log.Printf("parse temperature time: %v", err)
+		http.Error(w, "invalid date/time", http.StatusBadRequest)
+		return
+	}
+
+	payload := map[string]any{
+		"temperature_c": temperatureC,
+		"method":        r.FormValue("method"),
+		"notes":         r.FormValue("notes"),
+		"occurred_at":   occurredAt.Format(time.RFC3339),
+	}
+	if err := h.Backend.CreateEvent(r.Context(), "temperatures", payload); err != nil {
+		log.Printf("create temperature: %v", err)
+		writeBackendEventError(w, err, "failed to save temperature event")
+		return
+	}
+
+	h.renderTimeline(w, r, loc)
+}
+
 // UpdateEvent edits a single event, regardless of its type, and re-renders
 // the timeline — the same shared tail as every Create* and Delete handler.
 func (h *Handlers) UpdateEvent(w http.ResponseWriter, r *http.Request) {
@@ -515,6 +558,14 @@ func (h *Handlers) eventUpdatePayloadFromForm(loc *time.Location, r *http.Reques
 	case "observation":
 		attributes["text"] = r.FormValue("text")
 		attributes["category"] = r.FormValue("category")
+	case "temperature":
+		temperatureC, err := parseRequiredFloat(r.FormValue("temperature_c"))
+		if err != nil {
+			return nil, err
+		}
+		attributes["temperature_c"] = temperatureC
+		attributes["method"] = r.FormValue("method")
+		attributes["notes"] = r.FormValue("notes")
 	default:
 		return nil, fmt.Errorf("unsupported event type %q", eventType)
 	}
@@ -755,6 +806,8 @@ func timelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) (T
 		te = sleepTimelineEvent(ev, loc, now)
 	case "observation":
 		te = observationTimelineEvent(ev, loc, now)
+	case "temperature":
+		te = temperatureTimelineEvent(ev, loc, now)
 	default:
 		return TimelineEvent{}, false
 	}
@@ -1000,6 +1053,36 @@ func observationTimelineEvent(ev backendclient.Event, loc *time.Location, now ti
 	}
 }
 
+func temperatureTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := ev.OccurredAt.In(loc)
+	temperatureC, _ := attributeFloat(ev.Attributes, "temperature_c")
+	method := attributeString(ev.Attributes, "method")
+	notes := attributeString(ev.Attributes, "notes")
+
+	detail := ""
+	if method != "" {
+		detail = titleCase(method)
+	}
+	if notes != "" {
+		if detail != "" {
+			detail += " · "
+		}
+		detail += notes
+	}
+
+	return TimelineEvent{
+		CSSClass:     "temperature",
+		Icon:         "🌡️",
+		TypeLabel:    "Temperature",
+		InlineDetail: formatTemperatureC(temperatureC),
+		Detail:       detail,
+		Time:         formatEventTime(occurredAt, now),
+		TemperatureC: formatTemperatureInput(temperatureC),
+		Method:       method,
+		Notes:        notes,
+	}
+}
+
 // amountAndDuration builds "<amount> <unit> · <duration> min", omitting
 // either half that's absent — shared by any event type whose Detail is just
 // an optional quantity plus an optional duration (currently only feed).
@@ -1038,6 +1121,14 @@ func attributeStringSlice(attributes map[string]any, key string) []string {
 		}
 	}
 	return values
+}
+
+func attributeFloat(attributes map[string]any, key string) (float64, bool) {
+	v, ok := attributes[key].(float64)
+	if !ok {
+		return 0, false
+	}
+	return v, true
 }
 
 // attributeInt reads an int field out of an event's attributes map. JSON
@@ -1158,4 +1249,20 @@ func parseRequiredPositiveInt(raw string) (int, error) {
 		return 0, fmt.Errorf("expected positive int, got %d", value)
 	}
 	return value, nil
+}
+
+func parseRequiredFloat(raw string) (float64, error) {
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parsing float %q: %w", raw, err)
+	}
+	return value, nil
+}
+
+func formatTemperatureC(value float64) string {
+	return fmt.Sprintf("%.1f °C", value)
+}
+
+func formatTemperatureInput(value float64) string {
+	return strconv.FormatFloat(value, 'f', 1, 64)
 }

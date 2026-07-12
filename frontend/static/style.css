@@ -40,6 +40,7 @@
   --card-bg-bath: color-mix(in srgb, var(--color-event-bath) 18%, white);
   --card-bg-sleep: color-mix(in srgb, var(--color-event-sleep) 18%, white);
   --card-bg-observation: color-mix(in srgb, var(--color-event-observation) 18%, white);
+  --card-bg-temperature: color-mix(in srgb, var(--color-event-health) 16%, white);
 
   --navbar-bg: rgba(255, 255, 255, 0.72);
   --navbar-border: rgba(0, 0, 0, 0.06);
@@ -64,6 +65,7 @@
     --card-bg-bath: color-mix(in srgb, var(--color-event-bath) 28%, #14181a);
     --card-bg-sleep: color-mix(in srgb, var(--color-event-sleep) 28%, #14181a);
     --card-bg-observation: color-mix(in srgb, var(--color-event-observation) 28%, #14181a);
+    --card-bg-temperature: color-mix(in srgb, var(--color-event-health) 30%, #14181a);
 
     --navbar-bg: rgba(20, 20, 22, 0.72);
     --navbar-border: rgba(255, 255, 255, 0.08);
@@ -531,6 +533,7 @@ h2 {
 .type-filter-chip[data-filter-type="bath"].active { border-color: color-mix(in srgb, var(--color-event-bath) 55%, var(--color-border)); background: var(--card-bg-bath); }
 .type-filter-chip[data-filter-type="sleep"].active { border-color: color-mix(in srgb, var(--color-event-sleep) 55%, var(--color-border)); background: var(--card-bg-sleep); }
 .type-filter-chip[data-filter-type="observation"].active { border-color: color-mix(in srgb, var(--color-event-observation) 55%, var(--color-border)); background: var(--card-bg-observation); }
+.type-filter-chip[data-filter-type="temperature"].active { border-color: color-mix(in srgb, var(--color-event-health) 55%, var(--color-border)); background: var(--card-bg-temperature); }
 
 .type-filter-chip-all.active {
   border-color: color-mix(in srgb, var(--color-teal) 45%, var(--color-border));
@@ -946,6 +949,10 @@ h2 {
   background: var(--card-bg-observation);
 }
 
+.event-temperature {
+  background: var(--card-bg-temperature);
+}
+
 .empty {
   color: var(--color-text-muted);
 }
@@ -1183,6 +1190,10 @@ dialog#confirm-dialog::backdrop {
 
 .type-choice-observation {
   background: var(--card-bg-observation);
+}
+
+.type-choice-temperature {
+  background: var(--card-bg-temperature);
 }
 
 /* Event forms (one shown at a time inside the dialog) */

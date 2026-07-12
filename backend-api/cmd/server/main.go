@@ -107,6 +107,9 @@ func main() {
 			r.Route("/observations", func(r chi.Router) {
 				r.Post("/", h.CreateObservation)
 			})
+			r.Route("/temperatures", func(r chi.Router) {
+				r.Post("/", h.CreateTemperature)
+			})
 		})
 	})
 

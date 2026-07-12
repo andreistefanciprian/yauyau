@@ -1,6 +1,6 @@
 // Drives the single "Add Event" dialog: step 1 picks an event type, step 2
 // shows only that type's form. Each form posts straight to its existing
-// endpoint (/nappies, /feeds, /pumps, /baths, /sleeps, /observations) via htmx and swaps in
+// endpoint (/nappies, /feeds, /pumps, /baths, /sleeps, /observations, /temperatures) via htmx and swaps in
 // the refreshed #timeline on success.
 
 const dialog = document.getElementById("add-event-dialog");
@@ -18,6 +18,7 @@ const typeLabels = {
   bath: "Log a bath",
   sleep: "Log sleep",
   observation: "Log an observation",
+  temperature: "Log temperature",
 };
 
 function hideDialogError(dialogEl) {
@@ -344,6 +345,11 @@ function openEditDialog(button) {
       setFieldValue(activeSection, "text", button.dataset.text);
       setFieldValue(activeSection, "category", button.dataset.category);
       break;
+    case "temperature":
+      setFieldValue(activeSection, "temperature_c", button.dataset.temperatureC);
+      setFieldValue(activeSection, "method", button.dataset.method);
+      setFieldValue(activeSection, "notes", button.dataset.notes);
+      break;
   }
 
   editDialog.showModal();
@@ -414,6 +420,7 @@ const typeFilterChipLabels = {
   bath: "Bath",
   sleep: "Sleep",
   observation: "Notes",
+  temperature: "Temperature",
 };
 
 function setFiltersExpanded(expanded) {

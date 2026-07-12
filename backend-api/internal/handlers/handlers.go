@@ -410,6 +410,25 @@ func normalizeEventAttributes(w http.ResponseWriter, eventType string, raw map[s
 			category = defaultObservationCategory
 		}
 		return map[string]any{"text": text, "category": category}, true
+	case eventTypeTemperature:
+		temperatureC, ok := attributeFloat(raw, "temperature_c")
+		if !ok || !validTemperatureC(temperatureC) {
+			writeError(w, http.StatusBadRequest, "temperature_c must be between 30 and 45")
+			return nil, false
+		}
+		method := TemperatureMethod(attributeString(raw, "method"))
+		if !method.Valid() {
+			writeError(w, http.StatusBadRequest, "method must be one of: armpit, forehead, ear, rectal, other")
+			return nil, false
+		}
+		attributes := map[string]any{"temperature_c": temperatureC}
+		if method != "" {
+			attributes["method"] = string(method)
+		}
+		if notes := strings.TrimSpace(attributeString(raw, "notes")); notes != "" {
+			attributes["notes"] = notes
+		}
+		return attributes, true
 	default:
 		writeError(w, http.StatusBadRequest, "event_type is invalid")
 		return nil, false
@@ -433,6 +452,20 @@ func attributeOptionalInt(attributes map[string]any, key string) (int, bool) {
 		return int(value), true
 	case int:
 		return value, true
+	default:
+		return 0, false
+	}
+}
+
+func attributeFloat(attributes map[string]any, key string) (float64, bool) {
+	if attributes == nil {
+		return 0, false
+	}
+	switch value := attributes[key].(type) {
+	case float64:
+		return value, true
+	case int:
+		return float64(value), true
 	default:
 		return 0, false
 	}

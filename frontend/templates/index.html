@@ -63,6 +63,7 @@
           <button type="button" class="type-filter-chip" data-filter-type="bath" title="Bath" aria-label="Filter to bath events">🛁</button>
           <button type="button" class="type-filter-chip" data-filter-type="sleep" title="Sleep" aria-label="Filter to sleep events">😴</button>
           <button type="button" class="type-filter-chip" data-filter-type="observation" title="Notes" aria-label="Filter to observation events">📝</button>
+          <button type="button" class="type-filter-chip" data-filter-type="temperature" title="Temperature" aria-label="Filter to temperature events">🌡️</button>
         </div>
       </div>
     </div>
@@ -108,6 +109,10 @@
         <button type="button" class="type-choice type-choice-observation" data-type="observation">
           <span class="type-choice-icon" aria-hidden="true">📝</span>
           <span>Observation</span>
+        </button>
+        <button type="button" class="type-choice type-choice-temperature" data-type="temperature">
+          <span class="type-choice-icon" aria-hidden="true">🌡️</span>
+          <span>Temperature</span>
         </button>
       </div>
 
@@ -337,6 +342,43 @@
 
         <button type="submit">Save</button>
       </form>
+
+      <form class="event-form" data-type="temperature" hx-post="/temperatures" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
+        <label class="field-label">
+          Temperature (°C)
+          {{template "number-slider" (dict "Name" "temperature_c" "Min" "30" "Max" "45" "SliderMin" "35" "SliderMax" "42" "SliderStep" "0.1" "InputStep" "0.1" "InputMode" "decimal" "Label" "temperature" "Value" "37.0" "Required" true)}}
+        </label>
+
+        <label class="field-label">
+          Method (optional)
+          <select name="method">
+            <option value="">Not specified</option>
+            <option value="armpit">Armpit</option>
+            <option value="forehead">Forehead</option>
+            <option value="ear">Ear</option>
+            <option value="rectal">Rectal</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+
+        <label class="field-label">
+          Notes (optional)
+          <input type="text" name="notes" placeholder="e.g. after bath">
+        </label>
+
+        <label class="field-label">
+          Time
+          <input type="time" name="time" value="{{.NowTime}}" required>
+        </label>
+
+        <label class="field-label">
+          Date
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+        </label>
+
+        <button type="submit">Save</button>
+      </form>
       </div>
     </dialog>
 
@@ -475,6 +517,28 @@
           <label class="field-label">
             Category (optional)
             <input type="text" name="category" list="observation-categories" placeholder="general">
+          </label>
+        </div>
+
+        <div class="edit-event-fields" data-edit-type="temperature">
+          <label class="field-label">
+            Temperature (°C)
+            {{template "number-slider" (dict "Name" "temperature_c" "Min" "30" "Max" "45" "SliderMin" "35" "SliderMax" "42" "SliderStep" "0.1" "InputStep" "0.1" "InputMode" "decimal" "Label" "temperature" "Required" true)}}
+          </label>
+          <label class="field-label">
+            Method (optional)
+            <select name="method">
+              <option value="">Not specified</option>
+              <option value="armpit">Armpit</option>
+              <option value="forehead">Forehead</option>
+              <option value="ear">Ear</option>
+              <option value="rectal">Rectal</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label class="field-label">
+            Notes (optional)
+            <input type="text" name="notes" placeholder="e.g. after bath">
           </label>
         </div>
 
