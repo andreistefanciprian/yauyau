@@ -179,12 +179,12 @@
 
         <label class="field-label">
           Amount (ml, optional)
-          {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "300" "SliderStep" "10" "Label" "feed amount" "Value" "80")}}
+          {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "InputStep" "5" "SliderMin" "0" "SliderMax" "300" "SliderStep" "5" "Label" "feed amount" "Value" "80")}}
         </label>
 
         <label class="field-label">
           Duration (minutes, optional)
-          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed duration" "Value" "20")}}
+          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "feed duration" "Value" "20")}}
         </label>
 
         <div class="field-row">
@@ -446,11 +446,11 @@
           </label>
           <label class="field-label">
             Amount (ml, optional)
-            {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "300" "SliderStep" "10" "Label" "feed amount")}}
+            {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "InputStep" "5" "SliderMin" "0" "SliderMax" "300" "SliderStep" "5" "Label" "feed amount")}}
           </label>
           <label class="field-label">
             Duration (minutes, optional)
-            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed duration")}}
+            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "feed duration")}}
           </label>
           <fieldset>
             <legend>Time is</legend>
