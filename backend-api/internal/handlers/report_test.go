@@ -34,7 +34,7 @@ func TestBuildDailyReportSummarizesTimelineEvents(t *testing.T) {
 
 	wantHighlights := []string{
 		"2 feeds with 70 ml recorded and 1 breast feed.",
-		"1 wet nappy and 1 poo nappy logged.",
+		"1 nappy change: 1 mixed.",
 		"1 sleep totalling 1 hour 35 minutes.",
 		"1 pump recorded totalling 80 ml.",
 		"1 bath logged.",
@@ -85,5 +85,26 @@ func TestBuildDailyReportUsesPastDayWording(t *testing.T) {
 	}
 	if report.Summary != "Yesterday had feeding and sleep logged." {
 		t.Fatalf("Summary = %q", report.Summary)
+	}
+}
+
+func TestBuildDailyReportClarifiesNappyChanges(t *testing.T) {
+	window := timelineRangeWindow{
+		From: time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC),
+		To:   time.Date(2026, 7, 11, 23, 59, 0, 0, time.UTC),
+	}
+	period := dailyReportPeriodFor(1, window.From)
+
+	report := buildDailyReport([]store.Event{
+		{EventType: eventTypeNappy, Attributes: map[string]any{"kind": "wet"}},
+		{EventType: eventTypeNappy, Attributes: map[string]any{"kind": "poo"}},
+		{EventType: eventTypeNappy, Attributes: map[string]any{"kind": "both"}},
+	}, window, window.To, period)
+
+	if len(report.Highlights) != 1 {
+		t.Fatalf("len(Highlights) = %d, want 1: %#v", len(report.Highlights), report.Highlights)
+	}
+	if report.Highlights[0] != "3 nappy changes: 1 mixed, 1 wet only, 1 poo only." {
+		t.Fatalf("Highlights[0] = %q", report.Highlights[0])
 	}
 }

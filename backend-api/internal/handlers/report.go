@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
@@ -25,8 +26,10 @@ type dailyReportStats struct {
 	FeedCount        int
 	MilkMl           int
 	BreastFeeds      int
-	WetNappies       int
-	PooNappies       int
+	NappyCount       int
+	WetOnlyNappies   int
+	PooOnlyNappies   int
+	MixedNappies     int
 	SleepCount       int
 	SleepMinutes     int
 	PumpCount        int
@@ -160,15 +163,15 @@ func (s *dailyReportStats) add(ev store.Event) {
 			s.BreastFeeds++
 		}
 	case eventTypeNappy:
+		s.NappyCount++
 		if kind, ok := ev.Attributes["kind"].(string); ok {
 			switch NappyKind(kind) {
 			case NappyKindWet:
-				s.WetNappies++
+				s.WetOnlyNappies++
 			case NappyKindPoo:
-				s.PooNappies++
+				s.PooOnlyNappies++
 			case NappyKindBoth:
-				s.WetNappies++
-				s.PooNappies++
+				s.MixedNappies++
 			}
 		}
 	case eventTypeSleep:
@@ -221,7 +224,7 @@ func dailyReportHighlights(stats dailyReportStats, period dailyReportPeriod) []s
 	if stats.FeedCount > 0 {
 		highlights = append(highlights, feedHighlight(stats))
 	}
-	if stats.WetNappies > 0 || stats.PooNappies > 0 {
+	if stats.NappyCount > 0 {
 		highlights = append(highlights, nappyHighlight(stats))
 	}
 	if stats.SleepCount > 0 {
@@ -243,7 +246,7 @@ func dailyReportHighlights(stats dailyReportStats, period dailyReportPeriod) []s
 }
 
 func (s dailyReportStats) totalEvents() int {
-	return s.FeedCount + s.WetNappies + s.PooNappies + s.SleepCount + s.PumpCount + s.BathCount + s.ObservationCount + s.TemperatureCount
+	return s.FeedCount + s.NappyCount + s.SleepCount + s.PumpCount + s.BathCount + s.ObservationCount + s.TemperatureCount
 }
 
 func activeReportAreas(stats dailyReportStats) []string {
@@ -251,7 +254,7 @@ func activeReportAreas(stats dailyReportStats) []string {
 	if stats.FeedCount > 0 {
 		areas = append(areas, "feeding")
 	}
-	if stats.WetNappies > 0 || stats.PooNappies > 0 {
+	if stats.NappyCount > 0 {
 		areas = append(areas, "nappies")
 	}
 	if stats.SleepCount > 0 {
@@ -284,14 +287,21 @@ func feedHighlight(stats dailyReportStats) string {
 }
 
 func nappyHighlight(stats dailyReportStats) string {
-	switch {
-	case stats.WetNappies > 0 && stats.PooNappies > 0:
-		return fmt.Sprintf("%s and %s logged.", pluralize(stats.WetNappies, "wet nappy", "wet nappies"), pluralize(stats.PooNappies, "poo nappy", "poo nappies"))
-	case stats.WetNappies > 0:
-		return pluralize(stats.WetNappies, "wet nappy", "wet nappies") + " logged."
-	default:
-		return pluralize(stats.PooNappies, "poo nappy", "poo nappies") + " logged."
+	detail := pluralize(stats.NappyCount, "nappy change", "nappy changes")
+	var parts []string
+	if stats.MixedNappies > 0 {
+		parts = append(parts, pluralize(stats.MixedNappies, "mixed", "mixed"))
 	}
+	if stats.WetOnlyNappies > 0 {
+		parts = append(parts, pluralize(stats.WetOnlyNappies, "wet only", "wet only"))
+	}
+	if stats.PooOnlyNappies > 0 {
+		parts = append(parts, pluralize(stats.PooOnlyNappies, "poo only", "poo only"))
+	}
+	if len(parts) == 0 {
+		return detail + " logged."
+	}
+	return fmt.Sprintf("%s: %s.", detail, strings.Join(parts, ", "))
 }
 
 func sleepHighlight(stats dailyReportStats) string {
