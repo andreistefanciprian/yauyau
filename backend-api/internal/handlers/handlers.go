@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -125,6 +126,7 @@ func (h *Handlers) ListAllEvents(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to load events")
 		return
 	}
+	orderTimelineEvents(events)
 
 	mapped := make([]eventResponse, len(events))
 	for i, ev := range events {
@@ -139,6 +141,20 @@ func (h *Handlers) ListAllEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, mapped)
+}
+
+func orderTimelineEvents(events []store.Event) {
+	sort.SliceStable(events, func(i, j int) bool {
+		return isOngoingSleep(events[i]) && !isOngoingSleep(events[j])
+	})
+}
+
+func isOngoingSleep(ev store.Event) bool {
+	if ev.EventType != eventTypeSleep {
+		return false
+	}
+	_, ok := attributeOptionalInt(ev.Attributes, "duration_minutes")
+	return !ok
 }
 
 func timelineRangeFor(rawRange, timezone string) (timelineRangeWindow, error) {
