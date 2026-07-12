@@ -26,7 +26,7 @@ func TestBuildDailyReportSummarizesTimelineEvents(t *testing.T) {
 	if report.Title != "Today so far" {
 		t.Fatalf("Title = %q, want Today so far", report.Title)
 	}
-	if report.Summary != "Today has 2 feeds, 1 wet nappy/1 poo nappy, and 1 sleep (1 hour 35 minutes) logged so far." {
+	if report.Summary != "Today has feeding, nappies, and sleep logged so far." {
 		t.Fatalf("Summary = %q", report.Summary)
 	}
 

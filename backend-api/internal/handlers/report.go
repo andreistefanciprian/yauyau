@@ -132,12 +132,17 @@ func dailyReportSummary(stats dailyReportStats) string {
 		return "No events have been logged yet today."
 	}
 
-	return fmt.Sprintf(
-		"Today has %s, %s, and %s logged so far.",
-		pluralize(stats.FeedCount, "feed", "feeds"),
-		nappySummary(stats),
-		sleepSummary(stats),
-	)
+	parts := activeReportAreas(stats)
+	switch len(parts) {
+	case 0:
+		return "Today is starting to take shape."
+	case 1:
+		return fmt.Sprintf("Today has %s logged so far.", parts[0])
+	case 2:
+		return fmt.Sprintf("Today has %s and %s logged so far.", parts[0], parts[1])
+	default:
+		return fmt.Sprintf("Today has %s, %s, and %s logged so far.", parts[0], parts[1], parts[2])
+	}
 }
 
 func dailyReportHighlights(stats dailyReportStats) []string {
@@ -145,10 +150,15 @@ func dailyReportHighlights(stats dailyReportStats) []string {
 		return []string{"Log the first event to start building today's report."}
 	}
 
-	highlights := []string{
-		feedHighlight(stats),
-		nappyHighlight(stats),
-		sleepHighlight(stats),
+	var highlights []string
+	if stats.FeedCount > 0 {
+		highlights = append(highlights, feedHighlight(stats))
+	}
+	if stats.WetNappies > 0 || stats.PooNappies > 0 {
+		highlights = append(highlights, nappyHighlight(stats))
+	}
+	if stats.SleepCount > 0 {
+		highlights = append(highlights, sleepHighlight(stats))
 	}
 	if stats.PumpCount > 0 {
 		highlights = append(highlights, fmt.Sprintf("%s recorded%s.", pluralize(stats.PumpCount, "pump", "pumps"), amountSuffix(stats.PumpMl)))
@@ -166,10 +176,30 @@ func (s dailyReportStats) totalEvents() int {
 	return s.FeedCount + s.WetNappies + s.PooNappies + s.SleepCount + s.PumpCount + s.BathCount + s.ObservationCount
 }
 
-func feedHighlight(stats dailyReportStats) string {
-	if stats.FeedCount == 0 {
-		return "No feeds logged yet."
+func activeReportAreas(stats dailyReportStats) []string {
+	var areas []string
+	if stats.FeedCount > 0 {
+		areas = append(areas, "feeding")
 	}
+	if stats.WetNappies > 0 || stats.PooNappies > 0 {
+		areas = append(areas, "nappies")
+	}
+	if stats.SleepCount > 0 {
+		areas = append(areas, "sleep")
+	}
+	if stats.PumpCount > 0 {
+		areas = append(areas, "pumping")
+	}
+	if stats.BathCount > 0 {
+		areas = append(areas, "baths")
+	}
+	if stats.ObservationCount > 0 {
+		areas = append(areas, "observations")
+	}
+	return areas
+}
+
+func feedHighlight(stats dailyReportStats) string {
 	detail := pluralize(stats.FeedCount, "feed", "feeds")
 	if stats.MilkMl > 0 {
 		detail += fmt.Sprintf(" with %d ml recorded", stats.MilkMl)
@@ -181,37 +211,21 @@ func feedHighlight(stats dailyReportStats) string {
 }
 
 func nappyHighlight(stats dailyReportStats) string {
-	if stats.WetNappies == 0 && stats.PooNappies == 0 {
-		return "No nappies logged yet."
+	switch {
+	case stats.WetNappies > 0 && stats.PooNappies > 0:
+		return fmt.Sprintf("%s and %s logged.", pluralize(stats.WetNappies, "wet nappy", "wet nappies"), pluralize(stats.PooNappies, "poo nappy", "poo nappies"))
+	case stats.WetNappies > 0:
+		return pluralize(stats.WetNappies, "wet nappy", "wet nappies") + " logged."
+	default:
+		return pluralize(stats.PooNappies, "poo nappy", "poo nappies") + " logged."
 	}
-	return fmt.Sprintf("%s and %s logged.", pluralize(stats.WetNappies, "wet nappy", "wet nappies"), pluralize(stats.PooNappies, "poo nappy", "poo nappies"))
 }
 
 func sleepHighlight(stats dailyReportStats) string {
-	if stats.SleepCount == 0 {
-		return "No sleep logged yet."
-	}
 	if stats.SleepMinutes == 0 {
 		return pluralize(stats.SleepCount, "sleep", "sleeps") + " logged."
 	}
 	return fmt.Sprintf("%s totalling %s.", pluralize(stats.SleepCount, "sleep", "sleeps"), formatDurationMinutes(stats.SleepMinutes))
-}
-
-func nappySummary(stats dailyReportStats) string {
-	if stats.WetNappies == 0 && stats.PooNappies == 0 {
-		return "no nappies"
-	}
-	return fmt.Sprintf("%s/%s", pluralize(stats.WetNappies, "wet nappy", "wet nappies"), pluralize(stats.PooNappies, "poo nappy", "poo nappies"))
-}
-
-func sleepSummary(stats dailyReportStats) string {
-	if stats.SleepCount == 0 {
-		return "no sleep"
-	}
-	if stats.SleepMinutes == 0 {
-		return pluralize(stats.SleepCount, "sleep", "sleeps")
-	}
-	return fmt.Sprintf("%s (%s)", pluralize(stats.SleepCount, "sleep", "sleeps"), formatDurationMinutes(stats.SleepMinutes))
 }
 
 func amountSuffix(amount int) string {
