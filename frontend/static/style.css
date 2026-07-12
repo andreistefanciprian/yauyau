@@ -856,20 +856,20 @@ h2 {
 .event-quick-action button {
   -webkit-appearance: none;
   appearance: none;
-  border: 1px solid color-mix(in srgb, var(--color-blue) 28%, var(--color-border));
+  border: 1px solid color-mix(in srgb, var(--color-coral) 58%, var(--color-border));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-blue) 10%, var(--color-surface));
-  color: var(--color-heading);
+  background: color-mix(in srgb, var(--color-coral) 24%, var(--color-surface));
+  color: color-mix(in srgb, var(--color-coral) 72%, black);
   cursor: pointer;
   font: inherit;
   font-size: 0.88rem;
   font-weight: 700;
-  padding: 0.38rem 0.75rem;
+  padding: 0.42rem 0.85rem;
   -webkit-tap-highlight-color: transparent;
 }
 
 .event-quick-action button:active {
-  background: color-mix(in srgb, var(--color-blue) 18%, var(--color-surface));
+  background: color-mix(in srgb, var(--color-coral) 34%, var(--color-surface));
   transform: scale(0.98);
 }
 
