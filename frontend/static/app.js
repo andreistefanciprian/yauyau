@@ -238,6 +238,25 @@ function setSleepEndFromStart(form, durationMinutes) {
   endTime.value = "";
 }
 
+function syncNumberSliderThumb(input) {
+  const slider = input.closest(".number-slider");
+  const range = slider?.querySelector(".number-slider-range");
+  if (!range || input.value === "") return;
+
+  const value = Number(input.value);
+  if (Number.isNaN(value)) return;
+  const min = Number(range.min);
+  const max = Number(range.max);
+  range.value = String(Math.min(max, Math.max(min, value)));
+}
+
+function setSleepDurationValue(form, value) {
+  const durationInput = form.querySelector("[data-sleep-duration-minutes]");
+  if (!durationInput) return;
+  durationInput.value = value;
+  syncNumberSliderThumb(durationInput);
+}
+
 function updateSleepDuration(scope) {
   const fields = scope.querySelectorAll("[data-sleep-time-fields]");
   fields.forEach((container) => {
@@ -248,7 +267,6 @@ function updateSleepDuration(scope) {
     const startTime = form.querySelector('input[name="time"]');
     const endDate = container.querySelector("[data-sleep-end-date]");
     const endTime = container.querySelector("[data-sleep-end-time]");
-    const durationInput = container.parentElement.querySelector("[data-sleep-duration-minutes]");
     const preview = container.querySelector("[data-sleep-duration-preview]");
     const start = parseLocalDateTime(startDate?.value, startTime?.value);
     const end = parseLocalDateTime(endDate?.value, endTime?.value);
@@ -257,7 +275,7 @@ function updateSleepDuration(scope) {
     endTime.setCustomValidity("");
 
     if (!start || !end) {
-      if (durationInput) durationInput.value = "";
+      setSleepDurationValue(form, "");
       if (preview) preview.textContent = "Add wake-up time to calculate duration.";
       return;
     }
@@ -265,15 +283,23 @@ function updateSleepDuration(scope) {
     if (end <= start) {
       const message = "Wake-up time must be after sleep start.";
       endTime.setCustomValidity(message);
-      if (durationInput) durationInput.value = "";
+      setSleepDurationValue(form, "");
       if (preview) preview.textContent = message;
       return;
     }
 
     const minutes = Math.round((end - start) / 60000);
-    if (durationInput) durationInput.value = String(minutes);
+    setSleepDurationValue(form, String(minutes));
     if (preview) preview.textContent = `Duration: ${formatDuration(minutes)}`;
   });
+}
+
+function updateSleepEndFromDuration(form) {
+  const durationInput = form.querySelector("[data-sleep-duration-minutes]");
+  if (!durationInput) return;
+
+  setSleepEndFromStart(form, durationInput.value);
+  updateSleepDuration(form);
 }
 
 function editSectionForType(type) {
@@ -391,6 +417,11 @@ window.onEventEdited = onEventEdited;
 document.body.addEventListener("input", (event) => {
   const form = event.target.closest("form");
   if (!form) return;
+
+  if (event.target.matches("[data-sleep-duration-minutes]")) {
+    updateSleepEndFromDuration(form);
+    return;
+  }
 
   if (event.target.closest("[data-sleep-time-fields]") || event.target.matches('input[name="date"], input[name="time"]')) {
     updateSleepDuration(form);
@@ -543,11 +574,11 @@ if (typeFilter) {
     if (filtersSummary) updateFiltersSummary();
   });
 
-  // Re-apply the filter every time htmx swaps in a fresh #timeline (after
-  // creating, editing, or deleting an event), since the new markup starts
-  // with every card visible.
+  // Re-apply the filter every time htmx swaps in fresh timeline markup
+  // (after creating, editing, deleting, or finishing an event), since the
+  // new cards start with every type visible.
   document.body.addEventListener("htmx:afterSwap", (event) => {
-    if (event.target.id === "timeline") applyEventFilter();
+    if (event.target.id === "timeline" || event.target.id === "timeline-workspace") applyEventFilter();
   });
 }
 
