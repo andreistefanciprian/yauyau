@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andreistefanciprian/yauli/backend-api/internal/aiclient"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
@@ -61,5 +62,73 @@ func TestBuildDailyReportHandlesEmptyDay(t *testing.T) {
 	}
 	if len(report.Highlights) != 1 || report.Highlights[0] != "Log the first event to start building today's report." {
 		t.Fatalf("Highlights = %#v", report.Highlights)
+	}
+}
+
+func TestDailyReportInputHashIgnoresCurrentTime(t *testing.T) {
+	input := aiclient.DailyReportInput{
+		ReportLabel: "Today so far",
+		LocalDate:   "2026-07-12",
+		Timezone:    "Australia/Adelaide",
+		CurrentTime: time.Date(2026, 7, 12, 8, 0, 0, 0, time.UTC),
+		RangeStart:  time.Date(2026, 7, 12, 0, 0, 0, 0, time.UTC),
+		RangeEnd:    time.Date(2026, 7, 12, 8, 0, 0, 0, time.UTC),
+		Summary:     "Today has 1 feed, no nappies, and no sleep logged so far.",
+		Highlights:  []string{"1 feed with 70 ml recorded."},
+		Totals:      aiclient.DailyReportTotals{Feeds: 1, MilkMl: 70},
+		Events: []aiclient.DailyReportEvent{
+			{
+				ID:         "event-1",
+				Type:       "feed",
+				OccurredAt: time.Date(2026, 7, 12, 7, 30, 0, 0, time.UTC),
+				Attributes: map[string]any{"type": "formula", "amount_ml": float64(70)},
+			},
+		},
+	}
+
+	firstHash, err := dailyReportInputHash(input)
+	if err != nil {
+		t.Fatalf("dailyReportInputHash first: %v", err)
+	}
+
+	input.CurrentTime = input.CurrentTime.Add(30 * time.Minute)
+	input.RangeEnd = input.RangeEnd.Add(30 * time.Minute)
+	secondHash, err := dailyReportInputHash(input)
+	if err != nil {
+		t.Fatalf("dailyReportInputHash second: %v", err)
+	}
+
+	if firstHash != secondHash {
+		t.Fatalf("hash changed when only current time changed: %s != %s", firstHash, secondHash)
+	}
+
+	input.Events[0].Attributes["amount_ml"] = float64(90)
+	thirdHash, err := dailyReportInputHash(input)
+	if err != nil {
+		t.Fatalf("dailyReportInputHash third: %v", err)
+	}
+	if thirdHash == firstHash {
+		t.Fatalf("hash did not change when event input changed: %s", thirdHash)
+	}
+}
+
+func TestDailyReportAIOutputFromContent(t *testing.T) {
+	output, ok := dailyReportAIOutputFromContent(map[string]any{
+		"ai_summary":          " A calm morning so far. ",
+		"pattern_notes":       []any{" Feeds are clustered early. ", ""},
+		"suggested_questions": []any{"When was the last feed?"},
+	})
+
+	if !ok {
+		t.Fatal("dailyReportAIOutputFromContent ok = false")
+	}
+	if output.AISummary != "A calm morning so far." {
+		t.Fatalf("AISummary = %q", output.AISummary)
+	}
+	if len(output.PatternNotes) != 1 || output.PatternNotes[0] != "Feeds are clustered early." {
+		t.Fatalf("PatternNotes = %#v", output.PatternNotes)
+	}
+	if len(output.SuggestedQuestions) != 1 || output.SuggestedQuestions[0] != "When was the last feed?" {
+		t.Fatalf("SuggestedQuestions = %#v", output.SuggestedQuestions)
 	}
 }

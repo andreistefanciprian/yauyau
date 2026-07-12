@@ -40,7 +40,8 @@ type Backend interface {
 	UpdateCurrentBaby(ctx context.Context, baby backendclient.Baby) (backendclient.Baby, error)
 	ArchiveCurrentBaby(ctx context.Context, confirmName string) error
 	ListEvents(ctx context.Context, resource, rangeKey string, out any) error
-	GetDailyReport(ctx context.Context) (backendclient.DailyReport, error)
+	GetDailyReport(ctx context.Context, includeAI bool) (backendclient.DailyReport, error)
+	GenerateDailyReportAI(ctx context.Context) (backendclient.DailyReport, error)
 	CreateEvent(ctx context.Context, resource string, payload map[string]any) error
 	UpdateEvent(ctx context.Context, id string, payload map[string]any) error
 	DeleteEvent(ctx context.Context, id string) error
@@ -123,6 +124,7 @@ type indexPageData struct {
 	Baby        backendclient.Baby
 	Timeline    TimelineViewData
 	DailyReport *backendclient.DailyReport
+	ShowAI      bool
 	NowDate     string
 	NowTime     string
 }
@@ -130,6 +132,7 @@ type indexPageData struct {
 type timelineWorkspaceData struct {
 	Timeline    TimelineViewData
 	DailyReport *backendclient.DailyReport
+	ShowAI      bool
 }
 
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +152,8 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rangeKey := selectedTimelineRange(r)
-	dailyReport := h.loadDailyReport(r.Context(), rangeKey)
+	showAI := showDailyReportAI(r)
+	dailyReport := h.loadDailyReport(r.Context(), rangeKey, showAI)
 
 	timeline, err := h.loadTimeline(r.Context(), loc, rangeKey)
 	if err != nil {
@@ -163,6 +167,7 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 		Baby:        baby,
 		Timeline:    timeline,
 		DailyReport: dailyReport,
+		ShowAI:      showAI,
 		NowDate:     now.Format(dateFieldLayout),
 		NowTime:     now.Format(timeFieldLayout),
 	}
@@ -544,6 +549,7 @@ func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 // event changes can affect both the visible event list and today's report.
 func (h *Handlers) renderTimeline(w http.ResponseWriter, r *http.Request, loc *time.Location) {
 	rangeKey := selectedTimelineRange(r)
+	showAI := showDailyReportAI(r)
 	timeline, err := h.loadTimeline(r.Context(), loc, rangeKey)
 	if err != nil {
 		log.Printf("%v", err)
@@ -553,7 +559,8 @@ func (h *Handlers) renderTimeline(w http.ResponseWriter, r *http.Request, loc *t
 
 	data := timelineWorkspaceData{
 		Timeline:    timeline,
-		DailyReport: h.loadDailyReport(r.Context(), rangeKey),
+		DailyReport: h.loadDailyReport(r.Context(), rangeKey, showAI),
+		ShowAI:      showAI,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -562,17 +569,53 @@ func (h *Handlers) renderTimeline(w http.ResponseWriter, r *http.Request, loc *t
 	}
 }
 
-func (h *Handlers) loadDailyReport(ctx context.Context, rangeKey string) *backendclient.DailyReport {
+func (h *Handlers) GenerateDailyReportAI(w http.ResponseWriter, r *http.Request) {
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load baby", http.StatusBadGateway)
+		return
+	}
+
+	report, err := h.Backend.GenerateDailyReportAI(r.Context())
+	if err != nil {
+		log.Printf("generate daily AI report: %v", err)
+		http.Error(w, "failed to generate AI report", http.StatusBadGateway)
+		return
+	}
+
+	timeline, err := h.loadTimeline(r.Context(), loc, "today")
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load events", http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.Templates.ExecuteTemplate(w, "timeline-workspace", timelineWorkspaceData{
+		Timeline:    timeline,
+		DailyReport: &report,
+		ShowAI:      true,
+	}); err != nil {
+		log.Printf("render AI report workspace template: %v", err)
+	}
+}
+
+func (h *Handlers) loadDailyReport(ctx context.Context, rangeKey string, includeAI bool) *backendclient.DailyReport {
 	if rangeKey != "today" {
 		return nil
 	}
 
-	report, err := h.Backend.GetDailyReport(ctx)
+	report, err := h.Backend.GetDailyReport(ctx, includeAI)
 	if err != nil {
 		log.Printf("load daily report: %v", err)
 		return nil
 	}
 	return &report
+}
+
+func showDailyReportAI(r *http.Request) bool {
+	return r.FormValue("show_ai_report") == "true"
 }
 
 // loadTimeline fetches the most recent events across every type from

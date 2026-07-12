@@ -520,6 +520,16 @@ h2 {
   color: var(--color-text-secondary);
 }
 
+.type-filter-chip-ai {
+  width: auto;
+  height: 1.7rem;
+  border-radius: 999px;
+  padding: 0 0.6rem;
+  color: var(--color-blue);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 .type-filter-chip .pump-icon svg {
   width: 0.95rem;
   height: 0.95rem;
@@ -536,6 +546,13 @@ h2 {
   border-color: color-mix(in srgb, var(--color-teal) 45%, var(--color-border));
   background: var(--color-teal);
   color: white;
+}
+
+.type-filter-chip-ai.active,
+.type-filter-chip-ai.htmx-request {
+  border-color: color-mix(in srgb, var(--color-blue) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-blue) 14%, var(--color-surface));
+  color: var(--color-blue);
 }
 
 .settings-section {
@@ -681,6 +698,48 @@ h2 {
   border-radius: 50%;
   background: var(--color-teal);
   content: "";
+}
+
+.daily-report-ai {
+  display: grid;
+  gap: 0.55rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-teal) 24%, var(--color-border));
+}
+
+.daily-report-ai p {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.daily-report-ai ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.daily-report-questions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.daily-report-questions span {
+  display: inline-flex;
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--color-blue) 18%, var(--color-border));
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+  background: color-mix(in srgb, var(--color-blue) 8%, var(--color-surface));
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .member-list {

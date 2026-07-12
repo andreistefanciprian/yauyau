@@ -223,6 +223,7 @@ Authentication:
 Operational:
 
 * audit_logs
+* ai_reports
 
 ---
 
@@ -307,9 +308,13 @@ identity into context — see `internal/authctx`):
   now in the baby's timezone. The first version lives in
   `backend-api/internal/handlers/report.go` and summarizes the merged event
   stream into a structured response (`title`, `summary`, `highlights`,
-  `generated_at`, `range_start`, `range_end`). This is the backend-owned
-  foundation for later AI enrichment; frontend and MCP clients should consume
-  the report rather than recalculate its business meaning.
+  `generated_at`, `range_start`, `range_end`). With `?include_ai=true`, the
+  endpoint may include cached AI enrichment fields (`ai_summary`,
+  `pattern_notes`, `suggested_questions`) from `ai_reports`, but it must not
+  call the OpenAI API.
+* `POST /api/v1/babies/current/reports/daily/ai` →
+  `GenerateDailyReportAI`, the explicit on-demand generation path for daily
+  report AI enrichment. This is the only route that should call OpenAI.
 * `PATCH /api/v1/babies/current/events/{id}` → `UpdateEvent`, type-checked
   generic edit for an existing current-baby event.
 * `DELETE /api/v1/babies/current/events/{id}` → `DeleteEvent`, removes one
@@ -331,6 +336,27 @@ generic event methods, shared by every event type:
 
 No event-type-specific SQL exists anywhere — a new event type never touches
 `store/postgres.go`.
+
+## Daily report AI cache
+
+AI report enrichment is optional, on-demand, and backend-owned. `backend-api`
+reads `OPENAI_API_KEY` and optional `OPENAI_MODEL` in `cmd/server/main.go`;
+without an API key, report routes return deterministic report fields only.
+
+The OpenAI API call lives in `backend-api/internal/aiclient` and uses a
+structured JSON schema response. The handler sends a compact report input
+(local date/timezone/current time, deterministic totals/highlights, and
+today's event list) but hashes only the stable event/report input, not the
+exact request time. If the hash changes because an event is added, edited, or
+deleted, the cached AI fields no longer match and are not shown unless the
+user explicitly requests generation again. If only the clock advances, the
+existing `ai_reports` row can be reused until the freshness TTL expires.
+
+`ai_reports.content` is JSONB and currently stores `ai_summary`,
+`pattern_notes`, and `suggested_questions`. AI failures are logged and should
+not fail deterministic report loading; deterministic report fields are the
+reliable fallback. Frontend event create/edit/delete flows must not trigger
+AI generation, because those paths need to stay fast.
 
 ## Per-event-type handler file (backend-api)
 
@@ -403,6 +429,11 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   `timeline-workspace` partial. That workspace contains both the daily
   report card and `#timeline`, so HTMX event mutations can refresh both
   together and avoid stale report counts.
+* Daily AI enrichment is displayed through the `AI` chip in the timeline
+  filter row, which is disabled by default. Clicking the chip posts to the
+  frontend's `/reports/daily/ai` route, which calls backend-api's explicit
+  generation endpoint and swaps `#timeline-workspace`. Do not generate AI
+  from normal page load or event mutation flows.
 * Each `Create<X>` handler parses the HTML form, builds a `map[string]any`
   payload (plus `occurred_at` via `parseEventTime`), calls
   `Backend.CreateEvent(ctx, "<resource>", payload)`, then calls the shared

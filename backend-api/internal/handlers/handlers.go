@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/andreistefanciprian/yauli/backend-api/internal/aiclient"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
@@ -37,6 +38,8 @@ type Store interface {
 	UpdateEvent(ctx context.Context, familyID, babyID, id uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
 	ListAllEvents(ctx context.Context, familyID, babyID uuid.UUID, from, to time.Time, limit int) ([]store.Event, error)
 	DeleteEvent(ctx context.Context, familyID, babyID, id uuid.UUID) error
+	GetAIReport(ctx context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash string) (store.AIReport, error)
+	SaveAIReport(ctx context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash, model string, content map[string]any) (store.AIReport, error)
 }
 
 // FamilyStore is the persistence boundary the internal, auth-service-facing
@@ -60,6 +63,10 @@ type FamilyStore interface {
 // membership changes that must revoke durable sessions.
 type AuthClient interface {
 	RevokeFamilyMemberSessions(ctx context.Context, userID, familyID uuid.UUID) error
+}
+
+type DailyReportAIClient interface {
+	GenerateDailyReport(ctx context.Context, input aiclient.DailyReportInput) (aiclient.DailyReportOutput, string, error)
 }
 
 // allEventsLimit caps the combined /events endpoint. It's set higher than
@@ -264,6 +271,7 @@ type Handlers struct {
 	Store       Store
 	FamilyStore FamilyStore
 	Auth        AuthClient
+	AI          DailyReportAIClient
 }
 
 // New wires up Handlers from a single concrete store that satisfies both
@@ -272,8 +280,8 @@ type Handlers struct {
 func New(s interface {
 	Store
 	FamilyStore
-}, auth AuthClient) *Handlers {
-	return &Handlers{Store: s, FamilyStore: s, Auth: auth}
+}, auth AuthClient, ai DailyReportAIClient) *Handlers {
+	return &Handlers{Store: s, FamilyStore: s, Auth: auth, AI: ai}
 }
 
 func (h *Handlers) Healthz(w http.ResponseWriter, r *http.Request) {

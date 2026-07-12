@@ -94,9 +94,21 @@ func (c *HTTPClient) ListEvents(ctx context.Context, resource, rangeKey string, 
 	return c.getJSON(ctx, path, out)
 }
 
-func (c *HTTPClient) GetDailyReport(ctx context.Context) (DailyReport, error) {
+func (c *HTTPClient) GetDailyReport(ctx context.Context, includeAI bool) (DailyReport, error) {
 	var report DailyReport
-	if err := c.getJSON(ctx, "/api/v1/babies/current/reports/daily", &report); err != nil {
+	path := "/api/v1/babies/current/reports/daily"
+	if includeAI {
+		path += "?include_ai=true"
+	}
+	if err := c.getJSON(ctx, path, &report); err != nil {
+		return DailyReport{}, err
+	}
+	return report, nil
+}
+
+func (c *HTTPClient) GenerateDailyReportAI(ctx context.Context) (DailyReport, error) {
+	var report DailyReport
+	if err := c.postJSONDecode(ctx, "/api/v1/babies/current/reports/daily/ai", nil, &report); err != nil {
 		return DailyReport{}, err
 	}
 	return report, nil

@@ -62,10 +62,13 @@ type Event struct {
 }
 
 type DailyReport struct {
-	Title       string    `json:"title"`
-	Summary     string    `json:"summary"`
-	Highlights  []string  `json:"highlights"`
-	GeneratedAt time.Time `json:"generated_at"`
-	RangeStart  time.Time `json:"range_start"`
-	RangeEnd    time.Time `json:"range_end"`
+	Title              string    `json:"title"`
+	Summary            string    `json:"summary"`
+	Highlights         []string  `json:"highlights"`
+	AISummary          string    `json:"ai_summary,omitempty"`
+	PatternNotes       []string  `json:"pattern_notes,omitempty"`
+	SuggestedQuestions []string  `json:"suggested_questions,omitempty"`
+	GeneratedAt        time.Time `json:"generated_at"`
+	RangeStart         time.Time `json:"range_start"`
+	RangeEnd           time.Time `json:"range_end"`
 }

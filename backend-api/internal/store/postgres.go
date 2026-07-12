@@ -334,6 +334,66 @@ func (s *PostgresStore) ListAllEvents(ctx context.Context, familyID, babyID uuid
 	return results, nil
 }
 
+// GetAIReport returns cached AI content for the exact report input hash.
+func (s *PostgresStore) GetAIReport(ctx context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash string) (AIReport, error) {
+	const query = `
+		SELECT id, family_id, baby_id, report_type, range_start, range_end, input_hash, model, content, created_at
+		FROM ai_reports
+		WHERE family_id = $1
+			AND baby_id = $2
+			AND report_type = $3
+			AND range_start = $4
+			AND range_end = $5
+			AND input_hash = $6
+	`
+
+	report, err := scanAIReport(s.pool.QueryRow(ctx, query, familyID, babyID, reportType, rangeStart, rangeEnd, inputHash))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return AIReport{}, ErrNotFound
+	}
+	if err != nil {
+		return AIReport{}, fmt.Errorf("getting AI report: %w", err)
+	}
+
+	return report, nil
+}
+
+// SaveAIReport upserts cached model output for a report input hash. Updating
+// on conflict lets a stale cache entry be refreshed without duplicate rows.
+func (s *PostgresStore) SaveAIReport(ctx context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash, model string, content map[string]any) (AIReport, error) {
+	const query = `
+		INSERT INTO ai_reports (id, family_id, baby_id, report_type, range_start, range_end, input_hash, model, content)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (family_id, baby_id, report_type, range_start, range_end, input_hash)
+		DO UPDATE SET model = EXCLUDED.model, content = EXCLUDED.content, created_at = now()
+		RETURNING id, family_id, baby_id, report_type, range_start, range_end, input_hash, model, content, created_at
+	`
+
+	report, err := scanAIReport(s.pool.QueryRow(ctx, query, uuid.New(), familyID, babyID, reportType, rangeStart, rangeEnd, inputHash, model, content))
+	if err != nil {
+		return AIReport{}, fmt.Errorf("saving AI report: %w", err)
+	}
+
+	return report, nil
+}
+
+func scanAIReport(row pgx.Row) (AIReport, error) {
+	var report AIReport
+	err := row.Scan(
+		&report.ID,
+		&report.FamilyID,
+		&report.BabyID,
+		&report.ReportType,
+		&report.RangeStart,
+		&report.RangeEnd,
+		&report.InputHash,
+		&report.Model,
+		&report.Content,
+		&report.CreatedAt,
+	)
+	return report, err
+}
+
 // UpsertUserByEmail returns the existing user with this email, creating one
 // if none exists yet. Email is the only identity a user has.
 func (s *PostgresStore) UpsertUserByEmail(ctx context.Context, email string) (User, error) {

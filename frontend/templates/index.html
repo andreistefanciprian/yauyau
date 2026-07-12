@@ -63,11 +63,15 @@
           <button type="button" class="type-filter-chip" data-filter-type="bath" title="Bath" aria-label="Filter to bath events">🛁</button>
           <button type="button" class="type-filter-chip" data-filter-type="sleep" title="Sleep" aria-label="Filter to sleep events">😴</button>
           <button type="button" class="type-filter-chip" data-filter-type="observation" title="Notes" aria-label="Filter to observation events">📝</button>
+          {{if eq .Timeline.Selected "today"}}
+          <button type="button" class="type-filter-chip type-filter-chip-ai{{if .ShowAI}} active{{end}}" title="AI summary" aria-label="Generate AI summary"
+            hx-post="/reports/daily/ai" hx-target="#timeline-workspace" hx-swap="outerHTML">AI</button>
+          {{end}}
         </div>
       </div>
     </div>
 
-    {{template "timeline-workspace" (dict "Timeline" .Timeline "DailyReport" .DailyReport)}}
+    {{template "timeline-workspace" (dict "Timeline" .Timeline "DailyReport" .DailyReport "ShowAI" .ShowAI)}}
 
     <button type="button" class="fab" id="add-event-button" aria-haspopup="dialog" aria-controls="add-event-dialog">
       <span class="fab-plus" aria-hidden="true">+</span>

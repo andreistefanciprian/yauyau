@@ -238,6 +238,67 @@ func TestActivateInvitedMembership_NotFound(t *testing.T) {
 	}
 }
 
+func TestAIReportCacheUpsert(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+
+	owner, err := s.UpsertUserByEmail(ctx, testEmail(t))
+	if err != nil {
+		t.Fatalf("upsert owner: %v", err)
+	}
+	familyID, err := s.CreateFamilyWithOwner(ctx, owner.ID, "test family")
+	if err != nil {
+		t.Fatalf("create family: %v", err)
+	}
+	baby, err := s.CreateBaby(ctx, familyID, "Test Baby", "Australia/Adelaide")
+	if err != nil {
+		t.Fatalf("create baby: %v", err)
+	}
+
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM ai_reports WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM babies WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE id = $1`, owner.ID)
+	})
+
+	rangeStart := time.Date(2026, 7, 12, 0, 0, 0, 0, time.UTC)
+	rangeEnd := rangeStart.AddDate(0, 0, 1)
+	first, err := s.SaveAIReport(ctx, familyID, baby.ID, "daily", rangeStart, rangeEnd, "hash-1", "model-a", map[string]any{
+		"ai_summary": "First summary",
+	})
+	if err != nil {
+		t.Fatalf("save first report: %v", err)
+	}
+
+	second, err := s.SaveAIReport(ctx, familyID, baby.ID, "daily", rangeStart, rangeEnd, "hash-1", "model-b", map[string]any{
+		"ai_summary": "Updated summary",
+	})
+	if err != nil {
+		t.Fatalf("save second report: %v", err)
+	}
+	if second.ID != first.ID {
+		t.Fatalf("expected upsert to keep the same id, got %v vs %v", second.ID, first.ID)
+	}
+
+	got, err := s.GetAIReport(ctx, familyID, baby.ID, "daily", rangeStart, rangeEnd, "hash-1")
+	if err != nil {
+		t.Fatalf("get AI report: %v", err)
+	}
+	if got.Model != "model-b" {
+		t.Fatalf("Model = %q, want model-b", got.Model)
+	}
+	if got.Content["ai_summary"] != "Updated summary" {
+		t.Fatalf("ai_summary = %#v", got.Content["ai_summary"])
+	}
+
+	_, err = s.GetAIReport(ctx, familyID, baby.ID, "daily", rangeStart, rangeEnd, "missing")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound for missing hash, got %v", err)
+	}
+}
+
 func TestCreateInvite_CreatesUserAndMembership(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()

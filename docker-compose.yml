@@ -24,6 +24,8 @@ services:
       JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET}
       AUTH_SERVICE_URL: http://auth-service:${AUTH_SERVICE_PORT}
       FRONTEND_AUTH_SECRET: ${FRONTEND_AUTH_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL}
     ports:
       - "${BACKEND_API_PORT}:${BACKEND_API_PORT}"
     depends_on:

@@ -1,7 +1,7 @@
 // Drives the single "Add Event" dialog: step 1 picks an event type, step 2
 // shows only that type's form. Each form posts straight to its existing
-// endpoint (/nappies, /feeds, /pumps, /baths, /sleeps, /observations) via htmx and swaps in
-// the refreshed #timeline on success.
+// endpoint (/nappies, /feeds, /pumps, /baths, /sleeps, /observations) via htmx
+// and swaps in the refreshed timeline workspace on success.
 
 const dialog = document.getElementById("add-event-dialog");
 const openButton = document.getElementById("add-event-button");
@@ -367,14 +367,39 @@ function applyEventFilter() {
   if (filterEmptyMessage) filterEmptyMessage.hidden = cards.length === 0 || anyVisible;
 }
 
+function updateAIReportFilterChip() {
+  const chip = document.querySelector(".type-filter-chip-ai");
+  const workspace = document.getElementById("timeline-workspace");
+  if (!chip || !workspace) return;
+  chip.classList.toggle("active", workspace.dataset.showAi === "true");
+}
+
+function hideAIReport() {
+  const workspace = document.getElementById("timeline-workspace");
+  if (!workspace) return;
+
+  const aiReport = workspace.querySelector(".daily-report-ai");
+  if (aiReport) aiReport.remove();
+  workspace.dataset.showAi = "false";
+  updateAIReportFilterChip();
+}
+
 if (typeFilter) {
   setActiveEventFilterChips(loadStoredEventFilter());
   applyEventFilter();
+  updateAIReportFilterChip();
   if (filtersSummary) updateFiltersSummary();
 
   typeFilter.addEventListener("click", (event) => {
     const chip = event.target.closest(".type-filter-chip");
     if (!chip) return;
+    if (chip.classList.contains("type-filter-chip-ai") && chip.classList.contains("active")) {
+      event.preventDefault();
+      event.stopPropagation();
+      hideAIReport();
+      return;
+    }
+    if (!Object.prototype.hasOwnProperty.call(chip.dataset, "filterType")) return;
 
     let types;
     if (chip.dataset.filterType === "all") {
@@ -395,11 +420,14 @@ if (typeFilter) {
     if (filtersSummary) updateFiltersSummary();
   });
 
-  // Re-apply the filter every time htmx swaps in a fresh #timeline (after
-  // creating, editing, or deleting an event), since the new markup starts
-  // with every card visible.
+  // Re-apply the filter every time htmx swaps in a fresh workspace (after
+  // creating, editing, deleting, or generating an AI report), since the new
+  // timeline markup starts with every card visible.
   document.body.addEventListener("htmx:afterSwap", (event) => {
-    if (event.target.id === "timeline") applyEventFilter();
+    if (event.target.id === "timeline-workspace") {
+      applyEventFilter();
+      updateAIReportFilterChip();
+    }
   });
 }
 

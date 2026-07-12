@@ -44,6 +44,21 @@ type Event struct {
 	Attributes map[string]any `json:"attributes"`
 }
 
+// AIReport is cached model output for a report input hash. Content is JSONB
+// so report-specific fields can evolve without schema churn.
+type AIReport struct {
+	ID         uuid.UUID      `json:"id"`
+	FamilyID   uuid.UUID      `json:"family_id"`
+	BabyID     uuid.UUID      `json:"baby_id"`
+	ReportType string         `json:"report_type"`
+	RangeStart time.Time      `json:"range_start"`
+	RangeEnd   time.Time      `json:"range_end"`
+	InputHash  string         `json:"input_hash"`
+	Model      string         `json:"model"`
+	Content    map[string]any `json:"content"`
+	CreatedAt  time.Time      `json:"created_at"`
+}
+
 // User is a person who can log in via magic link. Email is the only
 // identity a user has — there is no password.
 type User struct {

@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/andreistefanciprian/yauli/backend-api/internal/aiclient"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/authclient"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/authctx"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/handlers"
@@ -61,7 +62,12 @@ func main() {
 		log.Fatalf("run migrations: %v", err)
 	}
 
-	h := handlers.New(store.NewPostgresStore(pool), authclient.New(authServiceURL, frontendAuthSecret))
+	var aiClient handlers.DailyReportAIClient
+	if ai := aiclient.New(os.Getenv("OPENAI_API_KEY"), os.Getenv("OPENAI_MODEL")); ai.Enabled() {
+		aiClient = ai
+	}
+
+	h := handlers.New(store.NewPostgresStore(pool), authclient.New(authServiceURL, frontendAuthSecret), aiClient)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -88,6 +94,7 @@ func main() {
 			})
 			r.Route("/reports", func(r chi.Router) {
 				r.Get("/daily", h.GetDailyReport)
+				r.Post("/daily/ai", h.GenerateDailyReportAI)
 			})
 			r.Route("/nappies", func(r chi.Router) {
 				r.Post("/", h.CreateNappy)

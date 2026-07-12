@@ -1,5 +1,5 @@
 {{define "timeline-workspace"}}
-<div id="timeline-workspace" aria-live="polite">
+<div id="timeline-workspace" data-show-ai="{{if .ShowAI}}true{{else}}false{{end}}" aria-live="polite">
   {{with .DailyReport}}
   <section class="daily-report" aria-labelledby="daily-report-title">
     <div class="daily-report-header">
@@ -15,6 +15,25 @@
       <li>{{.}}</li>
       {{end}}
     </ul>
+    {{end}}
+    {{if .AISummary}}
+    <div class="daily-report-ai">
+      <p>{{.AISummary}}</p>
+      {{if .PatternNotes}}
+      <ul>
+        {{range .PatternNotes}}
+        <li>{{.}}</li>
+        {{end}}
+      </ul>
+      {{end}}
+      {{if .SuggestedQuestions}}
+      <div class="daily-report-questions">
+        {{range .SuggestedQuestions}}
+        <span>{{.}}</span>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
     {{end}}
   </section>
   {{end}}
