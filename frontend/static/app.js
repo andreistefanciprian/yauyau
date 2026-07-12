@@ -106,7 +106,6 @@ function updatePooSizeFields(scope) {
 
     const kind = selectedRadioValue(form, "kind");
     const show = kind === "poo" || kind === "both";
-    container.hidden = !show;
     container.disabled = !show;
   });
 }
@@ -210,6 +209,13 @@ function setFieldValue(form, name, value) {
   }
 }
 
+function setCheckboxValues(form, name, rawValues) {
+  const values = new Set((rawValues || "").split(",").filter(Boolean));
+  form.querySelectorAll(`input[type="checkbox"][name="${name}"]`).forEach((checkbox) => {
+    checkbox.checked = values.has(checkbox.value);
+  });
+}
+
 function setSleepEndFromStart(form, durationMinutes) {
   const minutes = Number.parseInt(durationMinutes, 10);
   const startDate = form.querySelector('input[name="date"]');
@@ -305,7 +311,8 @@ function openEditDialog(button) {
   switch (type) {
     case "nappy":
       setRadioValue(activeSection, "kind", button.dataset.kind, "wet");
-      setRadioValue(activeSection, "poo_size", button.dataset.pooSize, "");
+      setRadioValue(activeSection, "poo_size", button.dataset.pooSize, "medium");
+      setCheckboxValues(activeSection, "labels", button.dataset.labels);
       updatePooSizeFields(editForm);
       setFieldValue(activeSection, "notes", button.dataset.notes);
       break;

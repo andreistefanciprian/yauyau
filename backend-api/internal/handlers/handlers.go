@@ -317,13 +317,24 @@ func normalizeEventAttributes(w http.ResponseWriter, eventType string, raw map[s
 		}
 		attributes := map[string]any{"kind": string(kind)}
 		if kind == NappyKindPoo || kind == NappyKindBoth {
-			pooSize := PooSize(attributeString(raw, "poo_size"))
-			if pooSize != "" {
-				if !pooSize.Valid() {
-					writeError(w, http.StatusBadRequest, "poo_size must be one of: smear, small, medium, large, blowout")
-					return nil, false
-				}
-				attributes["poo_size"] = string(pooSize)
+			pooSize := PooSizeMedium
+			if rawPooSize := attributeString(raw, "poo_size"); rawPooSize != "" {
+				pooSize = PooSize(rawPooSize)
+			}
+			if !pooSize.Valid() {
+				writeError(w, http.StatusBadRequest, "poo_size must be one of: smear, small, medium, large, blowout")
+				return nil, false
+			}
+			attributes["poo_size"] = string(pooSize)
+		}
+		if rawLabels, ok := raw["labels"]; ok {
+			labels, ok := nappyLabelsFromAttribute(rawLabels)
+			if !ok {
+				writeError(w, http.StatusBadRequest, "labels include an unsupported nappy label")
+				return nil, false
+			}
+			if len(labels) > 0 {
+				attributes["labels"] = labels
 			}
 		}
 		if notes := strings.TrimSpace(attributeString(raw, "notes")); notes != "" {

@@ -120,13 +120,24 @@
           <label><input type="radio" name="kind" value="both"> Both</label>
         </fieldset>
 
-        <fieldset data-poo-size-field hidden disabled>
+        <fieldset class="label-chip-group" data-poo-size-field disabled>
           <legend>Poo size</legend>
           <label><input type="radio" name="poo_size" value="smear"> 💨 Smear</label>
           <label><input type="radio" name="poo_size" value="small"> 💩 Small</label>
           <label><input type="radio" name="poo_size" value="medium" checked> 💩💩 Medium</label>
           <label><input type="radio" name="poo_size" value="large"> 💩💩💩 Large</label>
           <label><input type="radio" name="poo_size" value="blowout"> 💥 Blowout</label>
+        </fieldset>
+
+        <fieldset class="label-chip-group">
+          <legend>Labels (optional)</legend>
+          <label><input type="checkbox" name="labels" value="mustard_yellow"> Mustard yellow</label>
+          <label><input type="checkbox" name="labels" value="green"> Green</label>
+          <label><input type="checkbox" name="labels" value="brown"> Brown</label>
+          <label><input type="checkbox" name="labels" value="seedy"> Seedy</label>
+          <label><input type="checkbox" name="labels" value="runny"> Runny</label>
+          <label><input type="checkbox" name="labels" value="mucus"> Mucus</label>
+          <label><input type="checkbox" name="labels" value="rash"> Rash</label>
         </fieldset>
 
         <label class="field-label">
@@ -349,13 +360,23 @@
             <label><input type="radio" name="kind" value="poo"> Poo</label>
             <label><input type="radio" name="kind" value="both"> Both</label>
           </fieldset>
-          <fieldset data-poo-size-field hidden disabled>
+          <fieldset class="label-chip-group" data-poo-size-field disabled>
             <legend>Poo size</legend>
             <label><input type="radio" name="poo_size" value="smear"> 💨 Smear</label>
             <label><input type="radio" name="poo_size" value="small"> 💩 Small</label>
             <label><input type="radio" name="poo_size" value="medium"> 💩💩 Medium</label>
             <label><input type="radio" name="poo_size" value="large"> 💩💩💩 Large</label>
             <label><input type="radio" name="poo_size" value="blowout"> 💥 Blowout</label>
+          </fieldset>
+          <fieldset class="label-chip-group">
+            <legend>Labels (optional)</legend>
+            <label><input type="checkbox" name="labels" value="mustard_yellow"> Mustard yellow</label>
+            <label><input type="checkbox" name="labels" value="green"> Green</label>
+            <label><input type="checkbox" name="labels" value="brown"> Brown</label>
+            <label><input type="checkbox" name="labels" value="seedy"> Seedy</label>
+            <label><input type="checkbox" name="labels" value="runny"> Runny</label>
+            <label><input type="checkbox" name="labels" value="mucus"> Mucus</label>
+            <label><input type="checkbox" name="labels" value="rash"> Rash</label>
           </fieldset>
           <label class="field-label">
             Notes (optional)

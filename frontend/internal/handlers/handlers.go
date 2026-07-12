@@ -95,6 +95,7 @@ type TimelineEvent struct {
 	TimeValue       string
 	KindValue       string
 	PooSizeValue    string
+	LabelValues     string
 	TypeValue       string
 	AmountMl        string
 	DurationMinutes string
@@ -199,6 +200,7 @@ func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
 	payload := map[string]any{
 		"kind":        r.FormValue("kind"),
 		"poo_size":    r.FormValue("poo_size"),
+		"labels":      r.Form["labels"],
 		"notes":       r.FormValue("notes"),
 		"occurred_at": occurredAt.Format(time.RFC3339),
 	}
@@ -460,6 +462,7 @@ func (h *Handlers) eventUpdatePayloadFromForm(loc *time.Location, r *http.Reques
 	case "nappy":
 		attributes["kind"] = r.FormValue("kind")
 		attributes["poo_size"] = r.FormValue("poo_size")
+		attributes["labels"] = r.Form["labels"]
 		attributes["notes"] = r.FormValue("notes")
 	case "feed":
 		amountMl, err := parseOptionalInt(r.FormValue("amount_ml"))
@@ -767,16 +770,20 @@ func nappyTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Tim
 	occurredAt := ev.OccurredAt.In(loc)
 	kind := attributeString(ev.Attributes, "kind")
 	pooSize := attributeString(ev.Attributes, "poo_size")
+	labels := attributeStringSlice(ev.Attributes, "labels")
 	notes := attributeString(ev.Attributes, "notes")
 	if notes == "" {
 		notes = attributeString(ev.Attributes, "colour")
 	}
-	detail := notes
+	detailParts := []string{}
 	if pooSize != "" {
-		detail = pooSizeLabel(pooSize)
-		if notes != "" {
-			detail += " · " + notes
-		}
+		detailParts = append(detailParts, pooSizeLabel(pooSize))
+	}
+	for _, label := range labels {
+		detailParts = append(detailParts, nappyLabelText(label))
+	}
+	if notes != "" {
+		detailParts = append(detailParts, notes)
 	}
 
 	return TimelineEvent{
@@ -784,10 +791,11 @@ func nappyTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Tim
 		Icon:         "💩",
 		TypeLabel:    "Nappy",
 		Kind:         titleCase(kind),
-		Detail:       detail,
+		Detail:       strings.Join(detailParts, " · "),
 		Time:         formatEventTime(occurredAt, now),
 		KindValue:    kind,
 		PooSizeValue: pooSize,
+		LabelValues:  strings.Join(labels, ","),
 		Notes:        notes,
 	}
 }
@@ -806,6 +814,39 @@ func pooSizeLabel(size string) string {
 		return "💥 Blowout"
 	default:
 		return titleCase(size)
+	}
+}
+
+func nappyLabelText(label string) string {
+	switch label {
+	case "mustard_yellow":
+		return "Mustard yellow"
+	case "green":
+		return "Green"
+	case "brown":
+		return "Brown"
+	case "black":
+		return "Black"
+	case "red_blood":
+		return "Red / blood"
+	case "pale_white":
+		return "Pale / white"
+	case "seedy":
+		return "Seedy"
+	case "runny":
+		return "Runny"
+	case "sticky":
+		return "Sticky"
+	case "hard":
+		return "Hard"
+	case "mucus":
+		return "Mucus"
+	case "smelly":
+		return "Smelly"
+	case "rash":
+		return "Rash"
+	default:
+		return titleCase(label)
 	}
 }
 
@@ -982,6 +1023,21 @@ func amountAndDuration(attributes map[string]any, amountKey, unit string) string
 func attributeString(attributes map[string]any, key string) string {
 	s, _ := attributes[key].(string)
 	return s
+}
+
+func attributeStringSlice(attributes map[string]any, key string) []string {
+	raw, ok := attributes[key].([]any)
+	if !ok {
+		return nil
+	}
+	values := make([]string, 0, len(raw))
+	for _, value := range raw {
+		s, ok := value.(string)
+		if ok {
+			values = append(values, s)
+		}
+	}
+	return values
 }
 
 // attributeInt reads an int field out of an event's attributes map. JSON

@@ -50,10 +50,11 @@ func (s PooSize) Valid() bool {
 }
 
 type createNappyRequest struct {
-	PooSize    string `json:"poo_size"`
-	Kind       string `json:"kind"`
-	Notes      string `json:"notes"`
-	OccurredAt string `json:"occurred_at"`
+	PooSize    string   `json:"poo_size"`
+	Labels     []string `json:"labels"`
+	Kind       string   `json:"kind"`
+	Notes      string   `json:"notes"`
+	OccurredAt string   `json:"occurred_at"`
 }
 
 // nappyResponse is a nappy-change event as returned to API consumers.
@@ -62,6 +63,7 @@ type nappyResponse struct {
 	BabyID     uuid.UUID `json:"baby_id"`
 	Kind       NappyKind `json:"kind"`
 	PooSize    PooSize   `json:"poo_size,omitempty"`
+	Labels     []string  `json:"labels,omitempty"`
 	Notes      string    `json:"notes,omitempty"`
 	OccurredAt time.Time `json:"occurred_at"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -87,14 +89,23 @@ func (h *Handlers) CreateNappy(w http.ResponseWriter, r *http.Request) {
 
 	attributes := map[string]any{"kind": string(kind)}
 	if kind == NappyKindPoo || kind == NappyKindBoth {
-		pooSize := PooSize(req.PooSize)
+		pooSize := PooSizeMedium
 		if req.PooSize != "" {
-			if !pooSize.Valid() {
-				writeError(w, http.StatusBadRequest, "poo_size must be one of: smear, small, medium, large, blowout")
-				return
-			}
-			attributes["poo_size"] = string(pooSize)
+			pooSize = PooSize(req.PooSize)
 		}
+		if !pooSize.Valid() {
+			writeError(w, http.StatusBadRequest, "poo_size must be one of: smear, small, medium, large, blowout")
+			return
+		}
+		attributes["poo_size"] = string(pooSize)
+	}
+	labels, ok := normalizeNappyLabels(req.Labels)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "labels include an unsupported nappy label")
+		return
+	}
+	if len(labels) > 0 {
+		attributes["labels"] = labels
 	}
 	if req.Notes != "" {
 		attributes["notes"] = req.Notes
@@ -111,10 +122,60 @@ func nappyFromEvent(ev store.Event) nappyResponse {
 	if pooSize, ok := ev.Attributes["poo_size"].(string); ok {
 		resp.PooSize = PooSize(pooSize)
 	}
+	if labels, ok := nappyLabelsFromAttribute(ev.Attributes["labels"]); ok {
+		resp.Labels = labels
+	}
 	if notes, ok := ev.Attributes["notes"].(string); ok {
 		resp.Notes = notes
 	} else if colour, ok := ev.Attributes["colour"].(string); ok {
 		resp.Notes = colour
 	}
 	return resp
+}
+
+func normalizeNappyLabels(raw []string) ([]string, bool) {
+	seen := map[string]bool{}
+	labels := make([]string, 0, len(raw))
+	for _, label := range raw {
+		if !validNappyLabel(label) {
+			return nil, false
+		}
+		if seen[label] {
+			continue
+		}
+		seen[label] = true
+		labels = append(labels, label)
+	}
+	return labels, true
+}
+
+func nappyLabelsFromAttribute(raw any) ([]string, bool) {
+	switch labels := raw.(type) {
+	case nil:
+		return nil, true
+	case []string:
+		return normalizeNappyLabels(labels)
+	case []any:
+		values := make([]string, 0, len(labels))
+		for _, label := range labels {
+			value, ok := label.(string)
+			if !ok {
+				return nil, false
+			}
+			values = append(values, value)
+		}
+		return normalizeNappyLabels(values)
+	default:
+		return nil, false
+	}
+}
+
+func validNappyLabel(label string) bool {
+	switch label {
+	case "mustard_yellow", "green", "brown", "black", "red_blood", "pale_white",
+		"seedy", "runny", "sticky", "hard", "mucus", "smelly", "rash":
+		return true
+	default:
+		return false
+	}
 }
