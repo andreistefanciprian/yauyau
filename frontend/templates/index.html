@@ -167,9 +167,9 @@
         <input type="hidden" name="range" value="{{.Timeline.Selected}}">
         <fieldset>
           <legend>Type</legend>
-          <label><input type="radio" name="type" value="breast" required checked> Breast</label>
+          <label><input type="radio" name="type" value="breast" required> Breast</label>
           <label><input type="radio" name="type" value="formula"> Formula</label>
-          <label><input type="radio" name="type" value="expressed"> Expressed</label>
+          <label><input type="radio" name="type" value="expressed" checked> Expressed</label>
         </fieldset>
 
         <label class="field-label">
@@ -179,19 +179,19 @@
 
         <label class="field-label">
           Amount (ml, optional)
-          {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "InputStep" "5" "SliderMin" "0" "SliderMax" "300" "SliderStep" "5" "Label" "feed amount" "Value" "80")}}
+          {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "InputStep" "5" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed amount" "Value" "80")}}
         </label>
 
         <label class="field-label">
           Duration (minutes, optional)
-          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "feed duration" "Value" "20")}}
+          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "feed duration" "Value" "10")}}
         </label>
 
         <div class="field-row">
           <fieldset>
             <legend>Time is</legend>
-            <label><input type="radio" name="feed_time_basis" value="start" required> Start time</label>
-            <label><input type="radio" name="feed_time_basis" value="end" checked> End time</label>
+            <label><input type="radio" name="feed_time_basis" value="start" required checked> Start time</label>
+            <label><input type="radio" name="feed_time_basis" value="end"> End time</label>
           </fieldset>
           <label class="field-label">
             Time
@@ -363,7 +363,7 @@
             <option value="">Not specified</option>
             <option value="armpit">Armpit</option>
             <option value="forehead">Forehead</option>
-            <option value="ear">Ear</option>
+            <option value="ear" selected>Ear</option>
             <option value="rectal">Rectal</option>
             <option value="other">Other</option>
           </select>
@@ -446,7 +446,7 @@
           </label>
           <label class="field-label">
             Amount (ml, optional)
-            {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "InputStep" "5" "SliderMin" "0" "SliderMax" "300" "SliderStep" "5" "Label" "feed amount")}}
+            {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "InputStep" "5" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed amount")}}
           </label>
           <label class="field-label">
             Duration (minutes, optional)
