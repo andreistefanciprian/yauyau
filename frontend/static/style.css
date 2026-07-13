@@ -1229,23 +1229,6 @@ fieldset:disabled {
   opacity: 0.55;
 }
 
-.quick-notes {
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  padding: 0.55rem 0.65rem;
-  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
-}
-
-.quick-notes summary {
-  cursor: pointer;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.quick-notes fieldset {
-  margin-top: 0.6rem;
-}
-
 .label-chip-group {
   gap: 0.5rem;
 }

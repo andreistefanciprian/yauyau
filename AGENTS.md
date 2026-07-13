@@ -478,6 +478,11 @@ Prefer:
 * HTMX
 * progressive enhancement
 
+Optimize common event-entry flows for the fewest practical clicks and taps.
+Yauli is used by busy, tired parents, often one-handed or in the middle of the
+night, so frequently used choices should be visible and directly selectable
+rather than hidden behind expandable sections when space allows.
+
 ---
 
 # Timeline Philosophy
