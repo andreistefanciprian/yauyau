@@ -127,6 +127,21 @@ A change is complete only when all applicable items are satisfied:
 If a check cannot be run, say so explicitly. Never imply that an unrun check
 passed.
 
+## Commit Attribution
+
+Keep the human operator as the primary Git author. Use co-author trailers to
+make AI assistance visible in GitHub history.
+
+When an AI assistant creates a commit, include that assistant's
+`Co-authored-by` trailer in the commit message. For Codex, use:
+
+```text
+Co-authored-by: Codex <codex@openai.com>
+```
+
+If more than one assistant contributed materially to the same commit, include
+one `Co-authored-by` trailer per assistant.
+
 ## Risk-Based Review
 
 Not every line deserves equal review effort.
