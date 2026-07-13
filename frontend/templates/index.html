@@ -177,18 +177,15 @@
           <input type="text" name="notes" placeholder="e.g. left side">
         </label>
 
-        <details class="quick-notes">
-          <summary>Quick notes</summary>
-          <fieldset class="label-chip-group">
-            <legend>Feed context</legend>
-            <label><input type="checkbox" name="labels" value="burped_halfway"> Burped halfway</label>
-            <label><input type="checkbox" name="labels" value="burped_after"> Burped after</label>
-            <label><input type="checkbox" name="labels" value="spit_up"> Spit-up</label>
-            <label><input type="checkbox" name="labels" value="fussy"> Fussy</label>
-            <label><input type="checkbox" name="labels" value="sleepy"> Sleepy</label>
-            <label><input type="checkbox" name="labels" value="settled_after"> Settled after</label>
-          </fieldset>
-        </details>
+        <fieldset class="label-chip-group">
+          <legend>Feed context (optional)</legend>
+          <label><input type="checkbox" name="labels" value="burped_halfway"> Burped halfway</label>
+          <label><input type="checkbox" name="labels" value="burped_after"> Burped after</label>
+          <label><input type="checkbox" name="labels" value="spit_up"> Spit-up</label>
+          <label><input type="checkbox" name="labels" value="fussy"> Fussy</label>
+          <label><input type="checkbox" name="labels" value="sleepy"> Sleepy</label>
+          <label><input type="checkbox" name="labels" value="settled_after"> Settled after</label>
+        </fieldset>
 
         <label class="field-label">
           Amount (ml, optional)
@@ -457,18 +454,15 @@
             Notes (optional)
             <input type="text" name="notes" placeholder="e.g. left side">
           </label>
-          <details class="quick-notes">
-            <summary>Quick notes</summary>
-            <fieldset class="label-chip-group">
-              <legend>Feed context</legend>
-              <label><input type="checkbox" name="labels" value="burped_halfway"> Burped halfway</label>
-              <label><input type="checkbox" name="labels" value="burped_after"> Burped after</label>
-              <label><input type="checkbox" name="labels" value="spit_up"> Spit-up</label>
-              <label><input type="checkbox" name="labels" value="fussy"> Fussy</label>
-              <label><input type="checkbox" name="labels" value="sleepy"> Sleepy</label>
-              <label><input type="checkbox" name="labels" value="settled_after"> Settled after</label>
-            </fieldset>
-          </details>
+          <fieldset class="label-chip-group">
+            <legend>Feed context (optional)</legend>
+            <label><input type="checkbox" name="labels" value="burped_halfway"> Burped halfway</label>
+            <label><input type="checkbox" name="labels" value="burped_after"> Burped after</label>
+            <label><input type="checkbox" name="labels" value="spit_up"> Spit-up</label>
+            <label><input type="checkbox" name="labels" value="fussy"> Fussy</label>
+            <label><input type="checkbox" name="labels" value="sleepy"> Sleepy</label>
+            <label><input type="checkbox" name="labels" value="settled_after"> Settled after</label>
+          </fieldset>
           <label class="field-label">
             Amount (ml, optional)
             {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "InputStep" "5" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed amount")}}
