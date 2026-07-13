@@ -8,26 +8,25 @@ documents the production-grade auth shape that fits Yauli's service split; OAuth
 ## Why this differs from a single-app magic link
 
 A simpler reference design (one API, JWT-in-cookie, no session store) works
-well for a small single-service app. Yauli's architecture is already
-committed to more than that before auth exists at all:
+well for a small single-service app. Yauli's architecture is committed to
+more than that:
 
 * A dedicated **auth-service**, separate from backend-api and frontend, per
   AGENTS.md's service split — frontend and mcp-server are thin clients and
   never own auth logic.
-* A schema that already plans for both a `sessions` table *and*
+* A schema with both a `sessions` table *and*
   `oauth_access_tokens` / `oauth_refresh_tokens` — i.e. two front doors
   (human login via magic link, machine login via ChatGPT's OAuth 2.1 + PKCE)
   that should converge on one token model inside auth-service.
-* No existing user/family model. `backend-api/internal/store/store.go`
-  currently hardcodes `FamilyID`/`BabyID`. This work introduces real
-  `users`, `families`, and `family_members` tables and retires the hardcoded
-  IDs — it is as much "build the tenancy model" as "build login."
+* A real user/family model. `users`, `families`, and `family_members` live
+  under backend-api's business domain, while auth-service treats their IDs as
+  opaque references.
 
 ## Decisions made
 
 | Question | Decision |
 |---|---|
-| Where does auth logic live? | New `auth-service`, built now (not deferred). Owns **only** magic links, sessions, and (later) OAuth tokens. |
+| Where does auth logic live? | `auth-service` owns **only** magic links, sessions, and (later) OAuth tokens. |
 | Who owns users/families? | **backend-api**, per AGENTS.md's existing split (`users`/`families`/`family_members` are Core entities under backend-api's business domain; `magic_links`/`sessions`/`oauth_*` are Authentication entities under auth-service). auth-service never queries those tables directly — it calls backend-api's internal API to upsert a user by email, create a family, or resolve family membership. |
 | Session model | Hybrid: opaque, DB-backed, revocable **session** (long-lived) mints short-lived, signed **JWT access tokens** on demand. Browser cookie holds only the session ID, never a JWT. |
 | First-slice scope | Multi-family ready: signup, family creation, and inviting other members are in scope now, not deferred. |
@@ -294,7 +293,7 @@ which will reuse the same JWT access-token minting/verification path.
 ## Network exposure note
 
 AGENTS.md marks auth-service as private/internal-only, same as backend-api.
-That holds for this slice as originally planned: the browser only ever talks
+That holds for the current magic-link flow: the browser only ever talks
 to frontend; frontend calls auth-service and backend-api server-to-server.
 
 **Resolved for the long term, not just this slice:** auth-service stays
@@ -334,10 +333,9 @@ around from the start rather than patched in later:
   a full redesign to a typed one-time-code flow — that trades away the
   "click a link" UX a magic link is supposed to have, for a narrow,
   short-window risk that's already mostly closed by single-use + short TTL.
-* **Hashed tokens at rest**: `magic_links.token_hash` and the session
-  identifier are SHA-256 hashes; the raw value exists only in the emailed
-  URL / the browser cookie. A DB dump can't be replayed as a live link or
-  session.
+* **Hashed magic-link tokens at rest**: `magic_links.token_hash` is a SHA-256
+  hash; the raw value exists only in the emailed URL. A DB dump can't be
+  replayed as a live magic link.
 * **Atomic single-use**: consuming a magic link is one
   `UPDATE ... WHERE used_at IS NULL AND expires_at > NOW() RETURNING ...`,
   not a SELECT then UPDATE — closes the race between a real click and a
@@ -371,6 +369,6 @@ Production sends magic links through Mailgun's Messages API. Set
 
 * OAuth 2.1 + PKCE for ChatGPT / mcp-server.
 * Google / Apple sign-in.
-* Removing a family member, transferring ownership, deleting a family.
+* Transferring ownership or deleting a family.
 * Rate limiting on `/auth/request` (needed before this is public-facing for
   real, but not blocking for Cip & Jenny using it first).
