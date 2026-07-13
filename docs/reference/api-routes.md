@@ -68,8 +68,8 @@ signature/expiry and decodes the caller's identity into context — see
   factual report-data payload for one to 31 local calendar days. Supports
   inclusive `?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`; omitting both
   dates defaults to today. The response includes minimal baby context, range
-  metadata, one deterministic daily report per day, and normalized events
-  ordered oldest-first. It intentionally does not include totals, derived
+  metadata, and one deterministic daily report plus normalized oldest-first
+  events per day. It intentionally does not include totals, derived
   metrics, baselines, or AI output yet.
 * `PATCH /api/v1/babies/current/events/{id}` → `UpdateEvent`, type-checked
   generic edit for an existing current-baby event.

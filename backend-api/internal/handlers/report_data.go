@@ -18,10 +18,9 @@ const maxReportDataDays = 31
 var errInvalidReportDataRange = errors.New("invalid report date range")
 
 type reportDataResponse struct {
-	Baby   reportBabyResponse    `json:"baby"`
-	Range  reportRangeResponse   `json:"range"`
-	Days   []reportDayResponse   `json:"days"`
-	Events []reportEventResponse `json:"events"`
+	Baby  reportBabyResponse  `json:"baby"`
+	Range reportRangeResponse `json:"range"`
+	Days  []reportDayResponse `json:"days"`
 }
 
 type reportBabyResponse struct {
@@ -175,7 +174,6 @@ func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Locatio
 	})
 
 	days := make([]reportDayResponse, 0, window.DaysIncluded)
-	allEvents := make([]reportEventResponse, 0, len(events))
 	for cursor := window.RangeStart; !cursor.After(window.EndStart); cursor = cursor.AddDate(0, 0, 1) {
 		dayStart := cursor
 		dayEnd := dayStart.AddDate(0, 0, 1)
@@ -189,7 +187,6 @@ func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Locatio
 		for _, ev := range dayEvents {
 			mapped := reportEventFromStore(ev, loc)
 			reportEvents = append(reportEvents, mapped)
-			allEvents = append(allEvents, mapped)
 		}
 
 		days = append(days, reportDayResponse{
@@ -216,8 +213,7 @@ func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Locatio
 			RangeEnd:      window.RangeEnd,
 			GeneratedAt:   window.GeneratedAt,
 		},
-		Days:   days,
-		Events: allEvents,
+		Days: days,
 	}
 }
 

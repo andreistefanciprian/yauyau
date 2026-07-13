@@ -114,11 +114,14 @@ func TestBuildReportDataGroupsDaysAndNormalizesEvents(t *testing.T) {
 	if resp.Days[0].LocalDate != "2026-07-12" || resp.Days[1].LocalDate != "2026-07-13" {
 		t.Fatalf("day dates = %s, %s", resp.Days[0].LocalDate, resp.Days[1].LocalDate)
 	}
-	if len(resp.Events) != 2 || resp.Events[0].ID != earlier.ID || resp.Events[1].ID != later.ID {
-		t.Fatalf("events are not oldest-first: %#v", resp.Events)
+	if len(resp.Days[0].Events) != 1 || resp.Days[0].Events[0].ID != earlier.ID {
+		t.Fatalf("first day events = %#v, want earlier event", resp.Days[0].Events)
+	}
+	if len(resp.Days[1].Events) != 1 || resp.Days[1].Events[0].ID != later.ID {
+		t.Fatalf("second day events = %#v, want later event", resp.Days[1].Events)
 	}
 
-	feed := resp.Events[1]
+	feed := resp.Days[1].Events[0]
 	if feed.LocalDate != "2026-07-13" || feed.LocalTime != "08:20" {
 		t.Fatalf("feed local date/time = %s %s", feed.LocalDate, feed.LocalTime)
 	}
@@ -156,8 +159,8 @@ func TestBuildReportDataOrdersEqualTimestampsByEventID(t *testing.T) {
 		{ID: firstID, EventType: eventTypeFeed, OccurredAt: occurredAt, Attributes: map[string]any{"type": "expressed"}},
 	})
 
-	if len(resp.Events) != 2 || resp.Events[0].ID != firstID || resp.Events[1].ID != secondID {
-		t.Fatalf("events = %#v, want equal timestamps ordered by event ID", resp.Events)
+	if len(resp.Days[0].Events) != 2 || resp.Days[0].Events[0].ID != firstID || resp.Days[0].Events[1].ID != secondID {
+		t.Fatalf("events = %#v, want equal timestamps ordered by event ID", resp.Days[0].Events)
 	}
 }
 
