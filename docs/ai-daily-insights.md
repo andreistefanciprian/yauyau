@@ -96,7 +96,9 @@ This is useful for the UI, but it is not enough context for AI insights.
 
 Report data is the complete factual input for one selected local date range.
 For a one-day report, `start_date` and `end_date` are the same date. It should
-include daily reports, totals, derived metrics, and ordered raw events.
+include range-level totals, daily reports, daily totals, and ordered raw
+events. Derived metrics should be added separately after the factual contract
+is stable.
 
 Proposed endpoint:
 
@@ -117,26 +119,39 @@ This endpoint should be backend-owned and can later be reused by MCP tools.
     "birth_date": "2026-01-01",
     "age_days": 193
   },
-  "day": {
-    "local_date": "2026-07-13",
-    "label": "Today",
+  "range": {
+    "start_date": "2026-07-13",
+    "end_date": "2026-07-13",
+    "days_included": 1,
+    "includes_today": true,
+    "is_partial": true,
     "range_start": "2026-07-13T00:00:00+09:30",
     "range_end": "2026-07-13T09:30:00+09:30",
-    "generated_at": "2026-07-13T09:30:00+09:30",
-    "is_today": true
-  },
-  "report": {
-    "title": "Today so far",
-    "summary": "Today has feeding, nappies, and sleep logged so far.",
-    "highlights": []
+    "generated_at": "2026-07-13T09:30:00+09:30"
   },
   "totals": {},
-  "derived": {},
-  "events": []
+  "days": [
+    {
+      "local_date": "2026-07-13",
+      "label": "Today",
+      "range_start": "2026-07-13T00:00:00+09:30",
+      "range_end": "2026-07-13T09:30:00+09:30",
+      "is_today": true,
+      "is_partial": true,
+      "report": {
+        "title": "Today so far",
+        "summary": "Today has feeding, nappies, and sleep logged so far.",
+        "highlights": []
+      },
+      "totals": {},
+      "events": []
+    }
+  ]
 }
 ```
 
-Events should be ordered oldest-first for narrative analysis.
+Events should be grouped by local day and ordered oldest-first for narrative
+analysis.
 
 ## Totals
 
@@ -587,27 +602,33 @@ Recommended sequence:
    * Include range metadata, per-day reports, and ordered events.
    * Add tests for selected date ranges.
 
-2. **Derived metrics**
+2. **Report totals**
+   * Add deterministic range-level and per-day factual totals.
+   * Include feed, nappy, sleep, pump, bath, observation, temperature, and
+     note totals.
+   * Add focused unit tests for totals and endpoint wiring.
+
+3. **Derived metrics**
    * Add deterministic feed, nappy, sleep, sequence, and logging metrics.
    * Add focused unit tests for calculations.
 
-3. **Recent baseline**
+4. **Recent baseline**
    * Add previous-7-day baseline builder.
    * Add tests for partial history and timezone boundaries.
 
-4. **AI backend**
+5. **AI backend**
    * Add OpenAI client.
    * Add `ai_reports` migration and store methods.
    * Add on-demand AI endpoint.
    * Cache by deterministic input hash and schema version.
 
-5. **Frontend AI interaction**
+6. **Frontend AI interaction**
    * Add explicit AI button/toggle.
    * Show loading/error states.
    * Keep AI hidden by default.
    * Do not call AI during normal timeline refresh.
 
-6. **MCP exposure**
+7. **MCP exposure**
    * Expose deterministic day data first.
    * Expose AI insight retrieval only after backend behavior is stable.
 

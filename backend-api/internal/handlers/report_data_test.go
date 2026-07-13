@@ -120,6 +120,15 @@ func TestBuildReportDataGroupsDaysAndNormalizesEvents(t *testing.T) {
 	if len(resp.Days[1].Events) != 1 || resp.Days[1].Events[0].ID != later.ID {
 		t.Fatalf("second day events = %#v, want later event", resp.Days[1].Events)
 	}
+	if resp.Totals.EventCount != 2 || resp.Totals.Feeds.Count != 1 || resp.Totals.Nappies.Count != 1 {
+		t.Fatalf("range totals = %#v, want one feed and one nappy", resp.Totals)
+	}
+	if resp.Days[0].Totals.EventCount != 1 || resp.Days[0].Totals.Nappies.MixedCount != 1 {
+		t.Fatalf("first day totals = %#v, want one mixed nappy", resp.Days[0].Totals)
+	}
+	if resp.Days[1].Totals.EventCount != 1 || resp.Days[1].Totals.Feeds.ExpressedMl != 80 {
+		t.Fatalf("second day totals = %#v, want one 80ml expressed feed", resp.Days[1].Totals)
+	}
 
 	feed := resp.Days[1].Events[0]
 	if feed.LocalDate != "2026-07-13" || feed.LocalTime != "08:20" {
