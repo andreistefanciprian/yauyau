@@ -133,7 +133,8 @@ sequenceDiagram
     Auth-->>Frontend: { message: "magic link sent" }
     Frontend-->>User: renders "check your inbox"
 
-    User->>Frontend: clicks link -> lands on confirmation page (GET /auth/verify?token=<raw>)
+    User->>Frontend: clicks link -> lands on confirmation page
+    Note over User,Frontend: GET /auth/verify?token=raw_token
     Note over Frontend,User: page requires an explicit click/POST before consuming the token, so email-scanner link prefetch doesn't burn it
     User->>Frontend: confirms (POST /auth/verify)
     Frontend->>Auth: POST /internal/auth/verify { token }
@@ -144,14 +145,16 @@ sequenceDiagram
     alt no row returned
         Auth-->>Frontend: 401 (not found / already used / expired)
     else valid
-        Auth->>Backend: GET /internal/family-membership?user_id=<id>&activate_if_invited=true
-        Backend-->>Auth: { found, family_id, role, status } (activates a pending invite if one exists; never creates a family - that happens later, when the user adds their first baby)
+        Auth->>Backend: GET /internal/family-membership?user_id=id&activate_if_invited=true
+        Backend-->>Auth: { found, family_id, role, status }
+        Note over Backend,Auth: Activates a pending invite if one exists. Family creation happens later when the user adds their first baby.
         Auth->>AuthDB: insert session (user_id, family_id if found else NULL, expires_at = now + 30d)
         AuthDB-->>Auth: session { id }
         Auth-->>Frontend: { session_id, user, family_id }
     end
 
-    Frontend-->>User: Set-Cookie: yauli_session=<session_id> (HttpOnly, Secure, SameSite=Lax)
+    Frontend-->>User: Set-Cookie yauli_session=session_id
+    Note over Frontend,User: Cookie is HttpOnly, Secure, SameSite=Lax
 ```
 
 The `UPDATE ... RETURNING` is one atomic statement so a token can never be
@@ -168,12 +171,13 @@ sequenceDiagram
     participant Auth as auth-service
     participant Backend as backend-api
 
-    User->>Frontend: GET /app (Cookie: yauli_session=<id>)
+    User->>Frontend: GET /app with yauli_session cookie
     Frontend->>Auth: POST /internal/auth/token { session_id }
     Auth->>Auth: look up session, check not expired/revoked
     Auth->>Auth: sign JWT (sub=user_id, family_id, exp=now+10min)
     Auth-->>Frontend: { access_token }
-    Frontend->>Backend: GET /api/v1/babies/current/events?range=today (Authorization: Bearer <access_token>)
+    Frontend->>Backend: GET /api/v1/babies/current/events?range=today
+    Note over Frontend,Backend: Authorization header uses Bearer access_token
     Backend->>Backend: verify JWT signature + expiry only (no DB call)
     Backend-->>Frontend: events scoped to family_id from JWT
     Frontend-->>User: rendered timeline
