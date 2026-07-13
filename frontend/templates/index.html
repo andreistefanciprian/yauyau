@@ -313,7 +313,7 @@
           <p class="sleep-duration-preview" data-sleep-duration-preview>Add wake-up time to calculate duration.</p>
         </div>
 
-        <button type="submit">Save</button>
+        <button type="submit" data-sleep-submit-label>Start</button>
       </form>
 
       <form class="event-form" data-type="observation" hx-post="/observations" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
