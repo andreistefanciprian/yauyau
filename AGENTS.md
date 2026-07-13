@@ -27,6 +27,157 @@ The web interface should complement ChatGPT, not replace it.
 
 ---
 
+
+# How Agents Should Work
+
+This file is both project documentation and an operating contract for coding
+agents working in the repository.
+
+Agents must optimize for correctness, simplicity, maintainability, and fast
+feedback. Producing more code is not the goal. Producing the smallest safe
+change that fits the existing system is the goal.
+
+## Before Changing Code
+
+Before editing:
+
+1. Read this file.
+2. Inspect the affected service, package, tests, routes, and nearby code.
+3. Read any relevant documents under `docs/`.
+4. Confirm where the business logic belongs.
+5. Write a short implementation plan for any change that touches more than
+   one file or crosses a service boundary.
+6. Identify risks before implementation — see Risk-Based Review below for
+   the areas that need the closest scrutiny.
+
+Do not invent routes, fields, database columns, configuration, abstractions,
+or conventions without first checking the existing implementation.
+
+If the task is ambiguous but can be completed safely, choose the smallest
+reasonable interpretation and state the assumption in the final summary.
+
+## Implementation Rules
+
+While implementing:
+
+* Prefer modifying an existing path over creating a parallel abstraction.
+* Keep changes narrowly scoped to the task.
+* Follow surrounding code before introducing a new pattern.
+* Prefer explicit, boring code over clever code.
+* Do not add interfaces, abstraction layers, or configuration for
+  hypothetical needs (see Code Style).
+* Do not refactor unrelated code unless the task cannot be completed safely
+  without it.
+* Preserve backward compatibility unless the task explicitly changes a
+  contract.
+* Treat generated migrations, auth changes, session changes, and destructive
+  operations as high-risk.
+
+## Self-Review
+
+Before declaring a task complete, review the diff and ask:
+
+* Could this be simpler?
+* Did I duplicate logic that already exists?
+* Are errors handled with useful context?
+* Did I touch unrelated files?
+* Would another engineer understand the change without asking why it exists?
+* Re-check the boundaries and risk areas above (business logic ownership,
+  abstractions, auth/authorization, API and contract changes) for anything
+  this diff crosses.
+
+## Definition of Done
+
+A change is complete only when all applicable items are satisfied:
+
+* The code builds.
+* `gofmt` and `goimports` have been run on changed Go files (see Code
+  Style).
+* Relevant tests pass.
+* New or changed behavior has tests where practical.
+* Static checks configured by the repository pass.
+* API, route, schema, configuration, and behavior changes are documented.
+* `AGENTS.md` remains accurate.
+* No unexplained TODOs, dead code, temporary debugging, or commented-out code
+  were introduced.
+* No secrets, tokens, personal data, or production credentials appear in the
+  diff or logs.
+* The final response includes:
+  * what changed;
+  * why it changed;
+  * tests and checks run;
+  * risks, assumptions, or follow-up work.
+
+If a check cannot be run, say so explicitly. Never imply that an unrun check
+passed.
+
+## Risk-Based Review
+
+Not every line deserves equal review effort.
+
+Review these areas especially carefully:
+
+* authentication and session handling;
+* authorization and family membership;
+* database migrations and destructive queries;
+* baby and family data isolation;
+* event update and delete paths;
+* timezones and calendar-day boundaries;
+* token, cookie, and magic-link handling;
+* externally visible API contracts;
+* Railway networking and service exposure;
+* anything that could lose, expose, or misattribute family data.
+
+Low-risk presentation changes may rely more heavily on tests and focused
+diff review. High-risk changes require direct inspection of the relevant
+code paths and failure modes.
+
+---
+
+# Architectural Decisions
+
+Record architectural decisions as ADRs under `docs/decisions/` — see
+[docs/decisions/README.md](docs/decisions/README.md) for the format. Write
+one when changing: service ownership boundaries, auth/session architecture,
+event storage strategy, family membership rules, public API contracts,
+deployment topology, or major dependencies/frameworks. Do not reverse an
+existing decision accidentally — read the relevant record first.
+
+---
+
+# Future AI Behaviour and Evals
+
+Yauli does not currently rely on AI-generated user-facing behavior, so there
+is no eval suite yet.
+
+When AI-generated reports, natural-language interpretation, or autonomous MCP
+workflows are introduced, add an `evals/` directory and document:
+
+* the behavior being evaluated;
+* representative input cases;
+* expected structured output;
+* deterministic checks;
+* rubric-based checks where exact matching is unsuitable;
+* safety constraints;
+* the command used to run the eval suite.
+
+Likely first eval targets:
+
+* natural language to MCP tool selection;
+* extraction of feed, nappy, sleep, pump, and note attributes;
+* daily report generation;
+* refusal to invent missing facts;
+* valid schema-constrained output;
+* no diagnosis or medical advice;
+* correct use of the baby's timezone;
+* regression checks when prompts, models, or tools change.
+
+Do not add an eval framework before AI behavior exists. Start with a small,
+version-controlled set of representative cases when the first AI feature is
+implemented.
+
+---
+
 # Design Principles
 
 ## AI First
@@ -123,6 +274,13 @@ Deployment
 * Four services
 * One PostgreSQL database
 
+Current top-level directory layout lives in
+[docs/reference/repository-layout.md](docs/reference/repository-layout.md).
+Core entities and the event model are documented in
+[docs/data-model.md](docs/data-model.md). Current routes, handlers, and the
+pattern for adding a new event type live in
+[docs/reference/api-routes.md](docs/reference/api-routes.md).
+
 ---
 
 # Services
@@ -173,7 +331,8 @@ Responsibilities
 
 No baby domain logic. `user_id` and `family_id` are opaque identifiers here;
 auth-service can revoke sessions for those IDs when backend-api asks, but it
-does not read or decide family membership.
+does not read or decide family membership. Authentication methods are
+documented in [docs/authentication.md](docs/authentication.md).
 
 ---
 
@@ -196,257 +355,6 @@ Expose tools such as:
 Never writes directly to PostgreSQL.
 
 Always calls Backend API.
-
----
-
-# Database
-
-PostgreSQL from day one.
-
-Core entities:
-
-* users
-* families
-* family_members
-* babies
-* events
-
-Authentication:
-
-* oauth_clients
-* oauth_authorization_codes
-* oauth_access_tokens
-* oauth_refresh_tokens
-* magic_links
-* sessions
-
-Operational:
-
-* audit_logs
-
----
-
-# Event Model
-
-Events are append-only records.
-
-Examples:
-
-* Feed
-* Nappy
-* Sleep
-* Pump
-* Note
-* Weight
-* Temperature
-* Medication
-* Bath
-* Vaccination
-
-The model should be extensible without frequent schema changes.
-
-Use PostgreSQL JSONB for event-specific attributes where appropriate.
-
----
-
-# API Endpoint Structure (current implementation)
-
-This section documents how the code is actually laid out today, so the
-pattern is easy to follow when adding the next event type. The Event Model
-section above is the long-term vision (feed/nappy/sleep/pump/etc. as a
-generalized model); this section is the concrete backend-api + frontend
-wiring that implements it.
-
-## backend-api routes
-
-All routes are mounted under `/api/v1/babies` in
-`backend-api/cmd/server/main.go`, behind `authctx.Middleware` (verifies the
-`Authorization: Bearer` JWT's signature/expiry and decodes the caller's
-identity into context — see `internal/authctx`):
-
-* `GET /healthz` — unauthenticated.
-* `POST /api/v1/babies` → `CreateBaby`. A caller with no existing family
-  membership gets a family created implicitly (auto-named, never shown to
-  the user) and becomes its owner in the same call; a caller who already
-  belongs to a family just gets a sibling baby added to it.
-* `GET /api/v1/babies/current` → `GetCurrentBaby`, family-scoped (the
-  caller's family's first-created baby, or 404 meaning "no baby yet").
-  Includes `has_pending_invite` so the frontend can warn one-active-timeline
-  users that they must archive the current baby before joining another
-  timeline.
-* `PATCH /api/v1/babies/current` → `UpdateCurrentBaby`, owner-only; updates
-  current baby profile fields such as name, timezone, birth date, birth
-  weight, birth length, and sex.
-* `DELETE /api/v1/babies/current` → `ArchiveCurrentBaby`, owner-only; requires
-  the caller to confirm the exact baby name and soft-deletes the active baby
-  by setting `babies.archived_at`. Archiving also removes the owner's
-  membership for that family and revokes their sessions, keeping the current
-  product model to one active timeline per user.
-* `POST /api/v1/babies/{id}/invite` → `InviteHelper`, baby-scoped and
-  owner-only; creates a pending helper invite for the supplied email.
-* `GET /api/v1/babies/current/members` → `ListTimelineMembers`, owner-only;
-  returns active and invited users with access to the current baby's
-  timeline.
-* `PATCH /api/v1/babies/current/members/{userID}` →
-  `UpdateTimelineMember`, owner-only; updates the member's relationship label
-  (profile context such as "Dad", not an authorization role).
-* `DELETE /api/v1/babies/current/members/{userID}` →
-  `RemoveTimelineMember`, owner-only; cancels pending invites or removes
-  active non-owner access. Active removal first asks auth-service to revoke
-  the member's still-valid sessions for the family, then deletes the
-  `family_members` row.
-* `GET /api/v1/babies/current/events` → `ListAllEvents`, the combined feed
-  behind the frontend timeline: every event type, merged and ordered
-  newest-first (`store.ListAllEvents`, capped at `allEventsLimit`). Supports
-  `?range=today` (default), `?range=yesterday`, or `?range=day-N` for
-  `N` from 2 up to `timelineRangeDays - 1` (currently 2..6), each a single
-  calendar day that many days before today; ranges are calculated in the
-  baby's timezone.
-* `GET /api/v1/babies/current/reports/daily` → `GetDailyReport`, a
-  deterministic calendar-day report for the current baby from midnight to
-  now in the baby's timezone. The first version lives in
-  `backend-api/internal/handlers/report.go` and summarizes the merged event
-  stream into a structured response (`title`, `summary`, `highlights`,
-  `generated_at`, `range_start`, `range_end`). This is the backend-owned
-  foundation for later AI enrichment; frontend and MCP clients should consume
-  the report rather than recalculate its business meaning.
-* `PATCH /api/v1/babies/current/events/{id}` → `UpdateEvent`, type-checked
-  generic edit for an existing current-baby event.
-* `DELETE /api/v1/babies/current/events/{id}` → `DeleteEvent`, removes one
-  current-baby event regardless of type.
-* Per event type, nested under its plural resource name (`/nappies`,
-  `/feeds`, `/pumps`, `/baths`, `/observations`, ...):
-  * `POST /api/v1/babies/current/<resource>` → `Create<Type>`
-
-## The generic event store
-
-There is one `events` table (`event_type TEXT`, `attributes JSONB`,
-`occurred_at`, plus id/baby_id/created_at). `store.PostgresStore` exposes
-generic event methods, shared by every event type:
-
-* `CreateEvent(ctx, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error)`
-* `UpdateEvent(ctx, familyID, babyID, id uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error)`
-* `DeleteEvent(ctx, familyID, babyID, id uuid.UUID) error`
-* `ListAllEvents(ctx, familyID, babyID uuid.UUID, from, to time.Time, limit int) ([]Event, error)`
-
-No event-type-specific SQL exists anywhere — a new event type never touches
-`store/postgres.go`.
-
-## Per-event-type handler file (backend-api)
-
-Each event type is one file in `backend-api/internal/handlers/` (`nappy.go`,
-`feed.go`, `pump.go`, `bath.go`, `observation.go`) containing, and nothing
-else:
-
-1. A `const eventType<X> = "<x>"` string.
-2. Any enum-like type for constrained fields (e.g. `NappyKind`, `FeedType`)
-   with a `Valid()` method — only where the field genuinely has a fixed set
-   of values. Free-text fields (like observation's `category`) skip this.
-3. `create<X>Request` — the JSON body shape.
-4. `<x>Response` — the JSON response shape.
-5. `<x>FromEvent(ev store.Event) <x>Response` — maps `ev.Attributes` back to
-   the typed response, doing any type coercion (see `attributeInt` in
-   `feed.go`, reused by `bath.go`, for the JSONB int/float64 quirk).
-6. `Create<X>` handler: decode request → validate/trim → build
-   `map[string]any` attributes → call the shared
-   `createAndRespond(w, r, h, eventType<X>, attributes, occurredAt, <x>FromEvent)`.
-7. Combined reads go through `ListAllEvents`; per-type files do not define
-   list handlers.
-
-`createAndRespond` (a generic helper in `handlers.go`) owns the actual
-`Store.CreateEvent` call, error logging, and JSON response — per-type create
-handlers never call the store directly.
-
-**To add a new event type on the backend:** create the new handler file
-following the steps above, register its create route in `cmd/server/main.go`,
-and add a migration only if the event needs no schema
-changes beyond `attributes` (usually it doesn't — JSONB absorbs new fields
-without a migration).
-
-## Frontend wiring
-
-`frontend/internal/backendclient` has no per-event-type methods — just
-generic `ListEvents(ctx, resource string, rangeKey string, out any)`,
-`CreateEvent(ctx, resource string, payload map[string]any)`, and
-`UpdateEvent(ctx, id string, payload map[string]any)` against
-`/api/v1/babies/current/<resource>`. Reads go through the combined
-`ListEvents(ctx, "events", rangeKey, &events)` (backend-api's `/events`
-endpoint, already merged, range-filtered, and sorted newest-first across
-every event type); creates still go through `CreateEvent(ctx, "<resource>", payload)` per type
-(`"nappies"`, `"feeds"`, `"pumps"`, `"baths"`, `"observations"`), while edits
-go through the combined `UpdateEvent` route. The only shape
-`backendclient.go` decodes is the generic `Event` struct (`EventType` plus
-an `Attributes map[string]any`) — no per-event-type typed view structs.
-
-The UI is a single merged, chronological timeline (not one list per event
-type) fed by a single "Add Event" dialog (not one form per event type).
-`frontend/internal/handlers/handlers.go`:
-
-* Every event type is flattened into one presentation shape,
-  `TimelineEvent` (`CSSClass`, `Icon`, `TypeLabel`, `Kind`, `Detail`,
-  `Time`). `Kind` is the per-type discriminator (nappy's kind, feed/bath's
-  type, observation's category; pump intentionally leaves it empty), rendered
-  as "(Kind)" next to `TypeLabel`.
-  A `<x>TimelineEvent(ev, loc, now)` function builds one from a generic
-  `backendclient.Event`, reading its `Attributes` map — this is where
-  per-type display text (e.g. feed's "70 ml · 10 min") is decided.
-  `timelineEvent(ev, loc, now)` dispatches to the right builder by
-  `ev.EventType`, skipping (and logging) any type the frontend doesn't
-  recognize.
-* `loadTimeline(ctx, loc, rangeKey)` makes one
-  `ListEvents(ctx, "events", rangeKey, ...)` call and converts each item to
-  a `TimelineEvent` — no client-side merging or sorting; the backend already
-  returns one merged, ordered list for the selected range.
-* `Index` calls `loadTimeline` and renders the full page.
-* `Index` also calls `Backend.GetDailyReport` when the selected range is
-  `today`, then renders `templates/timeline.html`'s
-  `timeline-workspace` partial. That workspace contains both the daily
-  report card and `#timeline`, so HTMX event mutations can refresh both
-  together and avoid stale report counts.
-* Each `Create<X>` handler parses the HTML form, builds a `map[string]any`
-  payload (plus `occurred_at` via `parseEventTime`), calls
-  `Backend.CreateEvent(ctx, "<resource>", payload)`, then calls the shared
-  `renderTimeline` (itself `loadTimeline` + optional daily-report load +
-  render), so every form's htmx response is the same re-sorted, all-types
-  `timeline-workspace` partial (`templates/timeline.html`) swapped over
-  `#timeline-workspace` with `outerHTML` — never a per-type partial. The
-  selected range is carried in each form/delete request so HTMX refreshes
-  preserve the parent's current view.
-* `UpdateEvent` uses the same `renderTimeline` tail after patching the
-  combined `/events/{id}` route.
-
-On the client, `frontend/static/app.js` drives the "Add Event" dialog: a
-type-picker step (one button per event type) followed by a
-form-fields step showing only the chosen type's `<form class="event-form"
-data-type="...">` block from `templates/index.html`. Each form still posts
-straight to its own existing endpoint (`/nappies`, `/feeds`, `/pumps`, ...); the
-dialog only changes what's *shown*, not the request shape.
-
-**To add a new event type on the frontend:** add a `<x>TimelineEvent`
-builder in `handlers.go` (reading from `ev.Attributes`) and a case for it
-in `timelineEvent`'s switch; add a `Create<X>` handler ending in
-`h.renderTimeline(...)`; add a `<x>` type-choice button and its `.event-form
-data-type="<x>"` block in `index.html`; add a `<x>: "Log a <x>"` entry to
-`typeLabels` in `app.js`; wire the create/list routes for the new resource
-in `cmd/server/main.go` (`/events` already returns every type, no change
-needed there); and give the new card colour a light/dark pair in
-`style.css`.
-
----
-
-# Authentication
-
-OAuth 2.1 Authorization Code Flow with PKCE.
-
-Primary authentication methods:
-
-* Magic Link
-* ChatGPT OAuth
-
-Future:
-
-* Google Sign-In
-* Apple Sign-In
 
 ---
 
@@ -486,6 +394,33 @@ Follow idiomatic Go, not just working Go:
 * Keep package names short and lowercase with no stutter (`store.New`, not `store.NewStore`).
 * Use `context.Context` as the first parameter for functions that do I/O, and thread it through rather than storing it on a struct.
 * Keep functions small and single-purpose; extract a helper only once logic is actually duplicated, not in anticipation of it.
+
+---
+
+# Testing Strategy
+
+Tests should protect behavior and boundaries, not mirror implementation
+details.
+
+Prefer:
+
+* table-driven unit tests for validation and mapping logic;
+* handler tests for status codes, payloads, and authorization behavior;
+* store integration tests for SQL and transaction behavior;
+* contract-style tests for service clients;
+* focused end-to-end tests for critical user journeys.
+
+Critical journeys include:
+
+* sign in by magic link;
+* OAuth authorization with PKCE;
+* create or join a family;
+* create, update, list, and delete an event;
+* family member invitation and removal;
+* daily timeline and report generation;
+* session revocation after membership changes.
+
+A bug fix should include a regression test whenever practical.
 
 ---
 
@@ -593,3 +528,7 @@ Network exposure:
   small user base — skip near-zero-probability race conditions, complex
   transaction schemes, and defensive code for attack vectors that require
   precise timing or adversarial clients. Fix things users actually hit.
+* Prefer small pull requests and focused commits that are easy to review and
+  revert.
+* Generated code is not trusted merely because it compiles. Validate behavior,
+  boundaries, and failure modes (see Definition of Done).
