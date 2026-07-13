@@ -257,6 +257,12 @@ function setSleepDurationValue(form, value) {
   syncNumberSliderThumb(durationInput);
 }
 
+function updateSleepSubmitLabel(form, hasCompletedSleep) {
+  const submitButton = form.querySelector("[data-sleep-submit-label]");
+  if (!submitButton) return;
+  submitButton.textContent = hasCompletedSleep ? "Save" : "Start";
+}
+
 function updateSleepDuration(scope) {
   const fields = scope.querySelectorAll("[data-sleep-time-fields]");
   fields.forEach((container) => {
@@ -276,6 +282,7 @@ function updateSleepDuration(scope) {
 
     if (!start || !end) {
       setSleepDurationValue(form, "");
+      updateSleepSubmitLabel(form, false);
       if (preview) preview.textContent = "Add wake-up time to calculate duration.";
       return;
     }
@@ -284,12 +291,14 @@ function updateSleepDuration(scope) {
       const message = "Wake-up time must be after sleep start.";
       endTime.setCustomValidity(message);
       setSleepDurationValue(form, "");
+      updateSleepSubmitLabel(form, false);
       if (preview) preview.textContent = message;
       return;
     }
 
     const minutes = Math.round((end - start) / 60000);
     setSleepDurationValue(form, String(minutes));
+    updateSleepSubmitLabel(form, true);
     if (preview) preview.textContent = `Duration: ${formatDuration(minutes)}`;
   });
 }
