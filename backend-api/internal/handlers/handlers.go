@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -68,16 +67,9 @@ type AuthClient interface {
 // across every event type rather than counted per type.
 const allEventsLimit = 40
 
-const defaultTimelineRange = "today"
+var errInvalidTimelineDate = errors.New("invalid timeline date")
 
-// timelineRangeDays is how many days back the timeline nav reaches: today
-// plus the six days before it, so a full week is selectable one day at a
-// time.
-const timelineRangeDays = 7
-
-var errUnsupportedTimelineRange = errors.New("unsupported timeline range")
-
-type timelineRangeWindow struct {
+type timelineDayWindow struct {
 	From time.Time
 	To   time.Time
 }
@@ -109,14 +101,14 @@ func (h *Handlers) ListAllEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	window, err := timelineRangeFor(r.URL.Query().Get("range"), baby.Timezone)
+	window, err := timelineDayWindowFor(r.URL.Query().Get("date"), baby.Timezone)
 	if err != nil {
-		if errors.Is(err, errUnsupportedTimelineRange) {
-			writeError(w, http.StatusBadRequest, "invalid timeline range")
+		if errors.Is(err, errInvalidTimelineDate) {
+			writeError(w, http.StatusBadRequest, "invalid timeline date")
 			return
 		}
-		log.Printf("resolve timeline range: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to resolve timeline range")
+		log.Printf("resolve timeline date: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to resolve timeline date")
 		return
 	}
 
@@ -157,47 +149,35 @@ func isOngoingSleep(ev store.Event) bool {
 	return !ok
 }
 
-func timelineRangeFor(rawRange, timezone string) (timelineRangeWindow, error) {
-	rangeKey := rawRange
-	if rangeKey == "" {
-		rangeKey = defaultTimelineRange
-	}
-	offset, ok := timelineRangeOffset(rangeKey)
-	if !ok {
-		return timelineRangeWindow{}, fmt.Errorf("%w: %s", errUnsupportedTimelineRange, rawRange)
-	}
-
+func timelineDayWindowFor(rawDate, timezone string) (timelineDayWindow, error) {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
-		return timelineRangeWindow{}, fmt.Errorf("load baby timezone %q: %w", timezone, err)
+		return timelineDayWindow{}, fmt.Errorf("load baby timezone %q: %w", timezone, err)
 	}
 
 	now := time.Now().In(loc)
-	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
-	dayStart := todayStart.AddDate(0, 0, -offset)
-	return timelineRangeWindow{From: dayStart, To: dayStart.AddDate(0, 0, 1)}, nil
+	dayStart, err := timelineDateStart(rawDate, loc, now)
+	if err != nil {
+		return timelineDayWindow{}, err
+	}
+	return timelineDayWindow{From: dayStart, To: dayStart.AddDate(0, 0, 1)}, nil
 }
 
-// timelineRangeOffset maps a range key to how many days before today it
-// selects: "today" and "yesterday" are 0 and 1, and earlier days use
-// "day-N" (2 through timelineRangeDays-1) since the frontend labels them
-// with the weekday name rather than a fixed word.
-func timelineRangeOffset(rangeKey string) (int, bool) {
-	switch rangeKey {
-	case "today":
-		return 0, true
-	case "yesterday":
-		return 1, true
+func timelineDateStart(rawDate string, loc *time.Location, now time.Time) (time.Time, error) {
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	if rawDate == "" {
+		return todayStart, nil
 	}
-	suffix, ok := strings.CutPrefix(rangeKey, "day-")
-	if !ok {
-		return 0, false
+
+	parsed, err := time.ParseInLocation(time.DateOnly, rawDate, loc)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%w: %s", errInvalidTimelineDate, rawDate)
 	}
-	offset, err := strconv.Atoi(suffix)
-	if err != nil || offset < 2 || offset >= timelineRangeDays {
-		return 0, false
+	dayStart := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, loc)
+	if dayStart.After(todayStart) {
+		return time.Time{}, fmt.Errorf("%w: %s", errInvalidTimelineDate, rawDate)
 	}
-	return offset, true
+	return dayStart, nil
 }
 
 // UpdateEvent edits a single event by id, regardless of its event_type.

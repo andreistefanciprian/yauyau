@@ -39,8 +39,8 @@ type Backend interface {
 	CreateBaby(ctx context.Context, name string) (backendclient.Baby, error)
 	UpdateCurrentBaby(ctx context.Context, baby backendclient.Baby) (backendclient.Baby, error)
 	ArchiveCurrentBaby(ctx context.Context, confirmName string) error
-	ListEvents(ctx context.Context, resource, rangeKey string, out any) error
-	GetDailyReport(ctx context.Context, rangeKey string) (backendclient.DailyReport, error)
+	ListEvents(ctx context.Context, resource, date string, out any) error
+	GetDailyReport(ctx context.Context, date string) (backendclient.DailyReport, error)
 	CreateEvent(ctx context.Context, resource string, payload map[string]any) error
 	UpdateEvent(ctx context.Context, id string, payload map[string]any) error
 	DeleteEvent(ctx context.Context, id string) error
@@ -109,7 +109,7 @@ type TimelineEvent struct {
 type TimelineViewData struct {
 	Events       []TimelineEvent
 	Ranges       []TimelineRangeOption
-	Selected     string
+	SelectedDate string
 	EmptyMessage string
 }
 
@@ -154,10 +154,10 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rangeKey := selectedTimelineRange(r)
-	dailyReport := h.loadDailyReport(r.Context(), rangeKey)
+	selectedDate := selectedTimelineDate(r, loc)
+	dailyReport := h.loadDailyReport(r.Context(), selectedDate)
 
-	timeline, err := h.loadTimeline(r.Context(), loc, rangeKey)
+	timeline, err := h.loadTimeline(r.Context(), loc, selectedDate)
 	if err != nil {
 		log.Printf("%v", err)
 		http.Error(w, "failed to load events", http.StatusBadGateway)
@@ -604,8 +604,8 @@ func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 // It's the shared tail of every Create*, Update*, and Delete* handler, since
 // event changes can affect both the visible event list and day summary.
 func (h *Handlers) renderTimeline(w http.ResponseWriter, r *http.Request, loc *time.Location) {
-	rangeKey := selectedTimelineRange(r)
-	timeline, err := h.loadTimeline(r.Context(), loc, rangeKey)
+	selectedDate := selectedTimelineDate(r, loc)
+	timeline, err := h.loadTimeline(r.Context(), loc, selectedDate)
 	if err != nil {
 		log.Printf("%v", err)
 		http.Error(w, "failed to load events", http.StatusBadGateway)
@@ -614,7 +614,7 @@ func (h *Handlers) renderTimeline(w http.ResponseWriter, r *http.Request, loc *t
 
 	data := timelineWorkspaceData{
 		Timeline:    timeline,
-		DailyReport: h.loadDailyReport(r.Context(), rangeKey),
+		DailyReport: h.loadDailyReport(r.Context(), selectedDate),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -623,8 +623,8 @@ func (h *Handlers) renderTimeline(w http.ResponseWriter, r *http.Request, loc *t
 	}
 }
 
-func (h *Handlers) loadDailyReport(ctx context.Context, rangeKey string) *backendclient.DailyReport {
-	report, err := h.Backend.GetDailyReport(ctx, rangeKey)
+func (h *Handlers) loadDailyReport(ctx context.Context, date string) *backendclient.DailyReport {
+	report, err := h.Backend.GetDailyReport(ctx, date)
 	if err != nil {
 		log.Printf("load daily report: %v", err)
 		return nil
@@ -679,9 +679,9 @@ func (h *Handlers) FinishSleepNow(w http.ResponseWriter, r *http.Request) {
 // loadTimeline fetches the most recent events across every type from
 // backend-api's combined /events endpoint — already merged and ordered
 // newest-first by the store — and flattens each into a TimelineEvent.
-func (h *Handlers) loadTimeline(ctx context.Context, loc *time.Location, rangeKey string) (TimelineViewData, error) {
+func (h *Handlers) loadTimeline(ctx context.Context, loc *time.Location, selectedDate string) (TimelineViewData, error) {
 	var events []backendclient.Event
-	if err := h.Backend.ListEvents(ctx, "events", rangeKey, &events); err != nil {
+	if err := h.Backend.ListEvents(ctx, "events", selectedDate, &events); err != nil {
 		return TimelineViewData{}, fmt.Errorf("list events: %w", err)
 	}
 
@@ -698,64 +698,53 @@ func (h *Handlers) loadTimeline(ctx context.Context, loc *time.Location, rangeKe
 
 	return TimelineViewData{
 		Events:       timeline,
-		Ranges:       timelineRangeOptions(rangeKey, now),
-		Selected:     rangeKey,
-		EmptyMessage: emptyTimelineMessage(rangeKey, now),
+		Ranges:       timelineRangeOptions(selectedDate, now),
+		SelectedDate: selectedDate,
+		EmptyMessage: emptyTimelineMessage(selectedDate, now),
 	}, nil
 }
 
-// timelineRangeDays is how many days back the range nav reaches: today plus
-// the six days before it, matching backend-api's timelineRangeDays so every
-// key this frontend can produce resolves to a real window.
+// timelineRangeDays is how many days back the date nav reaches: today plus
+// the six days before it.
 const timelineRangeDays = 7
 
-// timelineRangeKey returns the range key for "offset" days before today (0
-// is today, 1 is yesterday, ...). "day-N" for days further back is labelled
-// with the weekday name instead of a fixed word, so the nav reads as a
-// rolling week rather than a set of unrelated presets.
-func timelineRangeKey(offset int) string {
-	switch offset {
-	case 0:
-		return "today"
-	case 1:
-		return "yesterday"
-	default:
-		return fmt.Sprintf("day-%d", offset)
-	}
+func timelineDate(offset int, now time.Time) string {
+	return now.AddDate(0, 0, -offset).Format(time.DateOnly)
 }
 
-// timelineRangeOffset is timelineRangeKey's inverse, used to validate an
-// incoming ?range= value and to resolve a selected key back to a day for
-// building the empty-state message.
-func timelineRangeOffset(rangeKey string) (int, bool) {
+func timelineDateOffset(date string, now time.Time) (int, bool) {
 	for offset := 0; offset < timelineRangeDays; offset++ {
-		if timelineRangeKey(offset) == rangeKey {
+		if timelineDate(offset, now) == date {
 			return offset, true
 		}
 	}
 	return 0, false
 }
 
-func selectedTimelineRange(r *http.Request) string {
-	raw := r.FormValue("range")
+func selectedTimelineDate(r *http.Request, loc *time.Location) string {
+	now := time.Now().In(loc)
+	raw := r.FormValue("selected_date")
 	if raw == "" {
-		return "today"
+		raw = r.URL.Query().Get("date")
 	}
-	if _, ok := timelineRangeOffset(raw); ok {
+	if raw == "" {
+		return timelineDate(0, now)
+	}
+	if _, ok := timelineDateOffset(raw, now); ok {
 		return raw
 	}
-	return "today"
+	return timelineDate(0, now)
 }
 
-func timelineRangeOptions(selected string, now time.Time) []TimelineRangeOption {
+func timelineRangeOptions(selectedDate string, now time.Time) []TimelineRangeOption {
 	options := make([]TimelineRangeOption, timelineRangeDays)
 	for offset := 0; offset < timelineRangeDays; offset++ {
-		key := timelineRangeKey(offset)
+		date := timelineDate(offset, now)
 		options[offset] = TimelineRangeOption{
-			Key:    key,
+			Key:    date,
 			Label:  timelineRangeLabel(offset, now),
-			Href:   "/app?range=" + key,
-			Active: key == selected,
+			Href:   "/app?date=" + date,
+			Active: date == selectedDate,
 		}
 	}
 	return options
@@ -775,8 +764,8 @@ func timelineRangeLabel(offset int, now time.Time) string {
 	}
 }
 
-func emptyTimelineMessage(rangeKey string, now time.Time) string {
-	offset, ok := timelineRangeOffset(rangeKey)
+func emptyTimelineMessage(date string, now time.Time) string {
+	offset, ok := timelineDateOffset(date, now)
 	if !ok {
 		offset = 0
 	}

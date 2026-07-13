@@ -47,13 +47,13 @@ identity into context — see `internal/authctx`):
 * `GET /api/v1/babies/current/events` → `ListAllEvents`, the combined feed
   behind the frontend timeline: every event type, merged and ordered
   newest-first (`store.ListAllEvents`, capped at `allEventsLimit`). Supports
-  `?range=today` (default), `?range=yesterday`, or `?range=day-N` for
-  `N` from 2 up to `timelineRangeDays - 1` (currently 2..6), each a single
-  calendar day that many days before today; ranges are calculated in the
-  baby's timezone.
+  `?date=YYYY-MM-DD`; an omitted date defaults to today. Dates select a
+  single calendar day in the baby's timezone.
 * `GET /api/v1/babies/current/reports/daily` → `GetDailyReport`, a
-  deterministic calendar-day report for the current baby from midnight to
-  now in the baby's timezone. The first version lives in
+  deterministic calendar-day report for the current baby. Supports
+  `?date=YYYY-MM-DD`; an omitted date defaults to today. Past dates cover the
+  full local calendar day, while today's report runs from midnight to now in
+  the baby's timezone. The first version lives in
   `backend-api/internal/handlers/report.go` and summarizes the merged event
   stream into a structured response (`title`, `summary`, `highlights`,
   `generated_at`, `range_start`, `range_end`). This is the backend-owned
@@ -115,12 +115,12 @@ without a migration).
 ## Frontend wiring
 
 `frontend/internal/backendclient` has no per-event-type methods — just
-generic `ListEvents(ctx, resource string, rangeKey string, out any)`,
+generic `ListEvents(ctx, resource string, date string, out any)`,
 `CreateEvent(ctx, resource string, payload map[string]any)`, and
 `UpdateEvent(ctx, id string, payload map[string]any)` against
 `/api/v1/babies/current/<resource>`. Reads go through the combined
-`ListEvents(ctx, "events", rangeKey, &events)` (backend-api's `/events`
-endpoint, already merged, range-filtered, and sorted newest-first across
+`ListEvents(ctx, "events", selectedDate, &events)` (backend-api's `/events`
+endpoint, already merged, date-filtered, and sorted newest-first across
 every event type); creates still go through `CreateEvent(ctx, "<resource>", payload)` per type
 (`"nappies"`, `"feeds"`, `"pumps"`, `"baths"`, `"observations"`), while edits
 go through the combined `UpdateEvent` route. The only shape
@@ -142,23 +142,23 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   `timelineEvent(ev, loc, now)` dispatches to the right builder by
   `ev.EventType`, skipping (and logging) any type the frontend doesn't
   recognize.
-* `loadTimeline(ctx, loc, rangeKey)` makes one
-  `ListEvents(ctx, "events", rangeKey, ...)` call and converts each item to
+* `loadTimeline(ctx, loc, selectedDate)` makes one
+  `ListEvents(ctx, "events", selectedDate, ...)` call and converts each item to
   a `TimelineEvent` — no client-side merging or sorting; the backend already
-  returns one merged, ordered list for the selected range.
+  returns one merged, ordered list for the selected date.
 * `Index` calls `loadTimeline` and renders the full page.
-* `Index` also calls `Backend.GetDailyReport` for the selected range, then
+* `Index` also calls `Backend.GetDailyReport` for the selected date, then
   renders `templates/timeline.html`'s `timeline-workspace` partial. That
   workspace contains both the daily report card and `#timeline`, so HTMX
   event mutations can refresh both together and avoid stale report counts.
 * Each `Create<X>` handler parses the HTML form, builds a `map[string]any`
   payload (plus `occurred_at` via `parseEventTime`), calls
   `Backend.CreateEvent(ctx, "<resource>", payload)`, then calls the shared
-  `renderTimeline` (itself `loadTimeline` + selected-range daily-report load
+  `renderTimeline` (itself `loadTimeline` + selected-date daily-report load
   + render), so every form's htmx response is the same re-sorted, all-types
   `timeline-workspace` partial (`templates/timeline.html`) swapped over
   `#timeline-workspace` with `outerHTML` — never a per-type partial. The
-  selected range is carried in each form/delete request so HTMX refreshes
+  selected date is carried in each form/delete request so HTMX refreshes
   preserve the parent's current view.
 * `UpdateEvent` uses the same `renderTimeline` tail after patching the
   combined `/events/{id}` route.

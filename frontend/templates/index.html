@@ -117,7 +117,7 @@
       </div>
 
       <form class="event-form" data-type="nappy" hx-post="/nappies" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
-        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
+        <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
         <fieldset>
           <legend>Kind</legend>
           <label><input type="radio" name="kind" value="wet" required checked> Wet</label>
@@ -164,7 +164,7 @@
       </form>
 
       <form class="event-form" data-type="feed" hx-post="/feeds" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
-        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
+        <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
         <fieldset>
           <legend>Type</legend>
           <label><input type="radio" name="type" value="breast" required> Breast</label>
@@ -218,7 +218,7 @@
       </form>
 
       <form class="event-form" data-type="pump" hx-post="/pumps" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
-        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
+        <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
         <label class="field-label">
           Amount expressed (ml)
           {{template "number-slider" (dict "Name" "amount_ml" "Min" "1" "Max" "9999" "SliderMin" "10" "SliderMax" "300" "SliderStep" "10" "Label" "expressed milk" "Value" "80" "Required" true)}}
@@ -243,7 +243,7 @@
       </form>
 
       <form class="event-form" data-type="bath" hx-post="/baths" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
-        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
+        <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
         <fieldset>
           <legend>Type</legend>
           <label><input type="radio" name="type" value="whole_body" required> Whole body</label>
@@ -281,7 +281,7 @@
       </form>
 
       <form class="event-form" data-type="sleep" hx-post="/sleeps" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
-        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
+        <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
         <fieldset>
           <legend>Type</legend>
           <label><input type="radio" name="type" value="nap" required checked> Day</label>
@@ -327,7 +327,7 @@
       </form>
 
       <form class="event-form" data-type="observation" hx-post="/observations" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
-        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
+        <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
         <label class="field-label">
           Note
           <textarea name="text" required placeholder="What did you notice?"></textarea>
@@ -361,7 +361,7 @@
       </form>
 
       <form class="event-form" data-type="temperature" hx-post="/temperatures" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
-        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
+        <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
         <label class="field-label">
           Temperature (°C)
           {{template "number-slider" (dict "Name" "temperature_c" "Min" "30" "Max" "45" "SliderMin" "35" "SliderMax" "42" "SliderStep" "0.1" "InputStep" "0.1" "InputMode" "decimal" "Label" "temperature" "Value" "37.0" "Required" true)}}
@@ -409,7 +409,7 @@
       <p class="dialog-error" id="edit-event-error" hidden></p>
 
       <form id="edit-event-form" class="event-form" hx-patch="/events/__event_id__" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventEdited()">
-        <input type="hidden" name="range" value="{{.Timeline.Selected}}">
+        <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
         <input type="hidden" name="event_type" id="edit-event-type">
 
         <div class="edit-event-fields" data-edit-type="nappy">

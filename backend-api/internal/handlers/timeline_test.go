@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -26,5 +27,42 @@ func TestOrderTimelineEventsFloatsOngoingSleeps(t *testing.T) {
 	}
 	if events[2].EventType != eventTypeSleep || isOngoingSleep(events[2]) {
 		t.Fatalf("third event = %#v, want completed sleep to stay with regular events", events[2])
+	}
+}
+
+func TestTimelineDayWindowForExplicitDateUsesBabyTimezone(t *testing.T) {
+	window, err := timelineDayWindowFor("2026-07-11", "Australia/Adelaide")
+	if err != nil {
+		t.Fatalf("timelineDayWindowFor returned error: %v", err)
+	}
+
+	loc, err := time.LoadLocation("Australia/Adelaide")
+	if err != nil {
+		t.Fatalf("load location: %v", err)
+	}
+	wantFrom := time.Date(2026, 7, 11, 0, 0, 0, 0, loc)
+	wantTo := wantFrom.AddDate(0, 0, 1)
+	if !window.From.Equal(wantFrom) || !window.To.Equal(wantTo) {
+		t.Fatalf("window = %s to %s, want %s to %s", window.From, window.To, wantFrom, wantTo)
+	}
+}
+
+func TestTimelineDayWindowForRejectsInvalidDate(t *testing.T) {
+	_, err := timelineDayWindowFor("day-2", "Australia/Adelaide")
+	if !errors.Is(err, errInvalidTimelineDate) {
+		t.Fatalf("error = %v, want errInvalidTimelineDate", err)
+	}
+}
+
+func TestTimelineDayWindowForRejectsFutureDate(t *testing.T) {
+	loc, err := time.LoadLocation("Australia/Adelaide")
+	if err != nil {
+		t.Fatalf("load location: %v", err)
+	}
+	tomorrow := time.Now().In(loc).AddDate(0, 0, 1).Format(time.DateOnly)
+
+	_, err = timelineDayWindowFor(tomorrow, "Australia/Adelaide")
+	if !errors.Is(err, errInvalidTimelineDate) {
+		t.Fatalf("error = %v, want errInvalidTimelineDate", err)
 	}
 }

@@ -100,7 +100,7 @@ the daily report, totals, derived metrics, and ordered raw events.
 Proposed endpoint:
 
 ```http
-GET /api/v1/babies/current/reports/daily/data?range=today
+GET /api/v1/babies/current/reports/daily/data?date=2026-07-13
 ```
 
 This endpoint should be backend-owned and can later be reused by MCP tools.
@@ -522,7 +522,7 @@ AI should not:
 ### Deterministic Data
 
 ```http
-GET /api/v1/babies/current/reports/daily/data?range=today
+GET /api/v1/babies/current/reports/daily/data?date=2026-07-13
 ```
 
 Returns the canonical day data payload.
@@ -530,7 +530,7 @@ Returns the canonical day data payload.
 ### On-Demand AI
 
 ```http
-POST /api/v1/babies/current/reports/daily/ai?range=today
+POST /api/v1/babies/current/reports/daily/ai?date=2026-07-13
 ```
 
 Generates or returns cached AI insights for the selected range.

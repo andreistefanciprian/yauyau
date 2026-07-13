@@ -8,11 +8,11 @@ import (
 )
 
 func TestBuildDailyReportSummarizesTimelineEvents(t *testing.T) {
-	window := timelineRangeWindow{
+	window := timelineDayWindow{
 		From: time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC),
 		To:   time.Date(2026, 7, 11, 12, 30, 0, 0, time.UTC),
 	}
-	period := dailyReportPeriodFor(0, window.From)
+	period := dailyReportPeriodFor(window.From, window.From)
 
 	report := buildDailyReport([]store.Event{
 		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(70)}},
@@ -52,11 +52,11 @@ func TestBuildDailyReportSummarizesTimelineEvents(t *testing.T) {
 }
 
 func TestBuildDailyReportHandlesEmptyDay(t *testing.T) {
-	window := timelineRangeWindow{
+	window := timelineDayWindow{
 		From: time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC),
 		To:   time.Date(2026, 7, 11, 8, 0, 0, 0, time.UTC),
 	}
-	period := dailyReportPeriodFor(0, window.From)
+	period := dailyReportPeriodFor(window.From, window.From)
 
 	report := buildDailyReport(nil, window, window.To, period)
 
@@ -69,11 +69,11 @@ func TestBuildDailyReportHandlesEmptyDay(t *testing.T) {
 }
 
 func TestBuildDailyReportUsesPastDayWording(t *testing.T) {
-	window := timelineRangeWindow{
+	window := timelineDayWindow{
 		From: time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC),
 		To:   time.Date(2026, 7, 12, 0, 0, 0, 0, time.UTC),
 	}
-	period := dailyReportPeriodFor(1, window.From)
+	period := dailyReportPeriodFor(window.From, window.From.AddDate(0, 0, 1))
 
 	report := buildDailyReport([]store.Event{
 		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(70)}},
@@ -89,11 +89,11 @@ func TestBuildDailyReportUsesPastDayWording(t *testing.T) {
 }
 
 func TestBuildDailyReportClarifiesNappyChanges(t *testing.T) {
-	window := timelineRangeWindow{
+	window := timelineDayWindow{
 		From: time.Date(2026, 7, 11, 0, 0, 0, 0, time.UTC),
 		To:   time.Date(2026, 7, 11, 23, 59, 0, 0, time.UTC),
 	}
-	period := dailyReportPeriodFor(1, window.From)
+	period := dailyReportPeriodFor(window.From, window.From.AddDate(0, 0, 1))
 
 	report := buildDailyReport([]store.Event{
 		{EventType: eventTypeNappy, Attributes: map[string]any{"kind": "wet"}},

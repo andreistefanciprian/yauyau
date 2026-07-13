@@ -58,13 +58,13 @@ func (h *Handlers) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	window, generatedAt, period, err := dailyReportWindow(r.URL.Query().Get("range"), baby.Timezone)
+	window, generatedAt, period, err := dailyReportWindow(r.URL.Query().Get("date"), baby.Timezone)
 	if err != nil {
-		if errors.Is(err, errUnsupportedTimelineRange) {
-			writeError(w, http.StatusBadRequest, "invalid timeline range")
+		if errors.Is(err, errInvalidTimelineDate) {
+			writeError(w, http.StatusBadRequest, "invalid timeline date")
 			return
 		}
-		log.Printf("resolve daily report window: %v", err)
+		log.Printf("resolve daily report date: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to resolve report window")
 		return
 	}
@@ -79,35 +79,29 @@ func (h *Handlers) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, buildDailyReport(events, window, generatedAt, period))
 }
 
-func dailyReportWindow(rawRange, timezone string) (timelineRangeWindow, time.Time, dailyReportPeriod, error) {
-	rangeKey := rawRange
-	if rangeKey == "" {
-		rangeKey = defaultTimelineRange
-	}
-	offset, ok := timelineRangeOffset(rangeKey)
-	if !ok {
-		return timelineRangeWindow{}, time.Time{}, dailyReportPeriod{}, fmt.Errorf("%w: %s", errUnsupportedTimelineRange, rawRange)
-	}
-
+func dailyReportWindow(rawDate, timezone string) (timelineDayWindow, time.Time, dailyReportPeriod, error) {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
-		return timelineRangeWindow{}, time.Time{}, dailyReportPeriod{}, fmt.Errorf("load baby timezone %q: %w", timezone, err)
+		return timelineDayWindow{}, time.Time{}, dailyReportPeriod{}, fmt.Errorf("load baby timezone %q: %w", timezone, err)
 	}
 
 	now := time.Now().In(loc)
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
-	dayStart := todayStart.AddDate(0, 0, -offset)
+	dayStart, err := timelineDateStart(rawDate, loc, now)
+	if err != nil {
+		return timelineDayWindow{}, time.Time{}, dailyReportPeriod{}, err
+	}
 	dayEnd := dayStart.AddDate(0, 0, 1)
-	period := dailyReportPeriodFor(offset, dayStart)
-	if offset == 0 {
+	period := dailyReportPeriodFor(dayStart, todayStart)
+	if dayStart.Equal(todayStart) {
 		dayEnd = now
 	}
-	return timelineRangeWindow{From: dayStart, To: dayEnd}, now, period, nil
+	return timelineDayWindow{From: dayStart, To: dayEnd}, now, period, nil
 }
 
-func dailyReportPeriodFor(offset int, dayStart time.Time) dailyReportPeriod {
-	switch offset {
-	case 0:
+func dailyReportPeriodFor(dayStart, todayStart time.Time) dailyReportPeriod {
+	switch {
+	case dayStart.Equal(todayStart):
 		return dailyReportPeriod{
 			Title:          "Today so far",
 			Subject:        "Today",
@@ -116,7 +110,7 @@ func dailyReportPeriodFor(offset int, dayStart time.Time) dailyReportPeriod {
 			EmptySummary:   "No events have been logged yet today.",
 			EmptyHighlight: "Log the first event to start building today's report.",
 		}
-	case 1:
+	case dayStart.Equal(todayStart.AddDate(0, 0, -1)):
 		return dailyReportPeriod{
 			Title:          "Yesterday summary",
 			Subject:        "Yesterday",
@@ -136,7 +130,7 @@ func dailyReportPeriodFor(offset int, dayStart time.Time) dailyReportPeriod {
 	}
 }
 
-func buildDailyReport(events []store.Event, window timelineRangeWindow, generatedAt time.Time, period dailyReportPeriod) dailyReportResponse {
+func buildDailyReport(events []store.Event, window timelineDayWindow, generatedAt time.Time, period dailyReportPeriod) dailyReportResponse {
 	stats := dailyReportStats{}
 	for _, ev := range events {
 		stats.add(ev)

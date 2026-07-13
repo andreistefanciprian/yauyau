@@ -175,7 +175,7 @@ sequenceDiagram
     Auth->>Auth: look up session, check not expired/revoked
     Auth->>Auth: sign JWT (sub=user_id, family_id, exp=now+10min)
     Auth-->>Frontend: { access_token }
-    Frontend->>Backend: GET /api/v1/babies/current/events?range=today
+    Frontend->>Backend: GET /api/v1/babies/current/events
     Note over Frontend,Backend: Authorization header uses Bearer access_token
     Backend->>Backend: verify JWT signature + expiry only (no DB call)
     Backend-->>Frontend: events scoped to family_id from JWT

@@ -55,7 +55,7 @@
         data-category="{{.Category}}"
         title="Edit event">{{template "edit-icon"}}</button>
       <button type="button" class="event-delete" aria-label="Delete event"
-        hx-delete="/events/{{.ID}}?range={{$.Selected}}" hx-target="#timeline-workspace" hx-swap="outerHTML"
+        hx-delete="/events/{{.ID}}?selected_date={{$.SelectedDate}}" hx-target="#timeline-workspace" hx-swap="outerHTML"
         hx-confirm="Delete this event?" title="Delete event">&times;</button>
     </div>
     {{if or .Detail .StatusLabel}}
@@ -65,7 +65,7 @@
     </div>
     {{end}}
     {{if .CanFinishSleep}}
-    <form class="event-quick-action" hx-post="/events/{{.ID}}/finish-sleep?range={{$.Selected}}" hx-target="#timeline-workspace" hx-swap="outerHTML">
+    <form class="event-quick-action" hx-post="/events/{{.ID}}/finish-sleep?selected_date={{$.SelectedDate}}" hx-target="#timeline-workspace" hx-swap="outerHTML">
       <input type="hidden" name="date" value="{{.DateValue}}">
       <input type="hidden" name="time" value="{{.TimeValue}}">
       <input type="hidden" name="type" value="{{.TypeValue}}">

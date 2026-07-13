@@ -321,7 +321,7 @@ function openEditDialog(button) {
   if (!type || !eventID) return;
 
   editForm.reset();
-  const patchURL = `/events/${eventID}?range=${encodeURIComponent(selectedTimelineRange())}`;
+  const patchURL = `/events/${eventID}?selected_date=${encodeURIComponent(selectedTimelineDate())}`;
   editForm.setAttribute("hx-patch", patchURL);
   editForm.dataset.patchUrl = patchURL;
   editTypeInput.value = type;
@@ -391,9 +391,9 @@ function openEditDialog(button) {
   editDialog.showModal();
 }
 
-function selectedTimelineRange() {
-  const rangeInput = editForm.querySelector('input[name="range"]');
-  return rangeInput ? rangeInput.value : "today";
+function selectedTimelineDate() {
+  const dateInput = editForm.querySelector('input[name="selected_date"]');
+  return dateInput ? dateInput.value : "";
 }
 
 document.body.addEventListener("click", (event) => {
@@ -444,7 +444,7 @@ document.body.addEventListener("change", (event) => {
   }
 });
 
-// The day-range nav and event-type filter live inside a collapsible section
+// The day nav and event-type filter live inside a collapsible section
 // so they don't take up screen space when the timeline itself is what's
 // wanted. Collapsed is the default; the expand/collapse state is remembered
 // per device, same as the type filter below.
@@ -506,7 +506,7 @@ if (filtersToggle && filtersBody) {
 // Event type filter: purely client-side, hiding/showing already-rendered
 // cards, so switching types is instant and needs no round trip to the
 // backend. The selection is remembered per device so it doesn't reset every
-// time the page loads or the date range changes.
+// time the page loads or the selected date changes.
 
 const typeFilter = document.getElementById("type-filter");
 const TYPE_FILTER_STORAGE_KEY = "yauli-event-filter";

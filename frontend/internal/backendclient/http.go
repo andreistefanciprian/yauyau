@@ -86,18 +86,18 @@ func (c *HTTPClient) ArchiveCurrentBaby(ctx context.Context, confirmName string)
 // URL segment: "nappies", "feeds", "baths", "observations", ...) into out,
 // which must be a pointer to a slice of the caller's typed view of that
 // resource (e.g. *[]Nappy).
-func (c *HTTPClient) ListEvents(ctx context.Context, resource, rangeKey string, out any) error {
+func (c *HTTPClient) ListEvents(ctx context.Context, resource, date string, out any) error {
 	path := "/api/v1/babies/current/" + resource
-	if rangeKey != "" {
-		path += "?range=" + url.QueryEscape(rangeKey)
+	if date != "" {
+		path += "?date=" + url.QueryEscape(date)
 	}
 	return c.getJSON(ctx, path, out)
 }
 
-func (c *HTTPClient) GetDailyReport(ctx context.Context, rangeKey string) (DailyReport, error) {
+func (c *HTTPClient) GetDailyReport(ctx context.Context, date string) (DailyReport, error) {
 	path := "/api/v1/babies/current/reports/daily"
-	if rangeKey != "" {
-		path += "?range=" + url.QueryEscape(rangeKey)
+	if date != "" {
+		path += "?date=" + url.QueryEscape(date)
 	}
 
 	var report DailyReport
