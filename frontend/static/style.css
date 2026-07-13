@@ -307,7 +307,7 @@ body {
 .account-menu summary {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.5rem;
   width: 100%;
@@ -315,7 +315,7 @@ body {
   min-height: 2.65rem;
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  padding: 0.25rem 0.55rem 0.25rem 0.3rem;
+  padding: 0.35rem 0.55rem 0.35rem 0.7rem;
   background: color-mix(in srgb, var(--color-surface) 88%, var(--color-bg-secondary));
   color: var(--color-text-primary);
   cursor: pointer;
@@ -328,20 +328,6 @@ body {
 
 .account-menu summary:hover {
   background: var(--color-surface);
-}
-
-.account-avatar {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background: var(--color-teal);
-  color: white;
-  font-size: 0.82rem;
-  font-weight: 800;
 }
 
 .account-copy {
@@ -397,13 +383,7 @@ body {
   .account-menu summary {
     gap: 0.4rem;
     min-height: 2.35rem;
-    padding: 0.2rem 0.45rem 0.2rem 0.25rem;
-  }
-
-  .account-avatar {
-    width: 1.8rem;
-    height: 1.8rem;
-    font-size: 0.76rem;
+    padding: 0.3rem 0.45rem 0.3rem 0.6rem;
   }
 
   .account-context {

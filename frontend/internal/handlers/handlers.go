@@ -131,7 +131,6 @@ type accountViewData struct {
 	Label       string
 	Email       string
 	DisplayName string
-	Initial     string
 }
 
 type indexPageData struct {
@@ -194,7 +193,7 @@ func (h *Handlers) loadAccount(ctx context.Context) accountViewData {
 	user, err := h.Backend.GetCurrentUser(ctx)
 	if err != nil {
 		log.Printf("load current user: %v", err)
-		return accountViewData{Label: "Signed in", Email: "Signed in", Initial: "Y"}
+		return accountViewData{Label: "Signed in", Email: "Signed in"}
 	}
 
 	return accountFromUser(user)
@@ -205,19 +204,10 @@ func accountFromUser(user backendclient.User) accountViewData {
 	if label == "" {
 		label = user.Email
 	}
-	initial := "Y"
-	for _, r := range label {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			initial = strings.ToUpper(string(r))
-			break
-		}
-	}
-
 	return accountViewData{
 		Label:       label,
 		Email:       user.Email,
 		DisplayName: user.DisplayName,
-		Initial:     initial,
 	}
 }
 
