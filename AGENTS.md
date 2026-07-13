@@ -33,9 +33,22 @@ The web interface should complement ChatGPT, not replace it.
 This file is both project documentation and an operating contract for coding
 agents working in the repository.
 
-Agents must optimize for correctness, simplicity, maintainability, and fast
-feedback. Producing more code is not the goal. Producing the smallest safe
-change that fits the existing system is the goal.
+Producing more code is not the goal. Producing the smallest safe change that
+fits the existing system is the goal.
+
+When principles conflict, resolve the trade-off in this order:
+
+1. Correctness
+2. Security
+3. Simplicity
+4. Maintainability
+5. Readability
+6. Performance
+7. Extensibility
+
+Performance and extensibility sit last on purpose: do not change code solely
+to reduce allocations, add caching, introduce concurrency, or generalize an
+API without measured evidence it's needed. Measure first, optimize second.
 
 ## Before Changing Code
 
@@ -68,6 +81,9 @@ While implementing:
   hypothetical needs (see Code Style).
 * Do not refactor unrelated code unless the task cannot be completed safely
   without it.
+* Do not rename identifiers for style alone.
+* Once the task is complete, stop — do not add optional improvements,
+  modernize surrounding code, or keep polishing unless asked.
 * Preserve backward compatibility unless the task explicitly changes a
   contract.
 * Treat generated migrations, auth changes, session changes, and destructive
