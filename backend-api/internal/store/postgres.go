@@ -335,19 +335,60 @@ func (s *PostgresStore) ListAllEvents(ctx context.Context, familyID, babyID uuid
 }
 
 // UpsertUserByEmail returns the existing user with this email, creating one
-// if none exists yet. Email is the only identity a user has.
+// if none exists yet. Email is the stable login identity.
 func (s *PostgresStore) UpsertUserByEmail(ctx context.Context, email string) (User, error) {
 	const query = `
 		INSERT INTO users (id, email)
 		VALUES ($1, $2)
 		ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
-		RETURNING id, email, created_at
+		RETURNING id, email, display_name, created_at
 	`
 
 	var u User
-	err := s.pool.QueryRow(ctx, query, uuid.New(), email).Scan(&u.ID, &u.Email, &u.CreatedAt)
+	err := s.pool.QueryRow(ctx, query, uuid.New(), email).Scan(&u.ID, &u.Email, &u.DisplayName, &u.CreatedAt)
 	if err != nil {
 		return User{}, fmt.Errorf("upserting user by email: %w", err)
+	}
+
+	return u, nil
+}
+
+// GetUser returns a login-capable user by id.
+func (s *PostgresStore) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
+	const query = `
+		SELECT id, email, display_name, created_at
+		FROM users
+		WHERE id = $1
+	`
+
+	var u User
+	err := s.pool.QueryRow(ctx, query, id).Scan(&u.ID, &u.Email, &u.DisplayName, &u.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("getting user: %w", err)
+	}
+
+	return u, nil
+}
+
+// UpdateUserDisplayName stores an optional account display name for user id.
+func (s *PostgresStore) UpdateUserDisplayName(ctx context.Context, id uuid.UUID, displayName string) (User, error) {
+	const query = `
+		UPDATE users
+		SET display_name = $1
+		WHERE id = $2
+		RETURNING id, email, display_name, created_at
+	`
+
+	var u User
+	err := s.pool.QueryRow(ctx, query, displayName, id).Scan(&u.ID, &u.Email, &u.DisplayName, &u.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("updating user display name: %w", err)
 	}
 
 	return u, nil

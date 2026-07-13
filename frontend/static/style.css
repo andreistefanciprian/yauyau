@@ -293,6 +293,144 @@ body {
   margin: 0;
 }
 
+.account-menu {
+  position: relative;
+}
+
+.account-menu summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(18rem, calc(100vw - 7rem));
+  min-height: 2.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem 0.25rem 0.3rem;
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-bg-secondary));
+  color: var(--color-text-primary);
+  cursor: pointer;
+  list-style: none;
+}
+
+.account-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-menu summary:hover {
+  background: var(--color-surface);
+}
+
+.account-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-teal);
+  color: white;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.account-copy {
+  display: grid;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.account-email,
+.account-context {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-email {
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.account-context {
+  margin-top: 0.12rem;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.account-chevron {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  transition: transform 0.15s ease;
+}
+
+.account-menu[open] .account-chevron {
+  transform: rotate(180deg);
+}
+
+.account-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: 0.2rem;
+  width: min(18.5rem, calc(100vw - 2rem));
+  padding: 0.45rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  box-shadow: 0 14px 34px rgba(51, 65, 85, 0.14);
+}
+
+.account-menu-identity {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem 0.65rem 0.65rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 0.2rem;
+}
+
+.account-menu-label {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.account-menu-email {
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.account-menu-panel a,
+.account-menu-panel button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.35rem;
+  border: 0;
+  border-radius: 0.4rem;
+  padding: 0 0.65rem;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-menu-panel a:hover,
+.account-menu-panel button:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-heading);
+}
+
 .navbar-text-button {
   border: 1px solid var(--color-border);
   border-radius: 999px;
@@ -429,7 +567,7 @@ h2 {
 }
 
 .timeline-filters {
-  margin: -0.35rem 0 0.9rem;
+  margin: 0 0 0.9rem;
 }
 
 .timeline-filters-toggle {
@@ -551,6 +689,31 @@ h2 {
 
 .settings-section h2 {
   margin-bottom: 0.75rem;
+}
+
+.settings-summary-list {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+}
+
+.settings-summary-list div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.settings-summary-list dt {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.settings-summary-list dd {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
 }
 
 .settings-form {
@@ -756,6 +919,11 @@ h2 {
   border: 0;
   color: white;
   background: var(--color-teal);
+}
+
+.relationship-form button:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .member-action-form {

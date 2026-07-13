@@ -36,6 +36,12 @@ type Baby struct {
 	HasPendingInvite bool   `json:"has_pending_invite"`
 }
 
+type User struct {
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name,omitempty"`
+}
+
 type TimelineMember struct {
 	UserID       string `json:"user_id"`
 	Email        string `json:"email"`

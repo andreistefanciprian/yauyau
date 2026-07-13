@@ -83,6 +83,65 @@ func TestUpsertUserByEmail_Idempotent(t *testing.T) {
 	}
 }
 
+func TestGetUser(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	email := testEmail(t)
+	t.Cleanup(func() { execCleanup(t, s, `DELETE FROM users WHERE email = $1`, email) })
+
+	created, err := s.UpsertUserByEmail(ctx, email)
+	if err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+
+	got, err := s.GetUser(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get user: %v", err)
+	}
+	if got.ID != created.ID {
+		t.Fatalf("expected id %v, got %v", created.ID, got.ID)
+	}
+	if got.Email != email {
+		t.Fatalf("expected email %q, got %q", email, got.Email)
+	}
+
+	if _, err := s.GetUser(ctx, uuid.New()); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound for missing user, got %v", err)
+	}
+}
+
+func TestUpdateUserDisplayName(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	email := testEmail(t)
+	t.Cleanup(func() { execCleanup(t, s, `DELETE FROM users WHERE email = $1`, email) })
+
+	created, err := s.UpsertUserByEmail(ctx, email)
+	if err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+
+	updated, err := s.UpdateUserDisplayName(ctx, created.ID, "Jenny")
+	if err != nil {
+		t.Fatalf("update display name: %v", err)
+	}
+	if updated.DisplayName != "Jenny" {
+		t.Fatalf("expected display name %q, got %q", "Jenny", updated.DisplayName)
+	}
+
+	cleared, err := s.UpdateUserDisplayName(ctx, created.ID, "")
+	if err != nil {
+		t.Fatalf("clear display name: %v", err)
+	}
+	if cleared.DisplayName != "" {
+		t.Fatalf("expected cleared display name, got %q", cleared.DisplayName)
+	}
+
+	if _, err := s.UpdateUserDisplayName(ctx, uuid.New(), "Nobody"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound for missing user, got %v", err)
+	}
+}
+
 func TestGetFamilyMembership_NotFound(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()

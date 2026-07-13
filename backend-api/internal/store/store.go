@@ -44,12 +44,12 @@ type Event struct {
 	Attributes map[string]any `json:"attributes"`
 }
 
-// User is a person who can log in via magic link. Email is the only
-// identity a user has — there is no password.
+// User is a person who can log in via magic link.
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          uuid.UUID `json:"id"`
+	Email       string    `json:"email"`
+	DisplayName string    `json:"display_name,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // MembershipRole and MembershipStatus are the fixed sets of values a

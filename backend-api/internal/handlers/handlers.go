@@ -45,6 +45,8 @@ type Store interface {
 // rather than one interface spanning both.
 type FamilyStore interface {
 	UpsertUserByEmail(ctx context.Context, email string) (store.User, error)
+	GetUser(ctx context.Context, userID uuid.UUID) (store.User, error)
+	UpdateUserDisplayName(ctx context.Context, userID uuid.UUID, displayName string) (store.User, error)
 	GetFamilyMembership(ctx context.Context, userID uuid.UUID) (store.FamilyMembership, error)
 	GetFamilyMembershipForFamily(ctx context.Context, userID, familyID uuid.UUID) (store.FamilyMembership, error)
 	HasPendingInviteOutsideFamily(ctx context.Context, userID, excludeFamilyID uuid.UUID) (bool, error)

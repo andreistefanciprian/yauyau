@@ -14,11 +14,16 @@ import (
 
 type settingsPageData struct {
 	Baby            backendclient.Baby
+	Account         accountViewData
 	SexOptions      []babySexOption
 	Members         []backendclient.TimelineMember
+	CanManageBaby   bool
 	CanManageAccess bool
 	Invite          inviteStatus
 
+	SettingsNotice string
+	AccountNotice  string
+	AccountError   string
 	BabyNotice     string
 	UpdateError    string
 	DeleteError    string
@@ -33,6 +38,26 @@ type babySexOption struct {
 
 func (h *Handlers) ShowSettings(w http.ResponseWriter, r *http.Request) {
 	h.renderSettings(w, r, settingsPageData{})
+}
+
+func (h *Handlers) UpdateAccountSettings(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	displayName := strings.TrimSpace(r.FormValue("display_name"))
+	user, err := h.Backend.UpdateCurrentUser(r.Context(), displayName)
+	if err != nil {
+		log.Printf("update account settings: %v", err)
+		h.renderSettings(w, r, settingsPageData{AccountError: "Could not save account settings. Please try again."})
+		return
+	}
+
+	h.renderSettings(w, r, settingsPageData{
+		Account:       accountFromUser(user),
+		AccountNotice: "Account settings updated.",
+	})
 }
 
 func (h *Handlers) UpdateBabySettings(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +87,7 @@ func (h *Handlers) UpdateBabySettings(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, backendclient.ErrForbidden) {
-			http.Error(w, "only the owner can update baby settings", http.StatusForbidden)
+			h.renderSettings(w, r, settingsPageData{SettingsNotice: "Only the timeline owner can update baby settings."})
 			return
 		}
 		log.Printf("update baby settings: %v", err)
@@ -101,7 +126,7 @@ func (h *Handlers) ArchiveCurrentBaby(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.Backend.ArchiveCurrentBaby(r.Context(), confirmName); err != nil {
 		if errors.Is(err, backendclient.ErrForbidden) {
-			http.Error(w, "only the owner can delete this baby", http.StatusForbidden)
+			h.renderSettings(w, r, settingsPageData{SettingsNotice: "Only the timeline owner can delete this timeline."})
 			return
 		}
 		log.Printf("archive baby: %v", err)
@@ -203,12 +228,15 @@ func (h *Handlers) renderSettings(w http.ResponseWriter, r *http.Request, data s
 		}
 		data.Baby = baby
 	}
+	if data.Account.Email == "" {
+		data.Account = h.loadAccount(r.Context())
+	}
+	data.CanManageBaby = data.Baby.CanInvite
 	data.SexOptions = sexOptions(data.Baby.Sex)
 
 	// Only the owner can list timeline members; a non-owner member should
-	// still see their own Profile and Delete-timeline sections, so a
-	// forbidden response here degrades the People/Invite sections instead
-	// of failing the whole page.
+	// still see their account and timeline context, so a forbidden response
+	// here degrades the People/Invite sections instead of failing the page.
 	result, err := h.Backend.ListTimelineMembers(r.Context())
 	if err != nil {
 		if !errors.Is(err, backendclient.ErrForbidden) {

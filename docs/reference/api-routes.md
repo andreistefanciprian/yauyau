@@ -8,12 +8,17 @@ section's backend-api + frontend wiring implements.
 
 ## backend-api routes
 
-All routes are mounted under `/api/v1/babies` in
-`backend-api/cmd/server/main.go`, behind `authctx.Middleware` (verifies the
-`Authorization: Bearer` JWT's signature/expiry and decodes the caller's
-identity into context — see `internal/authctx`):
+Authenticated app routes are mounted under `/api/v1/users` and
+`/api/v1/babies` in `backend-api/cmd/server/main.go`, behind
+`authctx.Middleware` (verifies the `Authorization: Bearer` JWT's
+signature/expiry and decodes the caller's identity into context — see
+`internal/authctx`):
 
 * `GET /healthz` — unauthenticated.
+* `GET /api/v1/users/me` → `GetCurrentUser`; returns the authenticated
+  user's id and email for account UI.
+* `PATCH /api/v1/users/me` → `UpdateCurrentUser`; updates optional account
+  profile fields such as `display_name`.
 * `POST /api/v1/babies` → `CreateBaby`. A caller with no existing family
   membership gets a family created implicitly (auto-named, never shown to
   the user) and becomes its owner in the same call; a caller who already

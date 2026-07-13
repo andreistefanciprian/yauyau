@@ -35,6 +35,8 @@ const (
 // HTTP client happens to expose. It is deliberately generic over resource
 // (nappies, feeds, ...) so adding an event type never grows this interface.
 type Backend interface {
+	GetCurrentUser(ctx context.Context) (backendclient.User, error)
+	UpdateCurrentUser(ctx context.Context, displayName string) (backendclient.User, error)
 	GetCurrentBaby(ctx context.Context) (backendclient.Baby, error)
 	CreateBaby(ctx context.Context, name string) (backendclient.Baby, error)
 	UpdateCurrentBaby(ctx context.Context, baby backendclient.Baby) (backendclient.Baby, error)
@@ -125,8 +127,16 @@ type inviteStatus struct {
 	Error   string
 }
 
+type accountViewData struct {
+	Label       string
+	Email       string
+	DisplayName string
+	Initial     string
+}
+
 type indexPageData struct {
 	Baby        backendclient.Baby
+	Account     accountViewData
 	Timeline    TimelineViewData
 	DailyReport *backendclient.DailyReport
 	NowDate     string
@@ -167,6 +177,7 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().In(loc)
 	data := indexPageData{
 		Baby:        baby,
+		Account:     h.loadAccount(r.Context()),
 		Timeline:    timeline,
 		DailyReport: dailyReport,
 		NowDate:     now.Format(dateFieldLayout),
@@ -176,6 +187,37 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.Templates.ExecuteTemplate(w, "index", data); err != nil {
 		log.Printf("render index template: %v", err)
+	}
+}
+
+func (h *Handlers) loadAccount(ctx context.Context) accountViewData {
+	user, err := h.Backend.GetCurrentUser(ctx)
+	if err != nil {
+		log.Printf("load current user: %v", err)
+		return accountViewData{Label: "Signed in", Email: "Signed in", Initial: "Y"}
+	}
+
+	return accountFromUser(user)
+}
+
+func accountFromUser(user backendclient.User) accountViewData {
+	label := strings.TrimSpace(user.DisplayName)
+	if label == "" {
+		label = user.Email
+	}
+	initial := "Y"
+	for _, r := range label {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			initial = strings.ToUpper(string(r))
+			break
+		}
+	}
+
+	return accountViewData{
+		Label:       label,
+		Email:       user.Email,
+		DisplayName: user.DisplayName,
+		Initial:     initial,
 	}
 }
 

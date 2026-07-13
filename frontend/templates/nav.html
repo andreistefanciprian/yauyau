@@ -1,0 +1,30 @@
+{{define "app-nav"}}
+<nav class="navbar">
+  <a class="navbar-brand" href="/app" aria-label="Yauli home">
+    <img src="/static/logo.png" alt="Yauli" class="navbar-logo-image">
+  </a>
+  <div class="navbar-actions">
+    <details class="account-menu">
+      <summary aria-label="Account menu">
+        <span class="account-avatar" aria-hidden="true">{{.Account.Initial}}</span>
+        <span class="account-copy">
+          <span class="account-email">{{.Account.Label}}</span>
+          <span class="account-context">{{.Baby.Name}}'s timeline</span>
+        </span>
+        <span class="account-chevron" aria-hidden="true">&#9662;</span>
+      </summary>
+      <div class="account-menu-panel">
+        <div class="account-menu-identity">
+          <span class="account-menu-label">Signed in as</span>
+          {{if ne .Account.Label .Account.Email}}<span class="account-menu-email">{{.Account.Label}}</span>{{end}}
+          <span class="account-menu-email">{{.Account.Email}}</span>
+        </div>
+        <a href="/settings">Settings</a>
+        <form method="post" action="/logout">
+          <button type="submit">Sign out</button>
+        </form>
+      </div>
+    </details>
+  </div>
+</nav>
+{{end}}

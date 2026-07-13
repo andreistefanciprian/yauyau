@@ -12,29 +12,9 @@
   <script src="/static/app.js" defer></script>
 </head>
 <body>
-  <nav class="navbar">
-    <a class="navbar-brand" href="/app" aria-label="Yauli home">
-      <img src="/static/logo.png" alt="Yauli" class="navbar-logo-image">
-    </a>
-    <div class="navbar-actions">
-      <form method="post" action="/logout">
-        <button type="submit" class="navbar-text-button">Sign Out</button>
-      </form>
-    </div>
-  </nav>
+  {{template "app-nav" .}}
 
   <main>
-    <header class="page-header baby-workspace-header">
-      <div>
-        <h1>{{.Baby.Name}}'s timeline</h1>
-      </div>
-      {{if .Baby.CanInvite}}
-      <div class="baby-header-actions">
-        <a href="/settings" class="settings-link">Settings</a>
-      </div>
-      {{end}}
-    </header>
-
     {{if .Baby.HasPendingInvite}}
     <section class="timeline-notice">
       <p>You have an invitation to another baby's timeline. To join it, delete this current timeline from Settings, then use the invitation link again.</p>

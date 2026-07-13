@@ -68,6 +68,11 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	r.Get("/healthz", h.Healthz)
+	r.Route("/api/v1/users", func(r chi.Router) {
+		r.Use(authctx.Middleware(jwtSecret))
+		r.Get("/me", h.GetCurrentUser)
+		r.Patch("/me", h.UpdateCurrentUser)
+	})
 	r.Route("/api/v1/babies", func(r chi.Router) {
 		r.Use(authctx.Middleware(jwtSecret))
 		r.Post("/", h.CreateBaby)

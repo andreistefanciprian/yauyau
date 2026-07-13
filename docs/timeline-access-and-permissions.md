@@ -63,7 +63,11 @@ Proposed user/profile fields:
 
 * `relationship`: how this person relates to the baby, e.g. `Mum`, `Dad`,
   `Grandpa`, `Auntie`, `Carer`, `Night nanny`
-* later, possibly `display_name`: how this person should be shown in the UI
+
+Account profile fields:
+
+* `display_name`: optional nickname for the signed-in account, stored on
+  `users` and shown in the navbar when set
 
 Relationship is not a permission. "Grandpa" should not imply read-only, and
 "Mum" should not be the same thing as owner. Keep relationship labels separate
@@ -81,7 +85,7 @@ Current behavior:
 
 * The timeline defaults to Today, with quick access to the 6 days before it
   (Yesterday, then each day by weekday name).
-* Owners can open Settings from the baby header to see who has access.
+* Users can open Settings from the account dropdown.
 * Owners can invite people to the timeline from the Settings page.
 * Owners can set optional relationship labels such as Mum, Dad, Grandpa, or
   Carer.
@@ -110,7 +114,7 @@ Current limitations:
 | Relationship storage | Add nullable `relationship TEXT` to `family_members`. |
 | Relationship validation | Store free text, but offer presets in the UI. |
 | Relationship vs permissions | Keep them separate. Relationship is identity/context, not authority. |
-| First access UI | Merged into the single `/settings` page (Profile + People with access), reached from the baby header as one `Settings` link. |
+| First access UI | Merged into the single `/settings` page (Account/Profile + People with access), reached from the account dropdown. |
 | First permission model | Keep existing `owner` / `member` behavior; defer granular permissions. |
 | Removing access | Owner-only; do not allow removing the last/only owner. |
 
@@ -187,9 +191,15 @@ ALTER TABLE family_members
   ADD COLUMN IF NOT EXISTS relationship TEXT;
 ```
 
-`display_name` is intentionally not present yet. Email is enough to identify
-people for the first settings page, and relationship is the higher-value
-addition.
+Account display names are stored separately on `users`:
+
+```sql
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT '';
+```
+
+Email remains the stable login identity. `display_name` is optional UI context
+for the signed-in account and does not affect timeline access.
 
 ### Backend API
 

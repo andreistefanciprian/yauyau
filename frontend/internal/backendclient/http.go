@@ -45,6 +45,22 @@ func (c *HTTPClient) GetCurrentBaby(ctx context.Context) (Baby, error) {
 	return baby, nil
 }
 
+func (c *HTTPClient) GetCurrentUser(ctx context.Context) (User, error) {
+	var user User
+	if err := c.getJSON(ctx, "/api/v1/users/me", &user); err != nil {
+		return User{}, err
+	}
+	return user, nil
+}
+
+func (c *HTTPClient) UpdateCurrentUser(ctx context.Context, displayName string) (User, error) {
+	var user User
+	if err := c.patchJSONDecode(ctx, "/api/v1/users/me", map[string]string{"display_name": displayName}, &user); err != nil {
+		return User{}, err
+	}
+	return user, nil
+}
+
 // CreateBaby adds name as the caller's first baby. backend-api creates
 // their family implicitly in the same call (see backend-api's CreateBaby)
 // and returns it as the baby's family_id.

@@ -10,52 +10,65 @@
   <script src="/static/number-stepper.js" defer></script>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      const form = document.getElementById("baby-profile-form");
-      const saveButton = document.getElementById("baby-profile-save");
-      if (!form || !saveButton) return;
+      document.querySelectorAll("[data-disable-unchanged]").forEach((form) => {
+        const saveButton = form.querySelector("button[type='submit']");
+        if (!saveButton) return;
 
-      const snapshot = () => new URLSearchParams(new FormData(form)).toString();
-      const initialState = snapshot();
-      const updateSaveState = () => {
-        saveButton.disabled = snapshot() === initialState;
-      };
+        const snapshot = () => new URLSearchParams(new FormData(form)).toString();
+        const initialState = snapshot();
+        const updateSaveState = () => {
+          saveButton.disabled = snapshot() === initialState;
+        };
 
-      form.addEventListener("input", updateSaveState);
-      form.addEventListener("change", updateSaveState);
-      form.addEventListener("submit", () => {
-        saveButton.disabled = true;
+        form.addEventListener("input", updateSaveState);
+        form.addEventListener("change", updateSaveState);
+        form.addEventListener("submit", () => {
+          saveButton.disabled = true;
+        });
+        updateSaveState();
       });
-      updateSaveState();
     });
   </script>
 </head>
 <body>
-  <nav class="navbar">
-    <a class="navbar-brand" href="/app" aria-label="Yauli home">
-      <img src="/static/logo.png" alt="Yauli" class="navbar-logo-image">
-    </a>
-    <div class="navbar-actions">
-      <form method="post" action="/logout">
-        <button type="submit" class="navbar-text-button">Sign Out</button>
-      </form>
-    </div>
-  </nav>
+  {{template "app-nav" .}}
 
   <main>
     <header class="page-header baby-workspace-header">
       <div>
+        {{if .CanManageBaby}}
         <h1>{{.Baby.Name}}'s settings</h1>
+        {{else}}
+        <h1>Settings</h1>
+        {{end}}
       </div>
       <div class="baby-header-actions">
         <a href="/app" class="settings-link">Back</a>
       </div>
     </header>
 
+    {{if .SettingsNotice}}<p class="settings-message">{{.SettingsNotice}}</p>{{end}}
+
+    <section class="settings-section">
+      <h2>Account</h2>
+      {{if .AccountNotice}}<p class="settings-message">{{.AccountNotice}}</p>{{end}}
+      {{if .AccountError}}<p class="invite-error">{{.AccountError}}</p>{{end}}
+      <form method="post" action="/settings/account" class="settings-form" data-disable-unchanged>
+        <label class="field-label">
+          Nickname (optional)
+          <input type="text" name="display_name" value="{{.Account.DisplayName}}" maxlength="80" placeholder="e.g. Jenny">
+        </label>
+        <p class="settings-message">Used in the navbar instead of your email.</p>
+        <button type="submit">Save</button>
+      </form>
+    </section>
+
+    {{if .CanManageBaby}}
     <section class="settings-section">
       <h2>Profile</h2>
       {{if .BabyNotice}}<p class="settings-message">{{.BabyNotice}}</p>{{end}}
       {{if .UpdateError}}<p class="invite-error">{{.UpdateError}}</p>{{end}}
-      <form method="post" action="/settings/baby" class="settings-form" id="baby-profile-form">
+      <form method="post" action="/settings/baby" class="settings-form" data-disable-unchanged>
         <label class="field-label">
           Baby's name
           <input type="text" name="name" value="{{.Baby.Name}}" required>
@@ -87,6 +100,17 @@
         <button type="submit" id="baby-profile-save">Save changes</button>
       </form>
     </section>
+    {{else}}
+    <section class="settings-section">
+      <h2>Timeline</h2>
+      <dl class="settings-summary-list">
+        <div>
+          <dt>Timeline</dt>
+          <dd>{{.Baby.Name}}</dd>
+        </div>
+      </dl>
+    </section>
+    {{end}}
 
     {{if .CanManageAccess}}
     <section class="settings-section">
@@ -116,7 +140,7 @@
             </p>
           </div>
 
-          <form method="post" action="/settings/timeline/members/{{.UserID}}/relationship" class="relationship-form">
+          <form method="post" action="/settings/timeline/members/{{.UserID}}/relationship" class="relationship-form" data-disable-unchanged>
             <label class="field-label">
               Relationship
               <input type="text" name="relationship" list="relationship-options" value="{{.Relationship}}" placeholder="e.g. Mum">
@@ -143,6 +167,7 @@
     </section>
     {{end}}
 
+    {{if .CanManageBaby}}
     <section class="settings-section danger-section">
       <h2>Delete timeline</h2>
       <p class="settings-message">This removes {{.Baby.Name}} from the active app and hides their timeline. If you need to join another baby's timeline, delete this one first, then use the invitation link you received. Type the baby name to confirm.</p>
@@ -155,6 +180,7 @@
         <button type="submit" class="danger-button">Delete timeline</button>
       </form>
     </section>
+    {{end}}
   </main>
 
   <datalist id="relationship-options">

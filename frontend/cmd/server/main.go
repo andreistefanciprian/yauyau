@@ -86,6 +86,7 @@ func main() {
 
 			r.Get("/app", h.Index)
 			r.Get("/settings", h.ShowSettings)
+			r.Post("/settings/account", h.UpdateAccountSettings)
 			r.Post("/settings/baby", h.UpdateBabySettings)
 			r.Post("/settings/baby/delete", h.ArchiveCurrentBaby)
 			r.Post("/settings/timeline/invite", h.CreateTimelineInvite)
