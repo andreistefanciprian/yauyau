@@ -142,6 +142,12 @@ Events should be ordered oldest-first for narrative analysis.
 Totals should remain factual counts and sums. They answer "how much was
 logged?"
 
+Feed totals should preserve type-specific meaning. Formula and expressed milk
+usually have millilitre amounts, while breast feeds may be duration-only. Keep
+the overall `total_ml`, but also return per-type ml fields so AI can talk
+about bottle volume without flattening formula and expressed feeds into one
+undifferentiated number.
+
 Suggested categories:
 
 ```json
@@ -154,6 +160,9 @@ Suggested categories:
       "formula_count": 1,
       "expressed_count": 7,
       "total_ml": 610,
+      "formula_ml": 80,
+      "expressed_ml": 530,
+      "breast_ml": 0,
       "total_duration_minutes": 80
     },
     "nappies": {
