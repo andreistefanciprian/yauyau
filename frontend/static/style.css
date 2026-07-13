@@ -381,13 +381,17 @@ body {
   transform: rotate(180deg);
 }
 
-@media (max-width: 390px) {
+@media (max-width: 480px) {
   .navbar {
     gap: 0.5rem;
   }
 
   .navbar-logo-image {
     height: 2rem;
+  }
+
+  .account-menu {
+    max-width: 14rem;
   }
 
   .account-menu summary {
@@ -404,6 +408,12 @@ body {
 
   .account-context {
     display: none;
+  }
+}
+
+@media (max-width: 390px) {
+  .account-menu {
+    max-width: 12rem;
   }
 }
 
