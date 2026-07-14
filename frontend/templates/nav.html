@@ -27,4 +27,26 @@
     </details>
   </div>
 </nav>
+<script>
+  (() => {
+    const accountMenu = document.currentScript.previousElementSibling.querySelector(".account-menu");
+    if (!accountMenu) return;
+
+    document.addEventListener("pointerdown", (event) => {
+      if (!accountMenu.open || accountMenu.contains(event.target)) return;
+      accountMenu.open = false;
+    });
+
+    document.addEventListener("focusin", (event) => {
+      if (!accountMenu.open || accountMenu.contains(event.target)) return;
+      accountMenu.open = false;
+    });
+
+    accountMenu.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      accountMenu.open = false;
+      accountMenu.querySelector("summary")?.focus();
+    });
+  })();
+</script>
 {{end}}
