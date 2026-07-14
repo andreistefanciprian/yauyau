@@ -1588,6 +1588,10 @@ select option {
   text-align: center;
 }
 
+.field-disabled {
+  opacity: 0.58;
+}
+
 textarea {
   resize: vertical;
   min-height: 4rem;

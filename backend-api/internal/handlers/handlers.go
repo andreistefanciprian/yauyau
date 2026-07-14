@@ -139,8 +139,20 @@ func (h *Handlers) ListAllEvents(w http.ResponseWriter, r *http.Request) {
 
 func orderTimelineEvents(events []store.Event) {
 	sort.SliceStable(events, func(i, j int) bool {
-		return isOngoingSleep(events[i]) && !isOngoingSleep(events[j])
+		return isOngoingTimelineEvent(events[i]) && !isOngoingTimelineEvent(events[j])
 	})
+}
+
+func isOngoingTimelineEvent(ev store.Event) bool {
+	return isOngoingFeed(ev) || isOngoingSleep(ev)
+}
+
+func isOngoingFeed(ev store.Event) bool {
+	if ev.EventType != eventTypeFeed {
+		return false
+	}
+	_, ok := attributeOptionalInt(ev.Attributes, "duration_minutes")
+	return !ok
 }
 
 func isOngoingSleep(ev store.Event) bool {

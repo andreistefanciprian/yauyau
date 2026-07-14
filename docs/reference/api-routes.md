@@ -173,7 +173,10 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   selected date is carried in each form/delete request so HTMX refreshes
   preserve the parent's current view.
 * `UpdateEvent` uses the same `renderTimeline` tail after patching the
-  combined `/events/{id}` route.
+  combined `/events/{id}` route. Timeline quick actions for ongoing feeds
+  and sleeps post to frontend-only finish routes (`/events/{id}/finish-feed`
+  and `/events/{id}/finish-sleep`), which preserve the original event start
+  time and call the same backend update route with a calculated duration.
 
 On the client, `frontend/static/app.js` drives the "Add Event" dialog: a
 type-picker step (one button per event type) followed by a

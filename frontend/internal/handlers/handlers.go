@@ -91,6 +91,7 @@ type TimelineEvent struct {
 	InlineDetail    string // short high-signal detail shown beside the event type, e.g. pump amount
 	Detail          string
 	StatusLabel     string
+	CanFinishFeed   bool
 	CanFinishSleep  bool
 	Time            string // pre-formatted for display, e.g. "11:15 AM" or "Jan 2, 11:15 AM"
 	DateValue       string
@@ -260,15 +261,15 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	amountMl, err := parseOptionalInt(r.FormValue("amount_ml"))
-	if err != nil {
-		http.Error(w, "invalid amount", http.StatusBadRequest)
-		return
-	}
-
 	durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
 	if err != nil {
 		http.Error(w, "invalid duration", http.StatusBadRequest)
+		return
+	}
+	feedType := r.FormValue("type")
+	amountMl, err := feedAmountFromForm(feedType, r.FormValue("amount_ml"))
+	if err != nil {
+		http.Error(w, "invalid amount", http.StatusBadRequest)
 		return
 	}
 
@@ -280,7 +281,7 @@ func (h *Handlers) CreateFeed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := map[string]any{
-		"type":             r.FormValue("type"),
+		"type":             feedType,
 		"amount_ml":        amountMl,
 		"duration_minutes": durationMinutes,
 		"labels":           r.Form["labels"],
@@ -541,11 +542,12 @@ func (h *Handlers) eventUpdatePayloadFromForm(loc *time.Location, r *http.Reques
 		attributes["labels"] = r.Form["labels"]
 		attributes["notes"] = r.FormValue("notes")
 	case "feed":
-		amountMl, err := parseOptionalInt(r.FormValue("amount_ml"))
+		durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
 		if err != nil {
 			return nil, err
 		}
-		durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
+		feedType := r.FormValue("type")
+		amountMl, err := feedAmountFromForm(feedType, r.FormValue("amount_ml"))
 		if err != nil {
 			return nil, err
 		}
@@ -553,7 +555,7 @@ func (h *Handlers) eventUpdatePayloadFromForm(loc *time.Location, r *http.Reques
 		if err != nil {
 			return nil, err
 		}
-		attributes["type"] = r.FormValue("type")
+		attributes["type"] = feedType
 		attributes["amount_ml"] = amountMl
 		attributes["duration_minutes"] = durationMinutes
 		attributes["labels"] = r.Form["labels"]
@@ -702,6 +704,64 @@ func (h *Handlers) FinishSleepNow(w http.ResponseWriter, r *http.Request) {
 	if err := h.Backend.UpdateEvent(r.Context(), id, payload); err != nil {
 		log.Printf("finish sleep: %v", err)
 		writeBackendEventError(w, err, "failed to finish sleep")
+		return
+	}
+
+	h.renderTimeline(w, r, loc)
+}
+
+// FinishFeedNow completes an ongoing feed from its existing start time to the
+// current time. Any recorded bottle amount is preserved; breast feeds keep
+// amount absent.
+func (h *Handlers) FinishFeedNow(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load baby", http.StatusBadGateway)
+		return
+	}
+
+	startedAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
+	if err != nil {
+		log.Printf("parse feed start: %v", err)
+		http.Error(w, "invalid feed start", http.StatusBadRequest)
+		return
+	}
+
+	durationMinutes := int(time.Since(startedAt).Minutes())
+	if durationMinutes < 1 {
+		durationMinutes = 1
+	}
+
+	feedType := r.FormValue("type")
+	attributes := map[string]any{
+		"type":             feedType,
+		"duration_minutes": durationMinutes,
+	}
+	if amountMl, err := feedAmountFromForm(feedType, r.FormValue("amount_ml")); err != nil {
+		http.Error(w, "invalid amount", http.StatusBadRequest)
+		return
+	} else if amountMl != nil {
+		attributes["amount_ml"] = *amountMl
+	}
+	if labels := strings.Split(r.FormValue("label_values"), ","); len(labels) > 0 && labels[0] != "" {
+		attributes["labels"] = labels
+	}
+	if notes := r.FormValue("notes"); notes != "" {
+		attributes["notes"] = notes
+	}
+
+	payload := map[string]any{
+		"event_type":  "feed",
+		"attributes":  attributes,
+		"occurred_at": startedAt.Format(time.RFC3339),
+	}
+
+	if err := h.Backend.UpdateEvent(r.Context(), id, payload); err != nil {
+		log.Printf("finish feed: %v", err)
+		writeBackendEventError(w, err, "failed to finish feed")
 		return
 	}
 
@@ -932,6 +992,14 @@ func feedTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time
 	labels := attributeStringSlice(ev.Attributes, "labels")
 
 	detail := amountAndDuration(ev.Attributes, "amount_ml", "ml")
+	statusLabel := ""
+	if _, ok := attributeInt(ev.Attributes, "duration_minutes"); !ok {
+		if detail != "" {
+			detail += " · "
+		}
+		detail += "Feed in progress"
+		statusLabel = "Ongoing"
+	}
 	for _, label := range labels {
 		if detail != "" {
 			detail += " · "
@@ -960,6 +1028,8 @@ func feedTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time
 		TypeLabel:       "Feed",
 		Kind:            titleCase(feedType),
 		Detail:          detail,
+		StatusLabel:     statusLabel,
+		CanFinishFeed:   statusLabel != "",
 		Time:            formatEventTime(occurredAt, now),
 		TypeValue:       feedType,
 		AmountMl:        amountMl,
@@ -1288,6 +1358,13 @@ func parseOptionalInt(raw string) (*int, error) {
 		return nil, fmt.Errorf("parsing int %q: %w", raw, err)
 	}
 	return &v, nil
+}
+
+func feedAmountFromForm(feedType, raw string) (*int, error) {
+	if feedType == "breast" {
+		return nil, nil
+	}
+	return parseOptionalInt(raw)
 }
 
 func parseRequiredPositiveInt(raw string) (int, error) {

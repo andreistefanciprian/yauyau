@@ -111,6 +111,21 @@ function updatePooSizeFields(scope) {
   });
 }
 
+function updateFeedAmountFields(scope) {
+  const forms = scope.matches?.("form") ? [scope] : Array.from(scope.querySelectorAll("form"));
+  forms.forEach((form) => {
+    const feedType = selectedRadioValue(form, "type");
+    const disableAmount = feedType === "breast";
+    form.querySelectorAll("[data-feed-amount-field]").forEach((container) => {
+      container.classList.toggle("field-disabled", disableAmount);
+      container.querySelectorAll("input").forEach((input) => {
+        input.disabled = disableAmount;
+        if (disableAmount) input.value = "";
+      });
+    });
+  });
+}
+
 // Set a form's date/time fields to the current local date/time. Called each
 // time a form is shown, since a value baked in at page load would go stale
 // if the dialog is opened later in the same session.
@@ -135,8 +150,17 @@ function setFormToNow(form) {
   form.querySelectorAll("[data-sleep-end-time]").forEach((input) => {
     input.value = "";
   });
+  form.querySelectorAll("[data-feed-end-date]").forEach((input) => {
+    input.value = "";
+    input.max = localDateValue(now);
+  });
+  form.querySelectorAll("[data-feed-end-time]").forEach((input) => {
+    input.value = "";
+  });
   updateSleepDuration(form);
+  updateFeedDuration(form);
   updatePooSizeFields(form);
+  updateFeedAmountFields(form);
 }
 
 function openDialog() {
@@ -238,6 +262,27 @@ function setSleepEndFromStart(form, durationMinutes) {
   endTime.value = "";
 }
 
+function setFeedEndFromStart(form, durationMinutes) {
+  const minutes = Number.parseInt(durationMinutes, 10);
+  const startDate = form.querySelector('input[name="date"]');
+  const startTime = form.querySelector('input[name="time"]');
+  const endDate = form.querySelector("[data-feed-end-date]");
+  const endTime = form.querySelector("[data-feed-end-time]");
+  const start = parseLocalDateTime(startDate?.value, startTime?.value);
+  if (!start || !endDate || !endTime) return;
+
+  if (Number.isFinite(minutes) && minutes > 0) {
+    const end = new Date(start);
+    end.setMinutes(end.getMinutes() + minutes);
+    endDate.value = localDateValue(end);
+    endTime.value = localTimeValue(end);
+    return;
+  }
+
+  endDate.value = "";
+  endTime.value = "";
+}
+
 function syncNumberSliderThumb(input) {
   const slider = input.closest(".number-slider");
   const range = slider?.querySelector(".number-slider-range");
@@ -257,10 +302,23 @@ function setSleepDurationValue(form, value) {
   syncNumberSliderThumb(durationInput);
 }
 
+function setFeedDurationValue(form, value) {
+  const durationInput = form.querySelector("[data-feed-duration-minutes]");
+  if (!durationInput) return;
+  durationInput.value = value;
+  syncNumberSliderThumb(durationInput);
+}
+
 function updateSleepSubmitLabel(form, hasCompletedSleep) {
   const submitButton = form.querySelector("[data-sleep-submit-label]");
   if (!submitButton) return;
   submitButton.textContent = hasCompletedSleep ? "Save" : "Start";
+}
+
+function updateFeedSubmitLabel(form, hasCompletedFeed) {
+  const submitButton = form.querySelector("[data-feed-submit-label]");
+  if (!submitButton) return;
+  submitButton.textContent = hasCompletedFeed ? "Save" : "Start";
 }
 
 function updateSleepDuration(scope) {
@@ -303,12 +361,60 @@ function updateSleepDuration(scope) {
   });
 }
 
+function updateFeedDuration(scope) {
+  const fields = scope.querySelectorAll("[data-feed-time-fields]");
+  fields.forEach((container) => {
+    const form = container.closest("form");
+    if (!form) return;
+
+    const startDate = form.querySelector('input[name="date"]');
+    const startTime = form.querySelector('input[name="time"]');
+    const endDate = container.querySelector("[data-feed-end-date]");
+    const endTime = container.querySelector("[data-feed-end-time]");
+    const preview = container.querySelector("[data-feed-duration-preview]");
+    const start = parseLocalDateTime(startDate?.value, startTime?.value);
+    const end = parseLocalDateTime(endDate?.value, endTime?.value);
+
+    endDate.setCustomValidity("");
+    endTime.setCustomValidity("");
+
+    if (!start || !end) {
+      setFeedDurationValue(form, "");
+      updateFeedSubmitLabel(form, false);
+      if (preview) preview.textContent = "Add finish time to calculate duration.";
+      return;
+    }
+
+    if (end <= start) {
+      const message = "Finish time must be after feed start.";
+      endTime.setCustomValidity(message);
+      setFeedDurationValue(form, "");
+      updateFeedSubmitLabel(form, false);
+      if (preview) preview.textContent = message;
+      return;
+    }
+
+    const minutes = Math.round((end - start) / 60000);
+    setFeedDurationValue(form, String(minutes));
+    updateFeedSubmitLabel(form, true);
+    if (preview) preview.textContent = `Duration: ${formatDuration(minutes)}`;
+  });
+}
+
 function updateSleepEndFromDuration(form) {
   const durationInput = form.querySelector("[data-sleep-duration-minutes]");
   if (!durationInput) return;
 
   setSleepEndFromStart(form, durationInput.value);
   updateSleepDuration(form);
+}
+
+function updateFeedEndFromDuration(form) {
+  const durationInput = form.querySelector("[data-feed-duration-minutes]");
+  if (!durationInput) return;
+
+  setFeedEndFromStart(form, durationInput.value);
+  updateFeedDuration(form);
 }
 
 function editSectionForType(type) {
@@ -354,9 +460,11 @@ function openEditDialog(button) {
       break;
     case "feed":
       setRadioValue(activeSection, "type", button.dataset.type, "expressed");
-      setRadioValue(activeSection, "feed_time_basis", "start", "start");
       setFieldValue(activeSection, "amount_ml", button.dataset.amountMl);
       setFieldValue(activeSection, "duration_minutes", button.dataset.durationMinutes);
+      setFeedEndFromStart(editForm, button.dataset.durationMinutes);
+      updateFeedDuration(editForm);
+      updateFeedAmountFields(editForm);
       setCheckboxValues(activeSection, "labels", button.dataset.labels);
       setFieldValue(activeSection, "notes", button.dataset.notes);
       break;
@@ -433,14 +541,26 @@ document.body.addEventListener("input", (event) => {
     return;
   }
 
+  if (event.target.matches("[data-feed-duration-minutes]")) {
+    updateFeedEndFromDuration(form);
+    return;
+  }
+
   if (event.target.closest("[data-sleep-time-fields]") || event.target.matches('input[name="date"], input[name="time"]')) {
     updateSleepDuration(form);
+  }
+
+  if (event.target.closest("[data-feed-time-fields]") || event.target.matches('input[name="date"], input[name="time"]')) {
+    updateFeedDuration(form);
   }
 });
 
 document.body.addEventListener("change", (event) => {
   if (event.target.matches('input[type="radio"][name="kind"]')) {
     updatePooSizeFields(event.target.closest("form"));
+  }
+  if (event.target.matches('input[type="radio"][name="type"]')) {
+    updateFeedAmountFields(event.target.closest("form"));
   }
 });
 

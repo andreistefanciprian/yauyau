@@ -73,6 +73,17 @@
       <button type="submit">Finish now</button>
     </form>
     {{end}}
+    {{if .CanFinishFeed}}
+    <form class="event-quick-action" hx-post="/events/{{.ID}}/finish-feed?selected_date={{$.SelectedDate}}" hx-target="#timeline-workspace" hx-swap="outerHTML">
+      <input type="hidden" name="date" value="{{.DateValue}}">
+      <input type="hidden" name="time" value="{{.TimeValue}}">
+      <input type="hidden" name="type" value="{{.TypeValue}}">
+      <input type="hidden" name="amount_ml" value="{{.AmountMl}}">
+      <input type="hidden" name="label_values" value="{{.LabelValues}}">
+      <input type="hidden" name="notes" value="{{.Notes}}">
+      <button type="submit">Finish now</button>
+    </form>
+    {{end}}
   </article>
   {{end}}
 </div>
@@ -113,7 +124,7 @@
 {{define "number-slider"}}
 <div class="number-slider">
   <input type="range" class="number-slider-range" min="{{.SliderMin}}" max="{{.SliderMax}}" step="{{.SliderStep}}"{{if .Value}} value="{{.Value}}"{{end}} aria-label="{{.Label}} slider">
-  <input type="number" name="{{.Name}}" class="number-slider-input" min="{{.Min}}"{{if .Max}} max="{{.Max}}"{{end}}{{if .InputStep}} step="{{.InputStep}}"{{end}}{{if .InputMode}} inputmode="{{.InputMode}}"{{end}}{{if .Value}} value="{{.Value}}"{{end}}{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Required}} required{{end}}>
+  <input type="number" name="{{.Name}}" class="number-slider-input" min="{{.Min}}"{{if .Max}} max="{{.Max}}"{{end}}{{if .InputStep}} step="{{.InputStep}}"{{end}}{{if .InputMode}} inputmode="{{.InputMode}}"{{end}}{{if .Value}} value="{{.Value}}"{{end}}{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Required}} required{{end}}{{if .FeedDuration}} data-feed-duration-minutes{{end}}>
 </div>
 {{end}}
 

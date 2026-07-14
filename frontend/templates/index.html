@@ -167,34 +167,39 @@
           <label><input type="checkbox" name="labels" value="settled_after"> Settled after</label>
         </fieldset>
 
-        <label class="field-label">
+        <label class="field-label" data-feed-amount-field>
           Amount (ml, optional)
           {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "InputStep" "5" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed amount" "Value" "80")}}
         </label>
 
         <label class="field-label">
           Duration (minutes, optional)
-          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "feed duration" "Value" "10")}}
+          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "30" "SliderStep" "5" "Label" "feed duration" "Value" "10" "FeedDuration" true)}}
         </label>
 
-        <div class="field-row">
-          <fieldset>
-            <legend>Time is</legend>
-            <label><input type="radio" name="feed_time_basis" value="start" required checked> Start time</label>
-            <label><input type="radio" name="feed_time_basis" value="end"> End time</label>
-          </fieldset>
+        <input type="hidden" name="feed_time_basis" value="start">
+
+        <div class="feed-time-fields" data-feed-time-fields>
           <label class="field-label">
-            Time
-            <input type="time" name="time" value="{{.NowTime}}" required>
+            Started
+            <span class="sleep-time-pair">
+              <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required data-feed-start-date>
+              <input type="time" name="time" value="{{.NowTime}}" required data-feed-start-time>
+            </span>
           </label>
+
+          <label class="field-label">
+            Finished
+            <span class="sleep-time-pair">
+              <input type="date" name="feed_end_date" max="{{.NowDate}}" data-feed-end-date>
+              <input type="time" name="feed_end_time" data-feed-end-time>
+            </span>
+          </label>
+
+          <p class="sleep-duration-preview" data-feed-duration-preview>Add finish time to calculate duration.</p>
         </div>
 
-        <label class="field-label">
-          Date
-          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
-        </label>
-
-        <button type="submit">Save</button>
+        <button type="submit" data-feed-submit-label>Start</button>
       </form>
 
       <form class="event-form" data-type="pump" hx-post="/pumps" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
@@ -443,19 +448,26 @@
             <label><input type="checkbox" name="labels" value="sleepy"> Sleepy</label>
             <label><input type="checkbox" name="labels" value="settled_after"> Settled after</label>
           </fieldset>
-          <label class="field-label">
+          <label class="field-label" data-feed-amount-field>
             Amount (ml, optional)
             {{template "number-slider" (dict "Name" "amount_ml" "Min" "0" "Max" "9999" "InputStep" "5" "SliderMin" "0" "SliderMax" "120" "SliderStep" "5" "Label" "feed amount")}}
           </label>
           <label class="field-label">
             Duration (minutes, optional)
-            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "60" "SliderStep" "5" "Label" "feed duration")}}
+            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "30" "SliderStep" "5" "Label" "feed duration" "FeedDuration" true)}}
           </label>
-          <fieldset>
-            <legend>Time is</legend>
-            <label><input type="radio" name="feed_time_basis" value="start"> Start time</label>
-            <label><input type="radio" name="feed_time_basis" value="end"> End time</label>
-          </fieldset>
+          <input type="hidden" name="feed_time_basis" value="start">
+
+          <div class="feed-time-fields" data-feed-time-fields>
+            <label class="field-label">
+              Finished
+              <span class="sleep-time-pair">
+                <input type="date" name="feed_end_date" data-feed-end-date>
+                <input type="time" name="feed_end_time" data-feed-end-time>
+              </span>
+            </label>
+            <p class="sleep-duration-preview" data-feed-duration-preview>Add finish time to calculate duration.</p>
+          </div>
         </div>
 
         <div class="edit-event-fields" data-edit-type="pump">
