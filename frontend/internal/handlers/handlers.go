@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -1393,23 +1394,45 @@ func attributeStringSlice(attributes map[string]any, key string) []string {
 }
 
 func attributeFloat(attributes map[string]any, key string) (float64, bool) {
-	v, ok := attributes[key].(float64)
-	if !ok {
+	switch v := attributes[key].(type) {
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case json.Number:
+		parsed, err := v.Float64()
+		return parsed, err == nil
+	default:
 		return 0, false
 	}
-	return v, true
 }
 
-// attributeInt reads an int field out of an event's attributes map. JSON
-// numbers decode into map[string]any as float64, so that's the only
-// numeric type checked; ok is false when the key is absent (an optional
-// field like amount_ml or duration_minutes that wasn't recorded).
+// attributeInt reads an int field out of an event's attributes map. Timeline
+// attributes usually arrive from JSON as float64, but update responses and
+// tests can carry concrete integer values.
 func attributeInt(attributes map[string]any, key string) (int, bool) {
-	v, ok := attributes[key].(float64)
-	if !ok {
+	switch v := attributes[key].(type) {
+	case float64:
+		return int(v), true
+	case float32:
+		return int(v), true
+	case int:
+		return v, true
+	case int64:
+		return int(v), true
+	case json.Number:
+		parsed, err := v.Int64()
+		if err != nil {
+			return 0, false
+		}
+		return int(parsed), true
+	default:
 		return 0, false
 	}
-	return int(v), true
 }
 
 // titleCase turns a snake_case or lowercase value (e.g. "whole_body", "poo",
@@ -1567,7 +1590,7 @@ func formatTemperatureInput(value float64) string {
 }
 
 func formatWeightKg(valueGrams int) string {
-	return fmt.Sprintf("%.3g kg", float64(valueGrams)/1000)
+	return fmt.Sprintf("%.3f kg", float64(valueGrams)/1000)
 }
 
 func formatWeightKgInput(valueGrams int) string {
