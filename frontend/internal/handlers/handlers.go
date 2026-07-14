@@ -1253,8 +1253,7 @@ func sleepTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Tim
 	return TimelineEvent{
 		CSSClass:        "sleep",
 		Icon:            "😴",
-		TypeLabel:       "Sleep",
-		Kind:            sleepTypeLabel(sleepType),
+		TypeLabel:       sleepTypeLabel(sleepType),
 		Detail:          detail,
 		StatusLabel:     statusLabel,
 		CanFinishSleep:  statusLabel != "",

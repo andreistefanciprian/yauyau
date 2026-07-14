@@ -59,6 +59,31 @@ func TestFeedTimelineEventMarksMissingDurationOngoing(t *testing.T) {
 	}
 }
 
+func TestSleepTimelineEventUsesSleepTypeAsLabel(t *testing.T) {
+	loc := time.FixedZone("ACST", 9*60*60+30*60)
+	occurredAt := time.Date(2026, 7, 14, 16, 30, 0, 0, loc)
+	ev := backendclient.Event{
+		EventType:  "sleep",
+		OccurredAt: occurredAt,
+		Attributes: map[string]any{
+			"type":             "nap",
+			"duration_minutes": float64(10),
+		},
+	}
+
+	timelineEvent := sleepTimelineEvent(ev, loc, occurredAt.Add(10*time.Minute))
+
+	if timelineEvent.TypeLabel != "Nap" {
+		t.Fatalf("TypeLabel = %q, want Nap", timelineEvent.TypeLabel)
+	}
+	if timelineEvent.Kind != "" {
+		t.Fatalf("Kind = %q, want empty", timelineEvent.Kind)
+	}
+	if timelineEvent.TypeValue != "nap" {
+		t.Fatalf("TypeValue = %q, want nap", timelineEvent.TypeValue)
+	}
+}
+
 func TestGrowthMeasurementTimelineEventPrefillsEditValues(t *testing.T) {
 	loc := time.FixedZone("ACST", 9*60*60+30*60)
 	occurredAt := time.Date(2026, 7, 14, 9, 15, 0, 0, loc)
