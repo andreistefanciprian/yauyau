@@ -45,7 +45,7 @@ That means:
 
 * events are the source of truth;
 * deterministic daily reports remain backend-owned;
-* derived metrics are calculated in backend-api;
+* baby analytics are calculated in backend-api;
 * recent baselines are calculated in backend-api;
 * AI receives structured, already-calculated input;
 * AI output is optional, cached, and generated only on demand.
@@ -56,7 +56,7 @@ That means:
 events
   -> deterministic daily report
   -> full day data
-  -> derived metrics
+  -> baby analytics
   -> recent baseline
   -> AI input
   -> cached AI insight output
@@ -97,7 +97,7 @@ This is useful for the UI, but it is not enough context for AI insights.
 Report data is the complete factual input for one selected local date range.
 For a one-day report, `start_date` and `end_date` are the same date. It should
 include range-level totals, daily reports, daily totals, and ordered raw
-events. Derived metrics should be added separately after the factual contract
+events. Baby analytics should be added separately after the factual contract
 is stable.
 
 Proposed endpoint:
@@ -271,156 +271,31 @@ Very long notes may need truncation or a per-event character cap before being
 sent to the AI input. If truncation is added, it should be deterministic and
 documented in the day-data contract.
 
-## Derived Metrics
+## Baby Analytics
 
-Derived metrics turn events into patterns. They should be deterministic Go
-calculations, not AI calculations.
+Baby analytics turn events into a small set of deterministic, parent-useful
+facts. They should answer parent questions, not compute everything. Reports
+are the first consumer, not the owner.
 
-### Feeding
+The analytics contract lives in [docs/baby-analytics.md](baby-analytics.md).
 
-Useful metrics:
+First version:
 
-* average and median gap between feeds;
-* longest and shortest feed gap;
-* first and last feed time;
-* average bottle amount;
-* largest and smallest feed amount;
-* morning, afternoon, evening, and overnight distribution;
-* clustered feeds, such as two feeds within 60 minutes;
-* feed mix;
-* change in feed amount across the day.
+* `timeline`;
+* `chronology`;
+* `intervals`;
+* `relationships`.
 
-Example:
+Later versions:
 
-```json
-{
-  "feeds": {
-    "average_gap_minutes": 172,
-    "median_gap_minutes": 165,
-    "longest_gap_minutes": 230,
-    "shortest_gap_minutes": 55,
-    "first_feed_at": "06:20",
-    "last_feed_at": "20:45",
-    "average_amount_ml": 72,
-    "largest_amount_ml": 90,
-    "smallest_amount_ml": 45,
-    "clustered_feed_count": 2,
-    "cluster_window_minutes": 60,
-    "most_active_period": "evening"
-  }
-}
-```
+* wake windows;
+* activity periods;
+* notable intervals;
+* baseline comparison.
 
-### Nappies
-
-Useful metrics:
-
-* minutes since last wet nappy;
-* minutes since last poo nappy;
-* nappies shortly after feeds;
-* latest poo label;
-* wet-only, poo-only, and mixed distribution;
-* longest gap between recorded nappies;
-* clustered nappy periods.
-
-Example:
-
-```json
-{
-  "nappies": {
-    "longest_gap_minutes": 210,
-    "minutes_since_last_wet": 95,
-    "minutes_since_last_poo": 280,
-    "feed_then_nappy_count": 4,
-    "feed_then_nappy_window_minutes": 30,
-    "latest_poo_label": "mustard yellow"
-  }
-}
-```
-
-### Sleeps
-
-Useful metrics:
-
-* longest sleep;
-* shortest sleep;
-* average sleep duration;
-* average wake window;
-* longest wake window;
-* daytime versus overnight sleep;
-* incomplete sleep count;
-* sleep following a feed or bath;
-* time between last feed and sleep start.
-
-Example:
-
-```json
-{
-  "sleeps": {
-    "average_duration_minutes": 96,
-    "longest_duration_minutes": 170,
-    "shortest_duration_minutes": 45,
-    "average_wake_window_minutes": 74,
-    "longest_wake_window_minutes": 128,
-    "ongoing_count": 1,
-    "bath_followed_by_sleep_count": 1
-  }
-}
-```
-
-### Event Sequences
-
-Sequences are especially valuable because parents may not notice them.
-
-Examples:
-
-* feed -> nappy within 30 minutes;
-* feed -> sleep within 45 minutes;
-* bath -> sleep within 60 minutes;
-* observation -> feed;
-* temperature -> observation.
-
-Do not call these causes. They are just recorded sequences.
-
-Example:
-
-```json
-{
-  "sequences": [
-    {
-      "name": "feed_then_nappy",
-      "first_type": "feed",
-      "second_type": "nappy",
-      "within_minutes": 30,
-      "count": 4
-    },
-    {
-      "name": "bath_then_sleep",
-      "first_type": "bath",
-      "second_type": "sleep",
-      "within_minutes": 60,
-      "count": 1
-    }
-  ]
-}
-```
-
-### Logging Coverage
-
-AI needs to know when the data may be incomplete.
-
-Example:
-
-```json
-{
-  "logging": {
-    "first_event_at": "06:20",
-    "last_event_at": "20:45",
-    "hours_covered": 14.4,
-    "possibly_incomplete": false
-  }
-}
-```
+Comparison must compare like with like. For example, a one-day selected range
+must be compared with a baseline daily average, not the seven-day baseline
+total.
 
 ## Recent Baseline
 
@@ -451,8 +326,8 @@ Example:
 }
 ```
 
-The first baseline version should return factual totals only. Derived baseline
-metrics and averages should be added after the derived metrics builder exists.
+The first baseline version should return factual totals only. Baseline
+analytics and averages should be added after the analytics builder exists.
 
 ## AI Input
 
@@ -464,7 +339,7 @@ It should include:
 * selected day metadata;
 * deterministic daily report;
 * totals;
-* derived metrics;
+* baby analytics;
 * recent baseline;
 * ordered event list, including notes and labels;
 * note coverage signals, such as how many events have notes and which event
@@ -603,27 +478,33 @@ Recommended sequence:
      note totals.
    * Add focused unit tests for totals and endpoint wiring.
 
-3. **Derived metrics**
-   * Add deterministic feed, nappy, sleep, sequence, and logging metrics.
-   * Add focused unit tests for calculations.
-
-4. **Recent baseline**
+3. **Recent baseline**
    * Add previous-7-day baseline range and factual totals.
    * Add tests for partial history and timezone boundaries.
 
-5. **AI backend**
+4. **Baby analytics**
+   * Add deterministic timeline, chronology, interval, and relationship
+     analytics.
+   * Add focused unit tests for calculations.
+
+5. **Analytics comparison**
+   * Add selected range versus baseline daily-average comparisons.
+   * Compare like with like; do not compare a one-day value with a seven-day
+     total.
+
+6. **AI backend**
    * Add OpenAI client.
    * Add `ai_reports` migration and store methods.
    * Add on-demand AI endpoint.
    * Cache by deterministic input hash and schema version.
 
-6. **Frontend AI interaction**
+7. **Frontend AI interaction**
    * Add explicit AI button/toggle.
    * Show loading/error states.
    * Keep AI hidden by default.
    * Do not call AI during normal timeline refresh.
 
-7. **MCP exposure**
+8. **MCP exposure**
    * Expose deterministic day data first.
    * Expose AI insight retrieval only after backend behavior is stable.
 
