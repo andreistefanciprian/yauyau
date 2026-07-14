@@ -418,6 +418,10 @@ Interfaces belong at the consumer, not the producer — this keeps them minimal 
 
 Follow idiomatic Go, not just working Go:
 
+* Act like a senior Go developer: choose the smallest boring design that
+  solves the current problem, prefer clear request/response flows, and avoid
+  clever coordination, generic helpers, or speculative optimization until the
+  need is proven.
 * Run `gofmt`/`goimports` on everything; no unformatted code.
 * Handle errors where they occur; wrap with `fmt.Errorf("...: %w", err)` to preserve context instead of discarding or logging-and-continuing.
 * Don't introduce an interface, abstraction layer, or config option until there's a real second case that needs it — avoid designing for hypothetical futures.

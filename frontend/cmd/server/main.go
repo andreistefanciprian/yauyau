@@ -85,6 +85,7 @@ func main() {
 			r.Use(h.RequireSession)
 
 			r.Get("/app", h.Index)
+			r.Get("/timeline/events", h.TimelineEvents)
 			r.Get("/settings", h.ShowSettings)
 			r.Post("/settings/account", h.UpdateAccountSettings)
 			r.Post("/settings/baby", h.UpdateBabySettings)

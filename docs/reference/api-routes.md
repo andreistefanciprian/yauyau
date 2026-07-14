@@ -163,6 +163,11 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   renders `templates/timeline.html`'s `timeline-workspace` partial. That
   workspace contains both the daily report card and `#timeline`, so HTMX
   event mutations can refresh both together and avoid stale report counts.
+* The frontend-only `GET /timeline/events` route renders the event-list
+  section for HTMX refreshes. Today's timeline polls that route every 30
+  seconds, while older timeline dates stay static. Passive polling does not
+  refresh the daily report; create, update, delete, and finish actions still
+  refresh the full `timeline-workspace`.
 * Each `Create<X>` handler parses the HTML form, builds a `map[string]any`
   payload (plus `occurred_at` via `parseEventTime`), calls
   `Backend.CreateEvent(ctx, "<resource>", payload)`, then calls the shared

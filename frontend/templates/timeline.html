@@ -1,27 +1,35 @@
 {{define "timeline-workspace"}}
 <div id="timeline-workspace" aria-live="polite">
-  {{with .DailyReport}}
-  <section class="daily-report" aria-labelledby="daily-report-title">
-    <div class="daily-report-header">
-      <span class="daily-report-icon" aria-hidden="true">{{template "report-icon"}}</span>
-      <div>
-        <h2 id="daily-report-title">{{.Title}}</h2>
-      </div>
-    </div>
-    {{if .Highlights}}
-    <ul class="daily-report-highlights">
-      {{range .Highlights}}
-      <li>{{.}}</li>
-      {{end}}
-    </ul>
-    {{end}}
-  </section>
-  {{end}}
+  {{template "daily-report" .DailyReport}}
 
-  <section id="timeline" class="timeline-section">
-    {{template "timeline" .Timeline}}
-  </section>
+  {{template "timeline-section" .Timeline}}
 </div>
+{{end}}
+
+{{define "daily-report"}}
+{{with .}}
+<section class="daily-report" aria-labelledby="daily-report-title">
+  <div class="daily-report-header">
+    <span class="daily-report-icon" aria-hidden="true">{{template "report-icon"}}</span>
+    <div>
+      <h2 id="daily-report-title">{{.Title}}</h2>
+    </div>
+  </div>
+  {{if .Highlights}}
+  <ul class="daily-report-highlights">
+    {{range .Highlights}}
+    <li>{{.}}</li>
+    {{end}}
+  </ul>
+  {{end}}
+</section>
+{{end}}
+{{end}}
+
+{{define "timeline-section"}}
+<section id="timeline" class="timeline-section"{{if .AutoRefresh}} hx-get="/timeline/events" hx-trigger="{{.AutoRefreshTrigger}}" hx-target="this" hx-swap="outerHTML"{{end}}>
+  {{template "timeline" .}}
+</section>
 {{end}}
 
 {{define "timeline"}}

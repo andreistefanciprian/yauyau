@@ -44,3 +44,14 @@ func TestFeedTimelineEventMarksMissingDurationOngoing(t *testing.T) {
 		t.Fatalf("AmountMl = %q, want 80", timelineEvent.AmountMl)
 	}
 }
+
+func TestShouldAutoRefreshTimelineOnlyForToday(t *testing.T) {
+	now := time.Date(2026, 7, 14, 22, 15, 0, 0, time.UTC)
+
+	if !shouldAutoRefreshTimeline("2026-07-14", now) {
+		t.Fatal("today timeline should auto-refresh")
+	}
+	if shouldAutoRefreshTimeline("2026-07-13", now) {
+		t.Fatal("past timeline should not auto-refresh")
+	}
+}
