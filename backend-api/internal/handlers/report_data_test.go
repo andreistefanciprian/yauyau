@@ -56,6 +56,30 @@ func TestReportDataWindowForRejectsInvalidRanges(t *testing.T) {
 	}
 }
 
+func TestReportDataBaselineWindowForExcludesSelectedRange(t *testing.T) {
+	loc := mustLoadLocation(t, "Australia/Adelaide")
+	now := time.Date(2026, 7, 13, 9, 30, 0, 0, loc)
+	window, err := reportDataWindowFor("2026-07-12", "2026-07-13", loc, now)
+	if err != nil {
+		t.Fatalf("reportDataWindowFor returned error: %v", err)
+	}
+
+	baselineWindow := reportDataBaselineWindowFor(window)
+
+	if baselineWindow.StartDate != "2026-07-05" || baselineWindow.EndDate != "2026-07-11" {
+		t.Fatalf("baseline dates = %s to %s, want 2026-07-05 to 2026-07-11", baselineWindow.StartDate, baselineWindow.EndDate)
+	}
+	if baselineWindow.DaysIncluded != 7 {
+		t.Fatalf("baseline DaysIncluded = %d, want 7", baselineWindow.DaysIncluded)
+	}
+	if !baselineWindow.RangeEnd.Equal(window.RangeStart) {
+		t.Fatalf("baseline RangeEnd = %s, want selected RangeStart %s", baselineWindow.RangeEnd, window.RangeStart)
+	}
+	if baselineWindow.IncludesToday || baselineWindow.IsPartial {
+		t.Fatalf("baseline IncludesToday/IsPartial = %v/%v, want false/false", baselineWindow.IncludesToday, baselineWindow.IsPartial)
+	}
+}
+
 func TestBuildReportDataGroupsDaysAndNormalizesEvents(t *testing.T) {
 	loc := mustLoadLocation(t, "Australia/Adelaide")
 	now := time.Date(2026, 7, 13, 9, 30, 0, 0, loc)
@@ -96,8 +120,28 @@ func TestBuildReportDataGroupsDaysAndNormalizesEvents(t *testing.T) {
 			"labels":   []any{"mustard_yellow"},
 		},
 	}
+	baselineWindow := reportDataBaselineWindowFor(window)
+	baselineFeed := store.Event{
+		ID:         uuid.New(),
+		BabyID:     babyID,
+		EventType:  eventTypeFeed,
+		OccurredAt: time.Date(2026, 7, 11, 8, 20, 0, 0, loc),
+		Attributes: map[string]any{
+			"type":      "formula",
+			"amount_ml": float64(70),
+		},
+	}
+	baselineNappy := store.Event{
+		ID:         uuid.New(),
+		BabyID:     babyID,
+		EventType:  eventTypeNappy,
+		OccurredAt: time.Date(2026, 7, 10, 7, 10, 0, 0, loc),
+		Attributes: map[string]any{
+			"kind": "wet",
+		},
+	}
 
-	resp := buildReportData(baby, window, loc, []store.Event{later, earlier})
+	resp := buildReportData(baby, window, loc, []store.Event{later, earlier}, baselineWindow, []store.Event{baselineFeed, baselineNappy})
 
 	if resp.Baby.ID != babyID || resp.Baby.Name != "YauYau" {
 		t.Fatalf("Baby = %#v", resp.Baby)
@@ -128,6 +172,12 @@ func TestBuildReportDataGroupsDaysAndNormalizesEvents(t *testing.T) {
 	}
 	if resp.Days[1].Totals.EventCount != 1 || resp.Days[1].Totals.Feeds.ExpressedMl != 80 {
 		t.Fatalf("second day totals = %#v, want one 80ml expressed feed", resp.Days[1].Totals)
+	}
+	if resp.Baseline.Range.StartDate != "2026-07-05" || resp.Baseline.Range.EndDate != "2026-07-11" {
+		t.Fatalf("baseline range = %#v, want 2026-07-05 to 2026-07-11", resp.Baseline.Range)
+	}
+	if resp.Baseline.Totals.EventCount != 2 || resp.Baseline.Totals.Feeds.FormulaMl != 70 || resp.Baseline.Totals.Nappies.WetOnlyCount != 1 {
+		t.Fatalf("baseline totals = %#v, want one 70ml formula feed and one wet nappy", resp.Baseline.Totals)
 	}
 
 	feed := resp.Days[1].Events[0]
@@ -166,7 +216,7 @@ func TestBuildReportDataOrdersEqualTimestampsByEventID(t *testing.T) {
 	}, window, loc, []store.Event{
 		{ID: secondID, EventType: eventTypeNappy, OccurredAt: occurredAt, Attributes: map[string]any{"kind": "wet"}},
 		{ID: firstID, EventType: eventTypeFeed, OccurredAt: occurredAt, Attributes: map[string]any{"type": "expressed"}},
-	})
+	}, reportDataBaselineWindowFor(window), nil)
 
 	if len(resp.Days[0].Events) != 2 || resp.Days[0].Events[0].ID != firstID || resp.Days[0].Events[1].ID != secondID {
 		t.Fatalf("events = %#v, want equal timestamps ordered by event ID", resp.Days[0].Events)

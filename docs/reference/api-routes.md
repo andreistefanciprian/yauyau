@@ -70,7 +70,8 @@ signature/expiry and decodes the caller's identity into context — see
   dates defaults to today. The response includes minimal baby context, range
   metadata, factual totals for the whole range, and one deterministic daily
   report plus factual totals and normalized oldest-first events per day. It
-  intentionally does not include derived metrics, baselines, or AI output yet.
+  also includes previous-7-day baseline range metadata and totals. It
+  intentionally does not include derived metrics or AI output yet.
 * `PATCH /api/v1/babies/current/events/{id}` → `UpdateEvent`, type-checked
   generic edit for an existing current-baby event.
 * `DELETE /api/v1/babies/current/events/{id}` → `DeleteEvent`, removes one

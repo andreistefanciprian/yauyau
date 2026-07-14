@@ -18,10 +18,11 @@ const maxReportDataDays = 31
 var errInvalidReportDataRange = errors.New("invalid report date range")
 
 type reportDataResponse struct {
-	Baby   reportBabyResponse   `json:"baby"`
-	Range  reportRangeResponse  `json:"range"`
-	Totals reportTotalsResponse `json:"totals"`
-	Days   []reportDayResponse  `json:"days"`
+	Baby     reportBabyResponse     `json:"baby"`
+	Range    reportRangeResponse    `json:"range"`
+	Totals   reportTotalsResponse   `json:"totals"`
+	Baseline reportBaselineResponse `json:"baseline"`
+	Days     []reportDayResponse    `json:"days"`
 }
 
 type reportBabyResponse struct {
@@ -55,6 +56,11 @@ type reportDayResponse struct {
 	Events     []reportEventResponse `json:"events"`
 }
 
+type reportBaselineResponse struct {
+	Range  reportRangeResponse  `json:"range"`
+	Totals reportTotalsResponse `json:"totals"`
+}
+
 type reportEventResponse struct {
 	ID         uuid.UUID      `json:"id"`
 	Type       string         `json:"type"`
@@ -81,7 +87,7 @@ type reportDataWindow struct {
 
 // GetReportData returns the canonical factual report-data payload for one to
 // 31 local calendar days. It is deterministic backend-owned input for later
-// email, MCP, and AI reporting; it does not call AI or calculate baselines.
+// email, MCP, and AI reporting; it does not call AI.
 func (h *Handlers) GetReportData(w http.ResponseWriter, r *http.Request) {
 	baby, ok := h.currentBabyForRequest(w, r)
 	if !ok {
@@ -113,7 +119,15 @@ func (h *Handlers) GetReportData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, buildReportData(baby, window, loc, events))
+	baselineWindow := reportDataBaselineWindowFor(window)
+	baselineEvents, err := h.Store.ListAllEvents(r.Context(), baby.FamilyID, baby.ID, baselineWindow.RangeStart, baselineWindow.RangeEnd, reportEventsLimit*baselineWindow.DaysIncluded)
+	if err != nil {
+		log.Printf("list report baseline events: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to load report baseline")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, buildReportData(baby, window, loc, events, baselineWindow, baselineEvents))
 }
 
 func reportDataWindowFor(rawStartDate, rawEndDate string, loc *time.Location, now time.Time) (reportDataWindow, error) {
@@ -167,13 +181,26 @@ func reportDataWindowFor(rawStartDate, rawEndDate string, loc *time.Location, no
 	}, nil
 }
 
-func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Location, events []store.Event) reportDataResponse {
-	sort.Slice(events, func(i, j int) bool {
-		if events[i].OccurredAt.Equal(events[j].OccurredAt) {
-			return events[i].ID.String() < events[j].ID.String()
-		}
-		return events[i].OccurredAt.Before(events[j].OccurredAt)
-	})
+func reportDataBaselineWindowFor(window reportDataWindow) reportDataWindow {
+	start := window.RangeStart.AddDate(0, 0, -7)
+	endStart := window.RangeStart.AddDate(0, 0, -1)
+	return reportDataWindow{
+		StartDate:     start.Format(time.DateOnly),
+		EndDate:       endStart.Format(time.DateOnly),
+		RangeStart:    start,
+		EndStart:      endStart,
+		RangeEnd:      window.RangeStart,
+		GeneratedAt:   window.GeneratedAt,
+		TodayStart:    window.TodayStart,
+		DaysIncluded:  7,
+		IncludesToday: false,
+		IsPartial:     false,
+	}
+}
+
+func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Location, events []store.Event, baselineWindow reportDataWindow, baselineEvents []store.Event) reportDataResponse {
+	sortEventsOldestFirst(events)
+	sortEventsOldestFirst(baselineEvents)
 
 	days := make([]reportDayResponse, 0, window.DaysIncluded)
 	for cursor := window.RangeStart; !cursor.After(window.EndStart); cursor = cursor.AddDate(0, 0, 1) {
@@ -216,8 +243,34 @@ func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Locatio
 			RangeEnd:      window.RangeEnd,
 			GeneratedAt:   window.GeneratedAt,
 		},
+		Totals:   buildReportTotals(events),
+		Baseline: buildReportBaseline(baselineWindow, baselineEvents),
+		Days:     days,
+	}
+}
+
+func sortEventsOldestFirst(events []store.Event) {
+	sort.Slice(events, func(i, j int) bool {
+		if events[i].OccurredAt.Equal(events[j].OccurredAt) {
+			return events[i].ID.String() < events[j].ID.String()
+		}
+		return events[i].OccurredAt.Before(events[j].OccurredAt)
+	})
+}
+
+func buildReportBaseline(window reportDataWindow, events []store.Event) reportBaselineResponse {
+	return reportBaselineResponse{
+		Range: reportRangeResponse{
+			StartDate:     window.StartDate,
+			EndDate:       window.EndDate,
+			DaysIncluded:  window.DaysIncluded,
+			IncludesToday: window.IncludesToday,
+			IsPartial:     window.IsPartial,
+			RangeStart:    window.RangeStart,
+			RangeEnd:      window.RangeEnd,
+			GeneratedAt:   window.GeneratedAt,
+		},
 		Totals: buildReportTotals(events),
-		Days:   days,
 	}
 }
 

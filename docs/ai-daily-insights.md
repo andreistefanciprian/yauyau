@@ -429,35 +429,31 @@ A single day can describe what happened. A baseline lets Yauli explain what
 changed compared with recent patterns.
 
 The first baseline should cover the previous 7 calendar days in the baby's
-timezone, excluding the selected day.
+timezone before the selected range starts. It should not overlap the selected
+range.
 
 Example:
 
 ```json
 {
   "baseline": {
-    "days_included": 7,
-    "feeds": {
-      "average_daily_count": 8.4,
-      "median_gap_minutes": 178,
-      "average_daily_ml": 610
+    "range": {
+      "start_date": "2026-07-06",
+      "end_date": "2026-07-12",
+      "days_included": 7,
+      "includes_today": false,
+      "is_partial": false,
+      "range_start": "2026-07-06T00:00:00+09:30",
+      "range_end": "2026-07-13T00:00:00+09:30",
+      "generated_at": "2026-07-13T09:30:00+09:30"
     },
-    "nappies": {
-      "average_daily_count": 9.1,
-      "average_daily_poo_only_count": 1.2,
-      "average_daily_mixed_count": 3.2
-    },
-    "sleeps": {
-      "average_daily_minutes": 905,
-      "average_longest_sleep_minutes": 175
-    }
+    "totals": {}
   }
 }
 ```
 
-Baseline values should only be present when enough data exists. If the user
-has only 2 prior days, return `days_included: 2` and let AI mention limited
-history if relevant.
+The first baseline version should return factual totals only. Derived baseline
+metrics and averages should be added after the derived metrics builder exists.
 
 ## AI Input
 
@@ -613,7 +609,7 @@ Recommended sequence:
    * Add focused unit tests for calculations.
 
 4. **Recent baseline**
-   * Add previous-7-day baseline builder.
+   * Add previous-7-day baseline range and factual totals.
    * Add tests for partial history and timezone boundaries.
 
 5. **AI backend**
