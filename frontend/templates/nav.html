@@ -17,6 +17,7 @@
           <span class="account-menu-label">Signed in as</span>
           {{if ne .Account.Label .Account.Email}}<span class="account-menu-email">{{.Account.Label}}</span>{{end}}
           <span class="account-menu-email">{{.Account.Email}}</span>
+          <span class="account-menu-context">{{.Baby.Name}}'s timeline</span>
         </div>
         <a href="/settings">Settings</a>
         <form method="post" action="/logout">
