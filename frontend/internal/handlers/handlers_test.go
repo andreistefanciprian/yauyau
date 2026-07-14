@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -42,6 +43,59 @@ func TestFeedTimelineEventMarksMissingDurationOngoing(t *testing.T) {
 	}
 	if timelineEvent.AmountMl != "80" {
 		t.Fatalf("AmountMl = %q, want 80", timelineEvent.AmountMl)
+	}
+}
+
+func TestGrowthMeasurementTimelineEventPrefillsEditValues(t *testing.T) {
+	loc := time.FixedZone("ACST", 9*60*60+30*60)
+	occurredAt := time.Date(2026, 7, 14, 9, 15, 0, 0, loc)
+	ev := backendclient.Event{
+		EventType:  "growth_measurement",
+		OccurredAt: occurredAt,
+		Attributes: map[string]any{
+			"weight_grams":          float64(3135),
+			"length_cm":             float64(52.4),
+			"head_circumference_cm": float64(35.7),
+			"notes":                 "checkup",
+		},
+	}
+
+	timelineEvent := growthMeasurementTimelineEvent(ev, loc, occurredAt.Add(15*time.Minute))
+
+	if timelineEvent.WeightKg != "3.135" {
+		t.Fatalf("WeightKg = %q, want 3.135", timelineEvent.WeightKg)
+	}
+	if timelineEvent.LengthCM != "52.4" {
+		t.Fatalf("LengthCM = %q, want 52.4", timelineEvent.LengthCM)
+	}
+	if timelineEvent.HeadCircumferenceCM != "35.7" {
+		t.Fatalf("HeadCircumferenceCM = %q, want 35.7", timelineEvent.HeadCircumferenceCM)
+	}
+	if timelineEvent.Notes != "checkup" {
+		t.Fatalf("Notes = %q, want checkup", timelineEvent.Notes)
+	}
+	if timelineEvent.Detail != "3.135 kg · Length 52.4 cm · Head 35.7 cm · checkup" {
+		t.Fatalf("Detail = %q", timelineEvent.Detail)
+	}
+}
+
+func TestGrowthMeasurementTimelineEventAcceptsStoredNumberTypes(t *testing.T) {
+	loc := time.FixedZone("ACST", 9*60*60+30*60)
+	occurredAt := time.Date(2026, 7, 14, 9, 15, 0, 0, loc)
+	ev := backendclient.Event{
+		EventType:  "growth_measurement",
+		OccurredAt: occurredAt,
+		Attributes: map[string]any{
+			"weight_grams":          int64(3135),
+			"length_cm":             json.Number("52.4"),
+			"head_circumference_cm": json.Number("35.7"),
+		},
+	}
+
+	timelineEvent := growthMeasurementTimelineEvent(ev, loc, occurredAt.Add(15*time.Minute))
+
+	if timelineEvent.WeightKg != "3.135" || timelineEvent.LengthCM != "52.4" || timelineEvent.HeadCircumferenceCM != "35.7" {
+		t.Fatalf("growth edit values = weight %q length %q head %q, want 3.135/52.4/35.7", timelineEvent.WeightKg, timelineEvent.LengthCM, timelineEvent.HeadCircumferenceCM)
 	}
 }
 
