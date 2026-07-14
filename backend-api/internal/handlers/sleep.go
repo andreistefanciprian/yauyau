@@ -20,6 +20,11 @@ const (
 	SleepTypeNight SleepType = "night"
 )
 
+const (
+	sleepNightStartHour = 18
+	sleepNightEndHour   = 6
+)
+
 func (t SleepType) Valid() bool {
 	switch t {
 	case SleepTypeNap, SleepTypeNight:
@@ -54,14 +59,14 @@ func (h *Handlers) CreateSleep(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sleepType := SleepType(req.Type)
-	if !sleepType.Valid() {
-		writeError(w, http.StatusBadRequest, "type must be one of: nap, night")
+	occurredAt, ok := parseOccurredAt(w, req.OccurredAt)
+	if !ok {
 		return
 	}
 
-	occurredAt, ok := parseOccurredAt(w, req.OccurredAt)
+	sleepType, ok := sleepTypeForStartedAt(req.Type, occurredAt)
 	if !ok {
+		writeError(w, http.StatusBadRequest, "type must be one of: nap, night")
 		return
 	}
 
@@ -74,6 +79,22 @@ func (h *Handlers) CreateSleep(w http.ResponseWriter, r *http.Request) {
 	}
 
 	createAndRespond(w, r, h, eventTypeSleep, attributes, occurredAt, sleepFromEvent)
+}
+
+func sleepTypeForStartedAt(raw string, startedAt time.Time) (SleepType, bool) {
+	if raw != "" {
+		sleepType := SleepType(raw)
+		return sleepType, sleepType.Valid()
+	}
+	if isNightSleepStart(startedAt) {
+		return SleepTypeNight, true
+	}
+	return SleepTypeNap, true
+}
+
+func isNightSleepStart(startedAt time.Time) bool {
+	hour := startedAt.Hour()
+	return hour >= sleepNightStartHour || hour < sleepNightEndHour
 }
 
 func sleepFromEvent(ev store.Event) sleepResponse {

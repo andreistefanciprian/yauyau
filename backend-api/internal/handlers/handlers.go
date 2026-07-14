@@ -208,12 +208,12 @@ func (h *Handlers) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	attributes, ok := normalizeEventAttributes(w, req.EventType, req.Attributes)
+	occurredAt, ok := parseOccurredAt(w, req.OccurredAt)
 	if !ok {
 		return
 	}
 
-	occurredAt, ok := parseOccurredAt(w, req.OccurredAt)
+	attributes, ok := normalizeEventAttributesForTime(w, req.EventType, req.Attributes, occurredAt)
 	if !ok {
 		return
 	}
@@ -318,6 +318,10 @@ func parseOccurredAt(w http.ResponseWriter, raw string) (time.Time, bool) {
 }
 
 func normalizeEventAttributes(w http.ResponseWriter, eventType string, raw map[string]any) (map[string]any, bool) {
+	return normalizeEventAttributesForTime(w, eventType, raw, time.Time{})
+}
+
+func normalizeEventAttributesForTime(w http.ResponseWriter, eventType string, raw map[string]any, occurredAt time.Time) (map[string]any, bool) {
 	switch eventType {
 	case eventTypeNappy:
 		kind := NappyKind(attributeString(raw, "kind"))
@@ -415,8 +419,8 @@ func normalizeEventAttributes(w http.ResponseWriter, eventType string, raw map[s
 		}
 		return attributes, true
 	case eventTypeSleep:
-		sleepType := SleepType(attributeString(raw, "type"))
-		if !sleepType.Valid() {
+		sleepType, ok := sleepTypeForStartedAt(attributeString(raw, "type"), occurredAt)
+		if !ok {
 			writeError(w, http.StatusBadRequest, "type must be one of: nap, night")
 			return nil, false
 		}

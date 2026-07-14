@@ -440,7 +440,6 @@ func (h *Handlers) CreateSleep(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := map[string]any{
-		"type":             r.FormValue("type"),
 		"notes":            r.FormValue("notes"),
 		"duration_minutes": durationMinutes,
 		"occurred_at":      occurredAt.Format(time.RFC3339),
@@ -1268,7 +1267,7 @@ func sleepTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Tim
 
 func sleepTypeLabel(sleepType string) string {
 	if sleepType == "nap" {
-		return "Day"
+		return "Nap"
 	}
 	return titleCase(sleepType)
 }

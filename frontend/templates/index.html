@@ -272,12 +272,6 @@
 
       <form class="event-form" data-type="sleep" hx-post="/sleeps" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
         <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
-        <fieldset>
-          <legend>Type</legend>
-          <label><input type="radio" name="type" value="nap" required checked> Day</label>
-          <label><input type="radio" name="type" value="night"> Night</label>
-        </fieldset>
-
         <label class="field-label">
           Notes (optional)
           <input type="text" name="notes" placeholder="e.g. settled easily">
@@ -545,7 +539,7 @@
         <div class="edit-event-fields" data-edit-type="sleep">
           <fieldset>
             <legend>Type</legend>
-            <label><input type="radio" name="type" value="nap"> Day</label>
+            <label><input type="radio" name="type" value="nap"> Nap</label>
             <label><input type="radio" name="type" value="night"> Night</label>
           </fieldset>
           <label class="field-label">

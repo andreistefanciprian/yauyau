@@ -80,6 +80,11 @@ signature/expiry and decodes the caller's identity into context — see
   `/feeds`, `/pumps`, `/baths`, `/observations`,
   `/growth-measurements`, ...):
   * `POST /api/v1/babies/current/<resource>` → `Create<Type>`
+  * Sleep `type` may be omitted on create or generic update. The backend then
+    classifies the sleep from its start time: starts from 18:00 through 05:59
+    are `night`, and starts from 06:00 through 17:59 are `nap`. Explicit
+    `nap` or `night` values remain supported for corrections and older
+    clients.
 
 ## The generic event store
 
