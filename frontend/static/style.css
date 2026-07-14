@@ -307,21 +307,19 @@ body {
 
 .account-menu summary {
   box-sizing: border-box;
-  display: grid;
-  grid-template-columns: auto auto;
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
-  width: auto;
-  min-height: 2.7rem;
-  border: 1px solid color-mix(in srgb, var(--color-teal) 35%, var(--color-border));
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 0;
   border-radius: 999px;
-  padding: 0.28rem 0.52rem 0.28rem 0.34rem;
-  background: color-mix(in srgb, var(--color-surface) 84%, var(--color-bg-secondary));
+  padding: 0;
+  background: transparent;
   color: var(--color-text-primary);
   cursor: pointer;
   list-style: none;
-  box-shadow: 0 8px 22px rgba(51, 65, 85, 0.08);
-  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
 .account-menu summary::-webkit-details-marker {
@@ -329,9 +327,8 @@ body {
 }
 
 .account-menu summary:hover {
-  border-color: color-mix(in srgb, var(--color-teal) 60%, var(--color-border));
-  background: var(--color-surface);
-  box-shadow: 0 10px 26px rgba(51, 65, 85, 0.12);
+  background: color-mix(in srgb, var(--color-teal) 14%, transparent);
+  color: var(--color-heading);
 }
 
 .account-menu summary:active {
@@ -339,29 +336,14 @@ body {
 }
 
 .account-icon {
-  box-sizing: border-box;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  padding: 0.38rem;
-  background: color-mix(in srgb, var(--color-teal) 22%, var(--color-surface));
-  color: var(--color-heading);
+  width: 1.35rem;
+  height: 1.35rem;
+  color: currentColor;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
-}
-
-.account-chevron {
-  flex: 0 0 auto;
-  color: var(--color-text-muted);
-  font-size: 0.7rem;
-  transition: transform 0.15s ease;
-}
-
-.account-menu[open] .account-chevron {
-  transform: rotate(180deg);
 }
 
 @media (max-width: 480px) {
@@ -374,15 +356,13 @@ body {
   }
 
   .account-menu summary {
-    gap: 0.4rem;
-    min-height: 2.35rem;
-    padding: 0.22rem 0.45rem 0.22rem 0.28rem;
+    width: 2.2rem;
+    height: 2.2rem;
   }
 
   .account-icon {
-    width: 1.85rem;
-    height: 1.85rem;
-    padding: 0.35rem;
+    width: 1.28rem;
+    height: 1.28rem;
   }
 }
 
