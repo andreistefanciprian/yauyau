@@ -1040,7 +1040,6 @@ func nappyTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Tim
 
 	return TimelineEvent{
 		CSSClass:     "nappy",
-		Icon:         "💩",
 		TypeLabel:    "Nappy",
 		Kind:         titleCase(kind),
 		Detail:       strings.Join(detailParts, " · "),

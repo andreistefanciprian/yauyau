@@ -37,7 +37,7 @@
 
         <div class="type-filter" id="type-filter" role="group" aria-label="Filter by event type">
           <button type="button" class="type-filter-chip type-filter-chip-all active" data-filter-type="all" title="All events">All</button>
-          <button type="button" class="type-filter-chip" data-filter-type="nappy" title="Nappy" aria-label="Filter to nappy events">💩</button>
+          <button type="button" class="type-filter-chip" data-filter-type="nappy" title="Nappy" aria-label="Filter to nappy events"><span class="nappy-icon" aria-hidden="true">{{template "nappy-icon" .}}</span></button>
           <button type="button" class="type-filter-chip" data-filter-type="feed" title="Feed" aria-label="Filter to feed events">🍼</button>
           <button type="button" class="type-filter-chip" data-filter-type="pump" title="Pump" aria-label="Filter to pump events"><span class="pump-icon" aria-hidden="true">{{template "pump-icon" .}}</span></button>
           <button type="button" class="type-filter-chip" data-filter-type="bath" title="Bath" aria-label="Filter to bath events">🛁</button>
@@ -68,7 +68,7 @@
 
       <div id="event-type-picker" class="event-type-picker">
         <button type="button" class="type-choice type-choice-nappy" data-type="nappy">
-          <span class="type-choice-icon" aria-hidden="true">💩</span>
+          <span class="type-choice-icon nappy-icon" aria-hidden="true">{{template "nappy-icon" .}}</span>
           <span>Nappy</span>
         </button>
         <button type="button" class="type-choice type-choice-feed" data-type="feed">

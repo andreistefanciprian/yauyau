@@ -663,7 +663,8 @@ h2 {
   color: var(--color-text-secondary);
 }
 
-.type-filter-chip .pump-icon svg {
+.type-filter-chip .pump-icon svg,
+.type-filter-chip .nappy-icon svg {
   width: 0.95rem;
   height: 0.95rem;
 }
@@ -978,14 +979,16 @@ h2 {
   line-height: 1;
 }
 
-.pump-icon {
+.pump-icon,
+.nappy-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
 }
 
-.pump-icon svg {
+.pump-icon svg,
+.nappy-icon svg {
   display: block;
   width: 1.35rem;
   height: 1.35rem;
@@ -1339,7 +1342,8 @@ dialog#confirm-dialog::backdrop {
   font-size: 1.75rem;
 }
 
-.type-choice-icon.pump-icon svg {
+.type-choice-icon.pump-icon svg,
+.type-choice-icon.nappy-icon svg {
   width: 1.9rem;
   height: 1.9rem;
 }
