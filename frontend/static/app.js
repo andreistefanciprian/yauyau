@@ -1,6 +1,6 @@
 // Drives the single "Add Event" dialog: step 1 picks an event type, step 2
 // shows only that type's form. Each form posts straight to its existing
-// endpoint (/nappies, /feeds, /pumps, /baths, /sleeps, /observations, /temperatures) via htmx and swaps in
+// endpoint (/nappies, /feeds, /pumps, /baths, /sleeps, /observations, /temperatures, /growth-measurements) via htmx and swaps in
 // the refreshed #timeline on success.
 
 const dialog = document.getElementById("add-event-dialog");
@@ -19,6 +19,7 @@ const typeLabels = {
   sleep: "Log sleep",
   observation: "Log an observation",
   temperature: "Log temperature",
+  growth_measurement: "Log growth",
 };
 
 function hideDialogError(dialogEl) {
@@ -494,6 +495,12 @@ function openEditDialog(button) {
       setFieldValue(activeSection, "method", button.dataset.method || "ear");
       setFieldValue(activeSection, "notes", button.dataset.notes);
       break;
+    case "growth_measurement":
+      setFieldValue(activeSection, "weight_kg", button.dataset.weightKg);
+      setFieldValue(activeSection, "length_cm", button.dataset.lengthCm);
+      setFieldValue(activeSection, "head_circumference_cm", button.dataset.headCircumferenceCm);
+      setFieldValue(activeSection, "notes", button.dataset.notes);
+      break;
   }
 
   editDialog.showModal();
@@ -582,6 +589,7 @@ const typeFilterChipLabels = {
   sleep: "Sleep",
   observation: "Notes",
   temperature: "Temperature",
+  growth_measurement: "Growth",
 };
 
 function setFiltersExpanded(expanded) {

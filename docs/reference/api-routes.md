@@ -76,7 +76,8 @@ signature/expiry and decodes the caller's identity into context — see
 * `DELETE /api/v1/babies/current/events/{id}` → `DeleteEvent`, removes one
   current-baby event regardless of type.
 * Per event type, nested under its plural resource name (`/nappies`,
-  `/feeds`, `/pumps`, `/baths`, `/observations`, ...):
+  `/feeds`, `/pumps`, `/baths`, `/observations`,
+  `/growth-measurements`, ...):
   * `POST /api/v1/babies/current/<resource>` → `Create<Type>`
 
 ## The generic event store
@@ -96,8 +97,8 @@ No event-type-specific SQL exists anywhere — a new event type never touches
 ## Per-event-type handler file (backend-api)
 
 Each event type is one file in `backend-api/internal/handlers/` (`nappy.go`,
-`feed.go`, `pump.go`, `bath.go`, `observation.go`) containing, and nothing
-else:
+`feed.go`, `pump.go`, `bath.go`, `observation.go`,
+`growth_measurement.go`) containing, and nothing else:
 
 1. A `const eventType<X> = "<x>"` string.
 2. Any enum-like type for constrained fields (e.g. `NappyKind`, `FeedType`)
@@ -134,8 +135,9 @@ generic `ListEvents(ctx, resource string, date string, out any)`,
 `ListEvents(ctx, "events", selectedDate, &events)` (backend-api's `/events`
 endpoint, already merged, date-filtered, and sorted newest-first across
 every event type); creates still go through `CreateEvent(ctx, "<resource>", payload)` per type
-(`"nappies"`, `"feeds"`, `"pumps"`, `"baths"`, `"observations"`), while edits
-go through the combined `UpdateEvent` route. The only shape
+(`"nappies"`, `"feeds"`, `"pumps"`, `"baths"`, `"observations"`,
+`"growth-measurements"`), while edits go through the combined `UpdateEvent`
+route. The only shape
 `backendclient.go` decodes is the generic `Event` struct (`EventType` plus
 an `Attributes map[string]any`) — no per-event-type typed view structs.
 

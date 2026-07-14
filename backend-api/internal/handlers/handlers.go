@@ -449,6 +449,20 @@ func normalizeEventAttributes(w http.ResponseWriter, eventType string, raw map[s
 			attributes["notes"] = notes
 		}
 		return attributes, true
+	case eventTypeGrowthMeasurement:
+		var weightGrams *int
+		if value, ok := attributeOptionalInt(raw, "weight_grams"); ok {
+			weightGrams = &value
+		}
+		var lengthCM *float64
+		if value, ok := attributeFloat(raw, "length_cm"); ok {
+			lengthCM = &value
+		}
+		var headCircumferenceCM *float64
+		if value, ok := attributeFloat(raw, "head_circumference_cm"); ok {
+			headCircumferenceCM = &value
+		}
+		return growthMeasurementAttributes(w, weightGrams, lengthCM, headCircumferenceCM, strings.TrimSpace(attributeString(raw, "notes")))
 	default:
 		writeError(w, http.StatusBadRequest, "event_type is invalid")
 		return nil, false

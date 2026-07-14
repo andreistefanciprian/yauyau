@@ -41,6 +41,7 @@
   --card-bg-sleep: color-mix(in srgb, var(--color-event-sleep) 18%, white);
   --card-bg-observation: color-mix(in srgb, var(--color-event-observation) 18%, white);
   --card-bg-temperature: color-mix(in srgb, var(--color-event-health) 16%, white);
+  --card-bg-growth: color-mix(in srgb, var(--color-event-weight) 18%, white);
 
   --navbar-bg: rgba(255, 255, 255, 0.72);
   --navbar-border: rgba(0, 0, 0, 0.06);
@@ -66,6 +67,7 @@
     --card-bg-sleep: color-mix(in srgb, var(--color-event-sleep) 28%, #14181a);
     --card-bg-observation: color-mix(in srgb, var(--color-event-observation) 28%, #14181a);
     --card-bg-temperature: color-mix(in srgb, var(--color-event-health) 30%, #14181a);
+    --card-bg-growth: color-mix(in srgb, var(--color-event-weight) 30%, #14181a);
 
     --navbar-bg: rgba(20, 20, 22, 0.72);
     --navbar-border: rgba(255, 255, 255, 0.08);
@@ -699,6 +701,7 @@ h2 {
 .type-filter-chip[data-filter-type="sleep"].active { border-color: color-mix(in srgb, var(--color-event-sleep) 55%, var(--color-border)); background: var(--card-bg-sleep); }
 .type-filter-chip[data-filter-type="observation"].active { border-color: color-mix(in srgb, var(--color-event-observation) 55%, var(--color-border)); background: var(--card-bg-observation); }
 .type-filter-chip[data-filter-type="temperature"].active { border-color: color-mix(in srgb, var(--color-event-health) 55%, var(--color-border)); background: var(--card-bg-temperature); }
+.type-filter-chip[data-filter-type="growth_measurement"].active { border-color: color-mix(in srgb, var(--color-event-weight) 55%, var(--color-border)); background: var(--card-bg-growth); }
 
 .type-filter-chip-all.active {
   border-color: color-mix(in srgb, var(--color-teal) 45%, var(--color-border));
@@ -1148,6 +1151,10 @@ h2 {
   background: var(--card-bg-temperature);
 }
 
+.event-growth {
+  background: var(--card-bg-growth);
+}
+
 .empty {
   color: var(--color-text-muted);
 }
@@ -1391,12 +1398,17 @@ dialog#confirm-dialog::backdrop {
   background: var(--card-bg-temperature);
 }
 
+.type-choice-growth {
+  background: var(--card-bg-growth);
+}
+
 /* Event forms (one shown at a time inside the dialog) */
 
 .event-form {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
 }
 
 fieldset {
@@ -1598,6 +1610,13 @@ textarea {
 }
 
 .event-form button[type="submit"] {
+  position: fixed;
+  left: 50%;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  z-index: 20;
+  width: calc(100% - 2.5rem);
+  max-width: 430px;
+  transform: translateX(-50%);
   padding: 0.75rem;
   font-size: 1rem;
   border: none;
@@ -1606,6 +1625,7 @@ textarea {
   color: white;
   cursor: pointer;
   margin-top: 0.25rem;
+  box-shadow: 0 0.5rem 1.4rem rgba(0, 0, 0, 0.16);
 }
 
 .event-form button[type="submit"]:active {

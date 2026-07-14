@@ -37,6 +37,7 @@ type dailyReportStats struct {
 	BathCount        int
 	ObservationCount int
 	TemperatureCount int
+	GrowthCount      int
 }
 
 type dailyReportPeriod struct {
@@ -184,6 +185,8 @@ func (s *dailyReportStats) add(ev store.Event) {
 		s.ObservationCount++
 	case eventTypeTemperature:
 		s.TemperatureCount++
+	case eventTypeGrowthMeasurement:
+		s.GrowthCount++
 	}
 }
 
@@ -236,11 +239,14 @@ func dailyReportHighlights(stats dailyReportStats, period dailyReportPeriod) []s
 	if stats.TemperatureCount > 0 {
 		highlights = append(highlights, pluralize(stats.TemperatureCount, "temperature", "temperatures")+" recorded.")
 	}
+	if stats.GrowthCount > 0 {
+		highlights = append(highlights, pluralize(stats.GrowthCount, "growth measurement", "growth measurements")+" recorded.")
+	}
 	return highlights
 }
 
 func (s dailyReportStats) totalEvents() int {
-	return s.FeedCount + s.NappyCount + s.SleepCount + s.PumpCount + s.BathCount + s.ObservationCount + s.TemperatureCount
+	return s.FeedCount + s.NappyCount + s.SleepCount + s.PumpCount + s.BathCount + s.ObservationCount + s.TemperatureCount + s.GrowthCount
 }
 
 func activeReportAreas(stats dailyReportStats) []string {
@@ -265,6 +271,9 @@ func activeReportAreas(stats dailyReportStats) []string {
 	}
 	if stats.TemperatureCount > 0 {
 		areas = append(areas, "temperatures")
+	}
+	if stats.GrowthCount > 0 {
+		areas = append(areas, "growth")
 	}
 	return areas
 }

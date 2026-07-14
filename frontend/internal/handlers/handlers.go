@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -82,31 +83,34 @@ func New(backend Backend, auth AuthClient, templates *template.Template, secureC
 // feed, pump, bath, sleep, observation) is flattened into, so the timeline can
 // render one kind of card regardless of how many event types exist.
 type TimelineEvent struct {
-	ID              string
-	EventType       string
-	CSSClass        string // "nappy", "feed", "pump", "bath", "observation" — drives card colour
-	Icon            string
-	TypeLabel       string
-	Kind            string // nappy's kind / feed & bath's type / observation's category — shown as "(Kind)" next to TypeLabel
-	InlineDetail    string // short high-signal detail shown beside the event type, e.g. pump amount
-	Detail          string
-	StatusLabel     string
-	CanFinishFeed   bool
-	CanFinishSleep  bool
-	Time            string // pre-formatted for display, e.g. "11:15 AM" or "Jan 2, 11:15 AM"
-	DateValue       string
-	TimeValue       string
-	KindValue       string
-	PooSizeValue    string
-	LabelValues     string
-	TypeValue       string
-	AmountMl        string
-	DurationMinutes string
-	TemperatureC    string
-	Method          string
-	Notes           string
-	Text            string
-	Category        string
+	ID                  string
+	EventType           string
+	CSSClass            string // "nappy", "feed", "pump", "bath", "observation" — drives card colour
+	Icon                string
+	TypeLabel           string
+	Kind                string // nappy's kind / feed & bath's type / observation's category — shown as "(Kind)" next to TypeLabel
+	InlineDetail        string // short high-signal detail shown beside the event type, e.g. pump amount
+	Detail              string
+	StatusLabel         string
+	CanFinishFeed       bool
+	CanFinishSleep      bool
+	Time                string // pre-formatted for display, e.g. "11:15 AM" or "Jan 2, 11:15 AM"
+	DateValue           string
+	TimeValue           string
+	KindValue           string
+	PooSizeValue        string
+	LabelValues         string
+	TypeValue           string
+	AmountMl            string
+	DurationMinutes     string
+	TemperatureC        string
+	WeightKg            string
+	LengthCM            string
+	HeadCircumferenceCM string
+	Method              string
+	Notes               string
+	Text                string
+	Category            string
 }
 
 type TimelineViewData struct {
@@ -522,6 +526,58 @@ func (h *Handlers) CreateTemperature(w http.ResponseWriter, r *http.Request) {
 	h.renderTimeline(w, r, loc)
 }
 
+func (h *Handlers) CreateGrowthMeasurement(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load baby", http.StatusBadGateway)
+		return
+	}
+
+	weightGrams, err := weightGramsFromKgForm(r.FormValue("weight_kg"))
+	if err != nil {
+		http.Error(w, "invalid weight", http.StatusBadRequest)
+		return
+	}
+	lengthCM, err := parseOptionalFloat(r.FormValue("length_cm"))
+	if err != nil {
+		http.Error(w, "invalid length", http.StatusBadRequest)
+		return
+	}
+	headCircumferenceCM, err := parseOptionalFloat(r.FormValue("head_circumference_cm"))
+	if err != nil {
+		http.Error(w, "invalid head circumference", http.StatusBadRequest)
+		return
+	}
+
+	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
+	if err != nil {
+		log.Printf("parse growth measurement time: %v", err)
+		http.Error(w, "invalid date/time", http.StatusBadRequest)
+		return
+	}
+
+	payload := map[string]any{
+		"weight_grams":          weightGrams,
+		"length_cm":             lengthCM,
+		"head_circumference_cm": headCircumferenceCM,
+		"notes":                 r.FormValue("notes"),
+		"occurred_at":           occurredAt.Format(time.RFC3339),
+	}
+	if err := h.Backend.CreateEvent(r.Context(), "growth-measurements", payload); err != nil {
+		log.Printf("create growth measurement: %v", err)
+		writeBackendEventError(w, err, "failed to save growth measurement")
+		return
+	}
+
+	h.renderTimeline(w, r, loc)
+}
+
 // UpdateEvent edits a single event, regardless of its type, and re-renders
 // the timeline — the same shared tail as every Create* and Delete handler.
 func (h *Handlers) UpdateEvent(w http.ResponseWriter, r *http.Request) {
@@ -629,6 +685,23 @@ func (h *Handlers) eventUpdatePayloadFromForm(loc *time.Location, r *http.Reques
 		}
 		attributes["temperature_c"] = temperatureC
 		attributes["method"] = r.FormValue("method")
+		attributes["notes"] = r.FormValue("notes")
+	case "growth_measurement":
+		weightGrams, err := weightGramsFromKgForm(r.FormValue("weight_kg"))
+		if err != nil {
+			return nil, err
+		}
+		lengthCM, err := parseOptionalFloat(r.FormValue("length_cm"))
+		if err != nil {
+			return nil, err
+		}
+		headCircumferenceCM, err := parseOptionalFloat(r.FormValue("head_circumference_cm"))
+		if err != nil {
+			return nil, err
+		}
+		attributes["weight_grams"] = weightGrams
+		attributes["length_cm"] = lengthCM
+		attributes["head_circumference_cm"] = headCircumferenceCM
 		attributes["notes"] = r.FormValue("notes")
 	default:
 		return nil, fmt.Errorf("unsupported event type %q", eventType)
@@ -928,6 +1001,8 @@ func timelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) (T
 		te = observationTimelineEvent(ev, loc, now)
 	case "temperature":
 		te = temperatureTimelineEvent(ev, loc, now)
+	case "growth_measurement":
+		te = growthMeasurementTimelineEvent(ev, loc, now)
 	default:
 		return TimelineEvent{}, false
 	}
@@ -1240,6 +1315,43 @@ func temperatureTimelineEvent(ev backendclient.Event, loc *time.Location, now ti
 	}
 }
 
+func growthMeasurementTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time) TimelineEvent {
+	occurredAt := ev.OccurredAt.In(loc)
+	notes := attributeString(ev.Attributes, "notes")
+
+	var detailParts []string
+	weightKg := ""
+	if weightGrams, ok := attributeInt(ev.Attributes, "weight_grams"); ok {
+		weightKg = formatWeightKgInput(weightGrams)
+		detailParts = append(detailParts, formatWeightKg(weightGrams))
+	}
+	lengthCM := ""
+	if value, ok := attributeFloat(ev.Attributes, "length_cm"); ok {
+		lengthCM = formatDecimalInput(value)
+		detailParts = append(detailParts, fmt.Sprintf("Length %s cm", formatDecimal(value)))
+	}
+	headCircumferenceCM := ""
+	if value, ok := attributeFloat(ev.Attributes, "head_circumference_cm"); ok {
+		headCircumferenceCM = formatDecimalInput(value)
+		detailParts = append(detailParts, fmt.Sprintf("Head %s cm", formatDecimal(value)))
+	}
+	if notes != "" {
+		detailParts = append(detailParts, notes)
+	}
+
+	return TimelineEvent{
+		CSSClass:            "growth",
+		Icon:                "📏",
+		TypeLabel:           "Growth",
+		Detail:              strings.Join(detailParts, " · "),
+		Time:                formatEventTime(occurredAt, now),
+		WeightKg:            weightKg,
+		LengthCM:            lengthCM,
+		HeadCircumferenceCM: headCircumferenceCM,
+		Notes:               notes,
+	}
+}
+
 // amountAndDuration builds "<amount> <unit> · <duration> min", omitting
 // either half that's absent — shared by any event type whose Detail is just
 // an optional quantity plus an optional duration (currently only feed).
@@ -1423,10 +1535,49 @@ func parseRequiredFloat(raw string) (float64, error) {
 	return value, nil
 }
 
+func parseOptionalFloat(raw string) (*float64, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return nil, fmt.Errorf("parsing float %q: %w", raw, err)
+	}
+	return &value, nil
+}
+
+func weightGramsFromKgForm(raw string) (*int, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	weightKg, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return nil, fmt.Errorf("parsing weight kg %q: %w", raw, err)
+	}
+	weightGrams := int(math.Round(weightKg * 1000))
+	return &weightGrams, nil
+}
+
 func formatTemperatureC(value float64) string {
 	return fmt.Sprintf("%.1f °C", value)
 }
 
 func formatTemperatureInput(value float64) string {
 	return strconv.FormatFloat(value, 'f', 1, 64)
+}
+
+func formatWeightKg(valueGrams int) string {
+	return fmt.Sprintf("%.3g kg", float64(valueGrams)/1000)
+}
+
+func formatWeightKgInput(valueGrams int) string {
+	return strconv.FormatFloat(float64(valueGrams)/1000, 'f', 3, 64)
+}
+
+func formatDecimal(value float64) string {
+	return strconv.FormatFloat(value, 'f', -1, 64)
+}
+
+func formatDecimalInput(value float64) string {
+	return strconv.FormatFloat(value, 'f', -1, 64)
 }

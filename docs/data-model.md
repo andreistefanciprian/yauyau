@@ -38,7 +38,7 @@ Examples:
 * Sleep
 * Pump
 * Note
-* Weight
+* Growth measurement
 * Temperature
 * Medication
 * Bath

@@ -44,6 +44,7 @@
           <button type="button" class="type-filter-chip" data-filter-type="sleep" title="Sleep" aria-label="Filter to sleep events">😴</button>
           <button type="button" class="type-filter-chip" data-filter-type="observation" title="Notes" aria-label="Filter to observation events">📝</button>
           <button type="button" class="type-filter-chip" data-filter-type="temperature" title="Temperature" aria-label="Filter to temperature events">🌡️</button>
+          <button type="button" class="type-filter-chip" data-filter-type="growth_measurement" title="Growth" aria-label="Filter to growth events">📏</button>
         </div>
       </div>
     </div>
@@ -93,6 +94,10 @@
         <button type="button" class="type-choice type-choice-temperature" data-type="temperature">
           <span class="type-choice-icon" aria-hidden="true">🌡️</span>
           <span>Temperature</span>
+        </button>
+        <button type="button" class="type-choice type-choice-growth" data-type="growth_measurement">
+          <span class="type-choice-icon" aria-hidden="true">📏</span>
+          <span>Growth</span>
         </button>
       </div>
 
@@ -381,6 +386,41 @@
 
         <button type="submit">Save</button>
       </form>
+
+      <form class="event-form" data-type="growth_measurement" hx-post="/growth-measurements" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
+        <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
+        <label class="field-label">
+          Weight (kg, optional)
+          {{template "number-slider" (dict "Name" "weight_kg" "Min" "0.001" "Max" "50" "SliderMin" "2" "SliderMax" "15" "SliderStep" "0.1" "InputStep" "0.001" "InputMode" "decimal" "Label" "weight")}}
+        </label>
+
+        <label class="field-label">
+          Length (cm, optional)
+          {{template "number-slider" (dict "Name" "length_cm" "Min" "1" "Max" "300" "SliderMin" "40" "SliderMax" "120" "SliderStep" "0.5" "InputStep" "0.1" "InputMode" "decimal" "Label" "length")}}
+        </label>
+
+        <label class="field-label">
+          Head circumference (cm, optional)
+          {{template "number-slider" (dict "Name" "head_circumference_cm" "Min" "1" "Max" "100" "SliderMin" "25" "SliderMax" "60" "SliderStep" "0.5" "InputStep" "0.1" "InputMode" "decimal" "Label" "head circumference")}}
+        </label>
+
+        <label class="field-label">
+          Notes (optional)
+          <input type="text" name="notes" placeholder="e.g. 8 week check">
+        </label>
+
+        <label class="field-label">
+          Time
+          <input type="time" name="time" value="{{.NowTime}}" required>
+        </label>
+
+        <label class="field-label">
+          Date
+          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+        </label>
+
+        <button type="submit">Save</button>
+      </form>
       </div>
     </dialog>
 
@@ -563,6 +603,25 @@
           <label class="field-label">
             Notes (optional)
             <input type="text" name="notes" placeholder="e.g. after bath">
+          </label>
+        </div>
+
+        <div class="edit-event-fields" data-edit-type="growth_measurement">
+          <label class="field-label">
+            Weight (kg, optional)
+            {{template "number-slider" (dict "Name" "weight_kg" "Min" "0.001" "Max" "50" "SliderMin" "2" "SliderMax" "15" "SliderStep" "0.1" "InputStep" "0.001" "InputMode" "decimal" "Label" "weight")}}
+          </label>
+          <label class="field-label">
+            Length (cm, optional)
+            {{template "number-slider" (dict "Name" "length_cm" "Min" "1" "Max" "300" "SliderMin" "40" "SliderMax" "120" "SliderStep" "0.5" "InputStep" "0.1" "InputMode" "decimal" "Label" "length")}}
+          </label>
+          <label class="field-label">
+            Head circumference (cm, optional)
+            {{template "number-slider" (dict "Name" "head_circumference_cm" "Min" "1" "Max" "100" "SliderMin" "25" "SliderMax" "60" "SliderStep" "0.5" "InputStep" "0.1" "InputMode" "decimal" "Label" "head circumference")}}
+          </label>
+          <label class="field-label">
+            Notes (optional)
+            <input type="text" name="notes" placeholder="e.g. 8 week check">
           </label>
         </div>
 

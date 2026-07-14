@@ -11,6 +11,7 @@ type reportTotalsResponse struct {
 	Baths        reportBathTotals        `json:"baths"`
 	Observations reportObservationTotals `json:"observations"`
 	Temperatures reportTemperatureTotals `json:"temperatures"`
+	Growth       reportGrowthTotals      `json:"growth"`
 	Notes        reportNoteTotals        `json:"notes"`
 }
 
@@ -67,6 +68,13 @@ type reportTemperatureTotals struct {
 	Methods map[string]int `json:"methods,omitempty"`
 }
 
+type reportGrowthTotals struct {
+	Count                     int      `json:"count"`
+	LatestWeightGrams         *int     `json:"latest_weight_grams,omitempty"`
+	LatestLengthCM            *float64 `json:"latest_length_cm,omitempty"`
+	LatestHeadCircumferenceCM *float64 `json:"latest_head_circumference_cm,omitempty"`
+}
+
 type reportNoteTotals struct {
 	EventsWithNotesCount int            `json:"events_with_notes_count"`
 	ByEventType          map[string]int `json:"by_event_type,omitempty"`
@@ -101,6 +109,8 @@ func (t *reportTotalsResponse) addEvent(ev store.Event) {
 		t.addObservation(ev)
 	case eventTypeTemperature:
 		t.addTemperature(ev)
+	case eventTypeGrowthMeasurement:
+		t.addGrowthMeasurement(ev)
 	}
 }
 
@@ -211,6 +221,28 @@ func (t *reportTotalsResponse) addTemperature(ev store.Event) {
 	t.Temperatures.LatestC = &latestValue
 	if method, ok := ev.Attributes["method"].(string); ok && method != "" {
 		incrementStringCount(&t.Temperatures.Methods, method)
+	}
+}
+
+func (t *reportTotalsResponse) addGrowthMeasurement(ev store.Event) {
+	weightGrams, hasWeight := attributeOptionalInt(ev.Attributes, "weight_grams")
+	lengthCM, hasLength := attributeFloat(ev.Attributes, "length_cm")
+	headCircumferenceCM, hasHeadCircumference := attributeFloat(ev.Attributes, "head_circumference_cm")
+	if !hasWeight && !hasLength && !hasHeadCircumference {
+		return
+	}
+	t.Growth.Count++
+	if hasWeight {
+		value := weightGrams
+		t.Growth.LatestWeightGrams = &value
+	}
+	if hasLength {
+		value := lengthCM
+		t.Growth.LatestLengthCM = &value
+	}
+	if hasHeadCircumference {
+		value := headCircumferenceCM
+		t.Growth.LatestHeadCircumferenceCM = &value
 	}
 }
 

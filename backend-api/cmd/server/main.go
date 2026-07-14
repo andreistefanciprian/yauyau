@@ -118,6 +118,9 @@ func main() {
 			r.Route("/temperatures", func(r chi.Router) {
 				r.Post("/", h.CreateTemperature)
 			})
+			r.Route("/growth-measurements", func(r chi.Router) {
+				r.Post("/", h.CreateGrowthMeasurement)
+			})
 		})
 	})
 

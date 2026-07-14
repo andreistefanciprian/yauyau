@@ -72,6 +72,7 @@ func TestBuildReportTotalsCountsCareEvents(t *testing.T) {
 		{ID: uuid.New(), EventType: eventTypeObservation, OccurredAt: now.Add(7 * time.Minute), Attributes: map[string]any{"category": "mood"}},
 		{ID: uuid.New(), EventType: eventTypeTemperature, OccurredAt: now.Add(8 * time.Minute), Attributes: map[string]any{"temperature_c": float64(37.2), "method": "ear"}},
 		{ID: uuid.New(), EventType: eventTypeTemperature, OccurredAt: now.Add(9 * time.Minute), Attributes: map[string]any{"temperature_c": float64(36.8), "method": "forehead"}},
+		{ID: uuid.New(), EventType: eventTypeGrowthMeasurement, OccurredAt: now.Add(10 * time.Minute), Attributes: map[string]any{"weight_grams": float64(4200), "length_cm": float64(55.5), "head_circumference_cm": float64(38.2)}},
 	}
 
 	totals := buildReportTotals(events)
@@ -99,5 +100,8 @@ func TestBuildReportTotalsCountsCareEvents(t *testing.T) {
 	}
 	if totals.Temperatures.Methods["ear"] != 1 || totals.Temperatures.Methods["forehead"] != 1 {
 		t.Fatalf("temperature methods = %#v, want ear and forehead counted", totals.Temperatures.Methods)
+	}
+	if totals.Growth.Count != 1 || *totals.Growth.LatestWeightGrams != 4200 || *totals.Growth.LatestLengthCM != 55.5 || *totals.Growth.LatestHeadCircumferenceCM != 38.2 {
+		t.Fatalf("growth totals = %#v, want latest growth measurements", totals.Growth)
 	}
 }
