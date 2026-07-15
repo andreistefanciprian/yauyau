@@ -39,7 +39,7 @@
   <article class="event-card event-{{.CSSClass}}" data-event-type="{{.EventType}}">
     <div class="event-card-header">
       <span class="event-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" .EventType}}</span>
-      <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">· {{if eq .EventType "nappy"}}<span class="nappy-kind-icon" aria-hidden="true">{{template "nappy-kind-icon" .KindValue}}</span>{{end}}{{.Kind}}</span>{{end}}{{if .InlineDetail}} <span class="event-inline-detail">· {{.InlineDetail}}</span>{{end}}</span>
+      <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">· {{.Kind}}</span>{{end}}{{if .InlineDetail}} <span class="event-inline-detail">· {{.InlineDetail}}</span>{{end}}</span>
       <span class="event-time">{{.Time}}</span>
       <button type="button" class="event-edit" aria-label="Edit event"
         data-event-id="{{.ID}}"
@@ -65,9 +65,10 @@
         hx-delete="/events/{{.ID}}?selected_date={{$.SelectedDate}}" hx-target="#timeline-workspace" hx-swap="outerHTML"
         hx-confirm="Delete {{.TypeLabel}} event?" title="Delete event">&times;</button>
     </div>
-    {{if or .Detail .StatusLabel}}
+    {{if or .Detail .StatusLabel (eq .EventType "nappy")}}
     <div class="event-detail">
-      {{if .Detail}}<span>{{if .PooSizeValue}}<span class="nappy-poo-size-icon" aria-hidden="true">{{template "nappy-poo-size-icon" .PooSizeValue}}</span>{{end}}{{.Detail}}</span>{{end}}
+      {{if eq .EventType "nappy"}}<span class="nappy-detail-icons" aria-hidden="true">{{template "nappy-timeline-detail-icons" (dict "Kind" .KindValue "PooSize" .PooSizeValue)}}</span>{{end}}
+      {{if .Detail}}<span>{{.Detail}}</span>{{end}}
       {{if .StatusLabel}}<span class="event-status-pill">{{.StatusLabel}}</span>{{end}}
     </div>
     {{end}}
@@ -150,6 +151,13 @@
 {{else if eq . "medium"}}{{template "poo-icon"}}{{template "poo-icon"}}
 {{else if eq . "large"}}{{template "poo-icon"}}{{template "poo-icon"}}{{template "poo-icon"}}
 {{else if eq . "blowout"}}{{template "blowout-icon"}}
+{{end}}
+{{end}}
+
+{{define "nappy-timeline-detail-icons"}}
+{{if eq .Kind "wet"}}{{template "wet-icon"}}
+{{else if eq .Kind "poo"}}{{if .PooSize}}{{template "nappy-poo-size-icon" .PooSize}}{{else}}{{template "poo-icon"}}{{end}}
+{{else if eq .Kind "both"}}{{template "wet-icon"}}{{if .PooSize}}{{template "nappy-poo-size-icon" .PooSize}}{{else}}{{template "poo-icon"}}{{end}}
 {{end}}
 {{end}}
 

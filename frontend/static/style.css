@@ -1002,8 +1002,7 @@ h2 {
   color: var(--color-text-secondary);
 }
 
-.nappy-kind-icon,
-.nappy-poo-size-icon,
+.nappy-detail-icons,
 .nappy-option-icon {
   display: inline-flex;
   align-items: center;
@@ -1011,16 +1010,7 @@ h2 {
   vertical-align: -0.16em;
 }
 
-.nappy-kind-icon {
-  margin: 0 0.2rem;
-}
-
-.nappy-poo-size-icon {
-  margin-right: 0.3rem;
-}
-
-.nappy-kind-icon svg,
-.nappy-poo-size-icon svg,
+.nappy-detail-icons svg,
 .nappy-option-icon svg {
   display: block;
   width: 0.95rem;
