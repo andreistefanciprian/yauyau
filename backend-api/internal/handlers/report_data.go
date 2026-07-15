@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -97,40 +98,43 @@ func (h *Handlers) GetReportData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	loc, err := time.LoadLocation(baby.Timezone)
-	if err != nil {
-		log.Printf("load baby timezone %q: %v", baby.Timezone, err)
-		writeError(w, http.StatusInternalServerError, "failed to resolve report timezone")
-		return
-	}
-
-	window, err := reportDataWindowFor(r.URL.Query().Get("start_date"), r.URL.Query().Get("end_date"), loc, time.Now().In(loc))
+	reportData, _, err := h.buildReportDataForBaby(r.Context(), baby, r.URL.Query().Get("start_date"), r.URL.Query().Get("end_date"), time.Now())
 	if err != nil {
 		if errors.Is(err, errInvalidReportDataRange) {
 			writeError(w, http.StatusBadRequest, "invalid report date range")
 			return
 		}
-		log.Printf("resolve report data range: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to resolve report range")
-		return
-	}
-
-	events, err := h.Store.ListAllEvents(r.Context(), baby.FamilyID, baby.ID, window.RangeStart, window.RangeEnd, reportEventsLimit*window.DaysIncluded)
-	if err != nil {
-		log.Printf("list report data events: %v", err)
+		log.Printf("build report data: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to load report data")
 		return
 	}
 
-	baselineWindow := reportDataBaselineWindowFor(window)
-	baselineEvents, err := h.Store.ListAllEvents(r.Context(), baby.FamilyID, baby.ID, baselineWindow.RangeStart, baselineWindow.RangeEnd, reportEventsLimit*baselineWindow.DaysIncluded)
+	writeJSON(w, http.StatusOK, reportData)
+}
+
+func (h *Handlers) buildReportDataForBaby(ctx context.Context, baby store.Baby, rawStartDate, rawEndDate string, now time.Time) (reportDataResponse, reportDataWindow, error) {
+	loc, err := time.LoadLocation(baby.Timezone)
 	if err != nil {
-		log.Printf("list report baseline events: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to load report baseline")
-		return
+		return reportDataResponse{}, reportDataWindow{}, fmt.Errorf("load baby timezone %q: %w", baby.Timezone, err)
 	}
 
-	writeJSON(w, http.StatusOK, buildReportData(baby, window, loc, events, baselineWindow, baselineEvents))
+	window, err := reportDataWindowFor(rawStartDate, rawEndDate, loc, now.In(loc))
+	if err != nil {
+		return reportDataResponse{}, reportDataWindow{}, err
+	}
+
+	events, err := h.Store.ListAllEvents(ctx, baby.FamilyID, baby.ID, window.RangeStart, window.RangeEnd, reportEventsLimit*window.DaysIncluded)
+	if err != nil {
+		return reportDataResponse{}, reportDataWindow{}, fmt.Errorf("list report data events: %w", err)
+	}
+
+	baselineWindow := reportDataBaselineWindowFor(window)
+	baselineEvents, err := h.Store.ListAllEvents(ctx, baby.FamilyID, baby.ID, baselineWindow.RangeStart, baselineWindow.RangeEnd, reportEventsLimit*baselineWindow.DaysIncluded)
+	if err != nil {
+		return reportDataResponse{}, reportDataWindow{}, fmt.Errorf("list report baseline events: %w", err)
+	}
+
+	return buildReportData(baby, window, loc, events, baselineWindow, baselineEvents), window, nil
 }
 
 func reportDataWindowFor(rawStartDate, rawEndDate string, loc *time.Location, now time.Time) (reportDataWindow, error) {

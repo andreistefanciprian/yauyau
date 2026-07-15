@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -139,6 +140,68 @@ func TestUpdateUserDisplayName(t *testing.T) {
 
 	if _, err := s.UpdateUserDisplayName(ctx, uuid.New(), "Nobody"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected ErrNotFound for missing user, got %v", err)
+	}
+}
+
+func TestAIReportCacheCreateAndGet(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	familyID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	babyID := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	rangeStart := time.Date(2026, 7, 13, 0, 0, 0, 0, time.UTC)
+	rangeEnd := time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC)
+	inputHash := uuid.NewString()
+
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM ai_report_cache WHERE input_hash = $1`, inputHash)
+	})
+
+	content := json.RawMessage(`{"schema_version":"ai_report_output.v1","title":"Cached report"}`)
+	saved, err := s.CreateAIReportCache(ctx, AIReportCache{
+		FamilyID:            familyID,
+		BabyID:              babyID,
+		ReportType:          "daily",
+		RangeStart:          rangeStart,
+		RangeEnd:            rangeEnd,
+		InputHash:           inputHash,
+		PromptVersion:       "ai_report_prompt.v1",
+		InputSchemaVersion:  "ai_report_input.v1",
+		OutputSchemaVersion: "ai_report_output.v1",
+		Model:               "test-model",
+		ContentJSON:         content,
+	})
+	if err != nil {
+		t.Fatalf("create cache: %v", err)
+	}
+	if saved.ID == uuid.Nil {
+		t.Fatal("saved cache ID is nil")
+	}
+	if saved.CreatedAt.IsZero() {
+		t.Fatal("saved cache CreatedAt is zero")
+	}
+
+	got, err := s.GetAIReportCache(ctx, familyID, babyID, "daily", rangeStart, rangeEnd, inputHash)
+	if err != nil {
+		t.Fatalf("get cache: %v", err)
+	}
+	if got.ID != saved.ID {
+		t.Fatalf("cache ID = %v, want %v", got.ID, saved.ID)
+	}
+	var gotContent map[string]any
+	if err := json.Unmarshal(got.ContentJSON, &gotContent); err != nil {
+		t.Fatalf("unmarshal got content: %v", err)
+	}
+	var wantContent map[string]any
+	if err := json.Unmarshal(content, &wantContent); err != nil {
+		t.Fatalf("unmarshal want content: %v", err)
+	}
+	if gotContent["schema_version"] != wantContent["schema_version"] || gotContent["title"] != wantContent["title"] {
+		t.Fatalf("content = %#v, want %#v", gotContent, wantContent)
+	}
+
+	_, err = s.GetAIReportCache(ctx, familyID, babyID, "daily", rangeStart, rangeEnd, "missing")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing cache error = %v, want ErrNotFound", err)
 	}
 }
 

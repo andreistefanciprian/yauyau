@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -42,6 +43,24 @@ type Event struct {
 	OccurredAt time.Time      `json:"occurred_at"`
 	CreatedAt  time.Time      `json:"created_at"`
 	Attributes map[string]any `json:"attributes"`
+}
+
+// AIReportCache is a regenerable cached AI interpretation of deterministic
+// report data. Events remain the canonical baby history.
+type AIReportCache struct {
+	ID                  uuid.UUID       `json:"id"`
+	FamilyID            uuid.UUID       `json:"family_id"`
+	BabyID              uuid.UUID       `json:"baby_id"`
+	ReportType          string          `json:"report_type"`
+	RangeStart          time.Time       `json:"range_start"`
+	RangeEnd            time.Time       `json:"range_end"`
+	InputHash           string          `json:"input_hash"`
+	PromptVersion       string          `json:"prompt_version"`
+	InputSchemaVersion  string          `json:"input_schema_version"`
+	OutputSchemaVersion string          `json:"output_schema_version"`
+	Model               string          `json:"model"`
+	ContentJSON         json.RawMessage `json:"content_json"`
+	CreatedAt           time.Time       `json:"created_at"`
 }
 
 // User is a person who can log in via magic link.

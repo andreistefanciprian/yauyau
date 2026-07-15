@@ -37,6 +37,7 @@ type Store interface {
 	UpdateEvent(ctx context.Context, familyID, babyID, id uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
 	ListAllEvents(ctx context.Context, familyID, babyID uuid.UUID, from, to time.Time, limit int) ([]store.Event, error)
 	DeleteEvent(ctx context.Context, familyID, babyID, id uuid.UUID) error
+	GetAIReportCache(ctx context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash string) (store.AIReportCache, error)
 }
 
 // FamilyStore is the persistence boundary the internal, auth-service-facing
@@ -577,6 +578,14 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		log.Printf("write JSON response: %v", err)
+	}
+}
+
+func writeRawJSON(w http.ResponseWriter, status int, payload []byte) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if _, err := w.Write(payload); err != nil {
+		log.Printf("write raw JSON response: %v", err)
 	}
 }
 

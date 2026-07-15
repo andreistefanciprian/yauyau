@@ -96,6 +96,7 @@ func main() {
 				// and later AI report generation.
 				r.Get("/data", h.GetReportData)
 				r.Get("/daily", h.GetDailyReport)
+				r.Post("/ai", h.CreateAIReport)
 			})
 			r.Route("/nappies", func(r chi.Router) {
 				r.Post("/", h.CreateNappy)

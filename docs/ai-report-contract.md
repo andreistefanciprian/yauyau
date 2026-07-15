@@ -642,7 +642,7 @@ with a complete selected range. For example, a weekly scheduled email can use
 
 ## Caching
 
-Use an `ai_reports` table keyed by:
+Use an `ai_report_cache` table keyed by:
 
 * `family_id`;
 * `baby_id`;
@@ -658,14 +658,21 @@ Store:
 * input schema version;
 * output schema version;
 * generated content JSONB;
-* created timestamp.
+* `created_at`;
 * optional delivery/rendering metadata for audit only.
 
 The cache protects UX and cost. It should not make event creation slower.
+It is not canonical baby history; events remain the source of truth, and AI
+reports are regenerable from deterministic report data.
 
 Scheduled email jobs should reuse cached channel-neutral reports when the
 deterministic input hash matches. They should not regenerate the same report
 repeatedly for each recipient.
+
+The first AI backend PR should add `created_at` so cache entries are ready for
+future retention cleanup. A later scheduler or maintenance job should delete
+old cache rows after the agreed retention window, for example 90 days. Do not
+add that cleanup job before cached AI reports are actually being generated.
 
 ## Evals
 
@@ -745,23 +752,27 @@ Recommended sequence:
 
 6. **AI backend**
    * Add AI input/output contract types.
-   * Add OpenAI client.
-   * Add `ai_reports` migration and store methods.
+   * Add `ai_report_cache` migration and store methods.
    * Add on-demand AI endpoint.
    * Cache by deterministic input hash and schema version.
 
-7. **Scheduled report delivery**
+7. **AI generation**
+   * Add OpenAI client.
+   * Generate `ai_report_output.v1` JSON on cache misses.
+   * Validate model output before caching it.
+
+8. **Scheduled report delivery**
    * Add daily and weekly scheduled report jobs.
    * Use complete selected windows by default.
    * Render cached AI report JSON into email templates.
 
-8. **Frontend AI interaction**
+9. **Frontend AI interaction**
    * Add explicit AI button/toggle.
    * Show loading/error states.
    * Keep AI hidden by default.
    * Do not call AI during normal timeline refresh.
 
-9. **MCP exposure**
+10. **MCP exposure**
    * Expose deterministic report data first.
    * Expose AI insight retrieval only after backend behavior is stable.
 

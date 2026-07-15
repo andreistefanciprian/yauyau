@@ -334,6 +334,129 @@ func (s *PostgresStore) ListAllEvents(ctx context.Context, familyID, babyID uuid
 	return results, nil
 }
 
+func (s *PostgresStore) GetAIReportCache(ctx context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash string) (AIReportCache, error) {
+	const query = `
+		SELECT
+			id,
+			family_id,
+			baby_id,
+			report_type,
+			range_start,
+			range_end,
+			input_hash,
+			prompt_version,
+			input_schema_version,
+			output_schema_version,
+			model,
+			content_json,
+			created_at
+		FROM ai_report_cache
+		WHERE family_id = $1
+			AND baby_id = $2
+			AND report_type = $3
+			AND range_start = $4
+			AND range_end = $5
+			AND input_hash = $6
+	`
+
+	report, err := scanAIReportCache(s.pool.QueryRow(ctx, query, familyID, babyID, reportType, rangeStart, rangeEnd, inputHash))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return AIReportCache{}, ErrNotFound
+	}
+	if err != nil {
+		return AIReportCache{}, fmt.Errorf("getting AI report cache: %w", err)
+	}
+
+	return report, nil
+}
+
+func (s *PostgresStore) CreateAIReportCache(ctx context.Context, report AIReportCache) (AIReportCache, error) {
+	if report.ID == uuid.Nil {
+		report.ID = uuid.New()
+	}
+
+	const query = `
+		INSERT INTO ai_report_cache (
+			id,
+			family_id,
+			baby_id,
+			report_type,
+			range_start,
+			range_end,
+			input_hash,
+			prompt_version,
+			input_schema_version,
+			output_schema_version,
+			model,
+			content_json
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		ON CONFLICT (family_id, baby_id, report_type, range_start, range_end, input_hash)
+		DO UPDATE SET
+			prompt_version = EXCLUDED.prompt_version,
+			input_schema_version = EXCLUDED.input_schema_version,
+			output_schema_version = EXCLUDED.output_schema_version,
+			model = EXCLUDED.model,
+			content_json = EXCLUDED.content_json
+		RETURNING
+			id,
+			family_id,
+			baby_id,
+			report_type,
+			range_start,
+			range_end,
+			input_hash,
+			prompt_version,
+			input_schema_version,
+			output_schema_version,
+			model,
+			content_json,
+			created_at
+	`
+
+	saved, err := scanAIReportCache(s.pool.QueryRow(
+		ctx,
+		query,
+		report.ID,
+		report.FamilyID,
+		report.BabyID,
+		report.ReportType,
+		report.RangeStart,
+		report.RangeEnd,
+		report.InputHash,
+		report.PromptVersion,
+		report.InputSchemaVersion,
+		report.OutputSchemaVersion,
+		report.Model,
+		report.ContentJSON,
+	))
+	if err != nil {
+		return AIReportCache{}, fmt.Errorf("creating AI report cache: %w", err)
+	}
+
+	return saved, nil
+}
+
+func scanAIReportCache(row pgx.Row) (AIReportCache, error) {
+	var report AIReportCache
+	err := row.Scan(
+		&report.ID,
+		&report.FamilyID,
+		&report.BabyID,
+		&report.ReportType,
+		&report.RangeStart,
+		&report.RangeEnd,
+		&report.InputHash,
+		&report.PromptVersion,
+		&report.InputSchemaVersion,
+		&report.OutputSchemaVersion,
+		&report.Model,
+		&report.ContentJSON,
+		&report.CreatedAt,
+	)
+	return report, err
+}
+
 // UpsertUserByEmail returns the existing user with this email, creating one
 // if none exists yet. Email is the stable login identity.
 func (s *PostgresStore) UpsertUserByEmail(ctx context.Context, email string) (User, error) {
