@@ -87,7 +87,6 @@ type TimelineEvent struct {
 	ID                  string
 	EventType           string
 	CSSClass            string // "nappy", "feed", "pump", "bath", "observation" — drives card colour
-	Icon                string
 	TypeLabel           string
 	Kind                string // nappy's kind / feed & bath's type / observation's category — shown as "(Kind)" next to TypeLabel
 	InlineDetail        string // short high-signal detail shown beside the event type, e.g. pump amount
@@ -1054,15 +1053,15 @@ func nappyTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Tim
 func pooSizeLabel(size string) string {
 	switch size {
 	case "smear":
-		return "💨 Smear"
+		return "Smear"
 	case "small":
-		return "💩 Small"
+		return "Small"
 	case "medium":
-		return "💩💩 Medium"
+		return "Medium"
 	case "large":
-		return "💩💩💩 Large"
+		return "Large"
 	case "blowout":
-		return "💥 Blowout"
+		return "Blowout"
 	default:
 		return titleCase(size)
 	}
@@ -1139,7 +1138,6 @@ func feedTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time
 
 	return TimelineEvent{
 		CSSClass:        "feed",
-		Icon:            "🍼",
 		TypeLabel:       "Feed",
 		Kind:            titleCase(feedType),
 		Detail:          detail,
@@ -1214,7 +1212,6 @@ func bathTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time
 
 	return TimelineEvent{
 		CSSClass:        "bath",
-		Icon:            "🛁",
 		TypeLabel:       "Bath",
 		Kind:            titleCase(bathType),
 		Detail:          detail,
@@ -1251,7 +1248,6 @@ func sleepTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Tim
 
 	return TimelineEvent{
 		CSSClass:        "sleep",
-		Icon:            "😴",
 		TypeLabel:       sleepTypeLabel(sleepType),
 		Detail:          detail,
 		StatusLabel:     statusLabel,
@@ -1277,7 +1273,6 @@ func observationTimelineEvent(ev backendclient.Event, loc *time.Location, now ti
 
 	return TimelineEvent{
 		CSSClass:  "observation",
-		Icon:      "📝",
 		TypeLabel: "Observation",
 		Kind:      titleCase(category),
 		Detail:    text,
@@ -1306,7 +1301,6 @@ func temperatureTimelineEvent(ev backendclient.Event, loc *time.Location, now ti
 
 	return TimelineEvent{
 		CSSClass:     "temperature",
-		Icon:         "🌡️",
 		TypeLabel:    "Temperature",
 		InlineDetail: formatTemperatureC(temperatureC),
 		Detail:       detail,
@@ -1343,7 +1337,6 @@ func growthMeasurementTimelineEvent(ev backendclient.Event, loc *time.Location, 
 
 	return TimelineEvent{
 		CSSClass:            "growth",
-		Icon:                "📏",
 		TypeLabel:           "Growth",
 		Detail:              strings.Join(detailParts, " · "),
 		Time:                formatEventTime(occurredAt, now),

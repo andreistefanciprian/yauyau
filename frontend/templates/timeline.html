@@ -38,14 +38,8 @@
   {{range .Events}}
   <article class="event-card event-{{.CSSClass}}" data-event-type="{{.EventType}}">
     <div class="event-card-header">
-      {{if eq .EventType "pump"}}
-      <span class="event-icon pump-icon" aria-hidden="true">{{template "pump-icon" .}}</span>
-      {{else if eq .EventType "nappy"}}
-      <span class="event-icon nappy-icon" aria-hidden="true">{{template "nappy-icon" .}}</span>
-      {{else}}
-      <span class="event-icon" aria-hidden="true">{{.Icon}}</span>
-      {{end}}
-      <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">· {{.Kind}}</span>{{end}}{{if .InlineDetail}} <span class="event-inline-detail">· {{.InlineDetail}}</span>{{end}}</span>
+      <span class="event-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" .EventType}}</span>
+      <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">· {{if eq .EventType "nappy"}}<span class="nappy-kind-icon" aria-hidden="true">{{template "nappy-kind-icon" .KindValue}}</span>{{end}}{{.Kind}}</span>{{end}}{{if .InlineDetail}} <span class="event-inline-detail">· {{.InlineDetail}}</span>{{end}}</span>
       <span class="event-time">{{.Time}}</span>
       <button type="button" class="event-edit" aria-label="Edit event"
         data-event-id="{{.ID}}"
@@ -73,7 +67,7 @@
     </div>
     {{if or .Detail .StatusLabel}}
     <div class="event-detail">
-      {{if .Detail}}<span>{{.Detail}}</span>{{end}}
+      {{if .Detail}}<span>{{if .PooSizeValue}}<span class="nappy-poo-size-icon" aria-hidden="true">{{template "nappy-poo-size-icon" .PooSizeValue}}</span>{{end}}{{.Detail}}</span>{{end}}
       {{if .StatusLabel}}<span class="event-status-pill">{{.StatusLabel}}</span>{{end}}
     </div>
     {{end}}
@@ -122,12 +116,133 @@
 </svg>
 {{end}}
 
+{{define "event-type-icon"}}
+{{if eq . "nappy"}}{{template "nappy-icon"}}
+{{else if eq . "feed"}}{{template "feed-icon"}}
+{{else if eq . "pump"}}{{template "pump-icon"}}
+{{else if eq . "bath"}}{{template "bath-icon"}}
+{{else if eq . "sleep"}}{{template "sleep-icon"}}
+{{else if eq . "observation"}}{{template "observation-icon"}}
+{{else if eq . "temperature"}}{{template "temperature-icon"}}
+{{else if eq . "growth_measurement"}}{{template "growth-icon"}}
+{{end}}
+{{end}}
+
 {{define "nappy-icon"}}
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
   <path d="M5.2 7.2c1.9 1 4.3 1.6 6.8 1.6s4.9-.6 6.8-1.6l1.3 9.2c.2 1.5-.8 2.9-2.3 3.2-3.8.8-7.8.8-11.6 0-1.5-.3-2.5-1.7-2.3-3.2l1.3-9.2Z" fill="#F7F9F7" stroke="#4E9D99" stroke-width="1.6" stroke-linejoin="round"/>
   <path d="M5.5 7.4 8 4.2c.6-.8 1.8-.9 2.5-.2l1.5 1.4L13.5 4c.8-.7 1.9-.6 2.5.2l2.5 3.2" fill="#D9F1EF" stroke="#4E9D99" stroke-width="1.6" stroke-linejoin="round"/>
   <path d="M8.2 13.5c1.1.8 2.4 1.2 3.8 1.2s2.7-.4 3.8-1.2" stroke="#F28B72" stroke-width="1.6" stroke-linecap="round"/>
   <path d="M7 9.2h2.2M14.8 9.2H17" stroke="#4E9D99" stroke-width="1.4" stroke-linecap="round"/>
+</svg>
+{{end}}
+
+{{define "nappy-kind-icon"}}
+{{if eq . "wet"}}{{template "wet-icon"}}
+{{else if eq . "poo"}}{{template "poo-icon"}}
+{{else if eq . "both"}}{{template "wet-icon"}}{{template "poo-icon"}}
+{{end}}
+{{end}}
+
+{{define "nappy-poo-size-icon"}}
+{{if eq . "smear"}}{{template "smear-icon"}}
+{{else if eq . "small"}}{{template "poo-icon"}}
+{{else if eq . "medium"}}{{template "poo-icon"}}{{template "poo-icon"}}
+{{else if eq . "large"}}{{template "poo-icon"}}{{template "poo-icon"}}{{template "poo-icon"}}
+{{else if eq . "blowout"}}{{template "blowout-icon"}}
+{{end}}
+{{end}}
+
+{{define "wet-icon"}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
+  <path d="M12 2.5S6.5 9.2 6.5 14.2a5.5 5.5 0 0 0 11 0C17.5 9.2 12 2.5 12 2.5Z" fill="#D9F1EF" stroke="#4E9D99" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M9.2 14.5c.2 1.4 1.1 2.3 2.5 2.6" stroke="#F7F9F7" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
+{{end}}
+
+{{define "poo-icon"}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
+  <path d="M7.5 10.4a3.1 3.1 0 0 1 3.1-4.2c-.2-1.5.7-3 2.2-3.8.1 1.8 1.3 2.6 2.5 3.4.9.6 1.3 1.6 1 2.5h.2a3 3 0 0 1 2.4 4.8 3.2 3.2 0 0 1-1.1 6.2H6.2A3.2 3.2 0 0 1 5.1 13a3.1 3.1 0 0 1 2.4-2.6Z" fill="#E8C99F" stroke="#8B6B2F" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M9 14.2h.1M14.9 14.2h.1M9.8 16.7c1.3.8 3.1.8 4.4 0" stroke="#8B6B2F" stroke-width="1.4" stroke-linecap="round"/>
+</svg>
+{{end}}
+
+{{define "smear-icon"}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
+  <path d="M4 15.5c3.4-3.1 10.7-4.2 16-1.5-3.1 3.8-11.4 4.8-16 1.5Z" fill="#E8C99F" stroke="#8B6B2F" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M7.4 14.8c2.8-1 6.2-1.1 9-.2" stroke="#F7F1DE" stroke-width="1.3" stroke-linecap="round"/>
+</svg>
+{{end}}
+
+{{define "blowout-icon"}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
+  <path d="m12 2.5 1.8 3.2 3.4-1.4.2 3.7 3.7.2-1.4 3.4 3.2 1.8-3.2 1.8 1.4 3.4-3.7.2-.2 3.7-3.4-1.4-1.8 3.2-1.8-3.2-3.4 1.4-.2-3.7-3.7-.2 1.4-3.4-3.2-1.8 3.2-1.8L2.9 8.2 6.6 8l.2-3.7 3.4 1.4L12 2.5Z" fill="#F8C9BC" stroke="#C96752" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M8.4 14.4a2.6 2.6 0 0 1 2.5-3.5c-.1-1.3.7-2.3 1.8-2.9.1 1.3 1 1.9 1.9 2.5.6.4.9 1.1.7 1.8h.1a2.3 2.3 0 0 1 1.5 4H8.2a2.3 2.3 0 0 1 .2-1.9Z" fill="#E8C99F" stroke="#8B6B2F" stroke-width="1.2" stroke-linejoin="round"/>
+</svg>
+{{end}}
+
+{{define "feed-icon"}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
+  <path d="M9.2 3.2h5.6v2.4H9.2Z" fill="#F7F1DE" stroke="#B75F4C" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M10.1 3.2c.2-1 1-1.7 1.9-1.7s1.7.7 1.9 1.7" fill="#F6D6BA" stroke="#B75F4C" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="m9.2 5.6-1.5 2c-.5.7-.8 1.5-.8 2.4v8.2c0 1.5 1.2 2.8 2.8 2.8h4.6c1.5 0 2.8-1.2 2.8-2.8V10c0-.9-.3-1.7-.8-2.4l-1.5-2H9.2Z" fill="#FDE6DF" stroke="#B75F4C" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M8.3 13h7.4v5.1c0 .9-.7 1.6-1.6 1.6H9.9c-.9 0-1.6-.7-1.6-1.6V13Z" fill="#F7F1DE"/>
+  <path d="M9.4 10.2h5.2M9.4 13h5.2" stroke="#E98770" stroke-width="1.3" stroke-linecap="round"/>
+</svg>
+{{end}}
+
+{{define "pump-icon"}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
+  <path d="M7.6 6.2c3.3 0 5.8 2.5 5.8 5.8 0 3.5-2.7 6-6.2 6-2.9 0-5.1-1.8-5.8-4.4" fill="#F6D6BA"/>
+  <path d="M7.8 9.2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2Z" fill="#C47B66"/>
+  <path d="M12.6 9.2h3.4c1.6 0 2.8 1.2 2.8 2.8v1.2" stroke="#8B6B2F" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M16.8 12.6h4.2v5.2c0 1.2-.9 2.1-2.1 2.1s-2.1-.9-2.1-2.1v-5.2Z" fill="#F7F1DE" stroke="#8B6B2F" stroke-width="1.6"/>
+  <path d="M18.3 10.2h2.5" stroke="#8B6B2F" stroke-width="1.6" stroke-linecap="round"/>
+</svg>
+{{end}}
+
+{{define "bath-icon"}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
+  <path d="M3 10.5h18l-1.1 5.1a4.5 4.5 0 0 1-4.4 3.5h-7a4.5 4.5 0 0 1-4.4-3.5L3 10.5Z" fill="#DDF3FA" stroke="#4D96B3" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M2.2 10.5h19.6M7.1 19.1l-.8 1.4M16.9 19.1l.8 1.4" stroke="#4D96B3" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M6.5 10.3V6.7A2.7 2.7 0 0 1 9.2 4h.5" stroke="#4D96B3" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M11.3 4a1.6 1.6 0 1 1-3.2 0h3.2Z" fill="#F7F9F7" stroke="#4D96B3" stroke-width="1.4"/>
+  <circle cx="15.8" cy="5.2" r="1.5" fill="#D9F1EF" stroke="#4E9D99" stroke-width="1.2"/>
+  <circle cx="19.2" cy="7.4" r="1" fill="#F7F9F7" stroke="#4E9D99" stroke-width="1.1"/>
+</svg>
+{{end}}
+
+{{define "sleep-icon"}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
+  <path d="M16.5 17.7A8 8 0 0 1 7.2 5.2a8 8 0 1 0 9.3 12.5Z" fill="#DEDCFA" stroke="#6963B9" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="m17.4 4.1.6 1.4 1.5.2-1.1 1 .3 1.5-1.3-.8-1.4.8.4-1.5-1.1-1 1.5-.2.6-1.4Z" fill="#F2B950" stroke="#B78B2F" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M14.9 10.1h3.8l-3.8 3.4h3.8" stroke="#6963B9" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+{{end}}
+
+{{define "observation-icon"}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
+  <path d="M6 2.8h9l3 3v15.4H6V2.8Z" fill="#F3F1DC" stroke="#77774F" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M15 2.8v3h3" fill="#E2E0BD" stroke="#77774F" stroke-width="1.4" stroke-linejoin="round"/>
+  <path d="M9 10h6M9 13.5h6M9 17h4" stroke="#929263" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="6" cy="2.8" r="1.4" fill="#F28B72"/>
+</svg>
+{{end}}
+
+{{define "temperature-icon"}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
+  <path d="M9 4a3 3 0 0 1 6 0v9.1a5.2 5.2 0 1 1-6 0V4Z" fill="#FCE5E5" stroke="#B95454" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M12 6v9.6" stroke="#D96C6C" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="12" cy="17.4" r="2.2" fill="#D96C6C"/>
+  <path d="M16.8 6.2h2M16.8 9.2h1.4" stroke="#B95454" stroke-width="1.4" stroke-linecap="round"/>
+</svg>
+{{end}}
+
+{{define "growth-icon"}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
+  <path d="m4.1 16.1 12-12 3.8 3.8-12 12H4.1v-3.8Z" fill="#E4EACF" stroke="#65783E" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="m13.9 6.3 1.8 1.8M11.5 8.7l1.2 1.2M9.1 11.1l1.8 1.8M6.7 13.5l1.2 1.2" stroke="#65783E" stroke-width="1.3" stroke-linecap="round"/>
+  <path d="M4.1 20h15.8" stroke="#8A9D5B" stroke-width="1.5" stroke-linecap="round"/>
 </svg>
 {{end}}
 
@@ -148,14 +263,4 @@
   <input type="range" class="number-slider-range" min="{{.SliderMin}}" max="{{.SliderMax}}" step="{{.SliderStep}}"{{if .Value}} value="{{.Value}}"{{end}} aria-label="{{.Label}} slider">
   <input type="number" name="{{.Name}}" class="number-slider-input" min="{{.Min}}"{{if .Max}} max="{{.Max}}"{{end}}{{if .InputStep}} step="{{.InputStep}}"{{end}}{{if .InputMode}} inputmode="{{.InputMode}}"{{end}}{{if .Value}} value="{{.Value}}"{{end}}{{if .Placeholder}} placeholder="{{.Placeholder}}"{{end}}{{if .Required}} required{{end}}{{if .FeedDuration}} data-feed-duration-minutes{{end}}>
 </div>
-{{end}}
-
-{{define "pump-icon"}}
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" focusable="false">
-  <path d="M7.6 6.2c3.3 0 5.8 2.5 5.8 5.8 0 3.5-2.7 6-6.2 6-2.9 0-5.1-1.8-5.8-4.4" fill="#F6D6BA"/>
-  <path d="M7.8 9.2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2Z" fill="#C47B66"/>
-  <path d="M12.6 9.2h3.4c1.6 0 2.8 1.2 2.8 2.8v1.2" stroke="#8B6B2F" stroke-width="1.8" stroke-linecap="round"/>
-  <path d="M16.8 12.6h4.2v5.2c0 1.2-.9 2.1-2.1 2.1s-2.1-.9-2.1-2.1v-5.2Z" fill="#F7F1DE" stroke="#8B6B2F" stroke-width="1.6"/>
-  <path d="M18.3 10.2h2.5" stroke="#8B6B2F" stroke-width="1.6" stroke-linecap="round"/>
-</svg>
 {{end}}

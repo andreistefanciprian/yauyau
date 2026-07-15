@@ -153,10 +153,11 @@ type) fed by a single "Add Event" dialog (not one form per event type).
 `frontend/internal/handlers/handlers.go`:
 
 * Every event type is flattened into one presentation shape,
-  `TimelineEvent` (`CSSClass`, `Icon`, `TypeLabel`, `Kind`, `Detail`,
-  `Time`). `Kind` is the per-type discriminator (nappy's kind, feed/bath's
-  type, observation's category; pump intentionally leaves it empty), rendered
-  as "(Kind)" next to `TypeLabel`.
+  `TimelineEvent` (`CSSClass`, `TypeLabel`, `Kind`, `Detail`, `Time`). Event
+  icons are shared inline SVG templates selected by `EventType` in the
+  frontend templates. `Kind` is the per-type discriminator (nappy's kind,
+  feed/bath's type, observation's category; pump intentionally leaves it
+  empty), rendered as "(Kind)" next to `TypeLabel`.
   A `<x>TimelineEvent(ev, loc, now)` function builds one from a generic
   `backendclient.Event`, reading its `Attributes` map — this is where
   per-type display text (e.g. feed's "70 ml · 10 min") is decided.

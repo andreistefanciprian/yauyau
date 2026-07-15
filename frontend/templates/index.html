@@ -37,14 +37,14 @@
 
         <div class="type-filter" id="type-filter" role="group" aria-label="Filter by event type">
           <button type="button" class="type-filter-chip type-filter-chip-all active" data-filter-type="all" title="All events">All</button>
-          <button type="button" class="type-filter-chip" data-filter-type="nappy" title="Nappy" aria-label="Filter to nappy events"><span class="nappy-icon" aria-hidden="true">{{template "nappy-icon" .}}</span></button>
-          <button type="button" class="type-filter-chip" data-filter-type="feed" title="Feed" aria-label="Filter to feed events">🍼</button>
-          <button type="button" class="type-filter-chip" data-filter-type="pump" title="Pump" aria-label="Filter to pump events"><span class="pump-icon" aria-hidden="true">{{template "pump-icon" .}}</span></button>
-          <button type="button" class="type-filter-chip" data-filter-type="bath" title="Bath" aria-label="Filter to bath events">🛁</button>
-          <button type="button" class="type-filter-chip" data-filter-type="sleep" title="Sleep" aria-label="Filter to sleep events">😴</button>
-          <button type="button" class="type-filter-chip" data-filter-type="observation" title="Notes" aria-label="Filter to observation events">📝</button>
-          <button type="button" class="type-filter-chip" data-filter-type="temperature" title="Temperature" aria-label="Filter to temperature events">🌡️</button>
-          <button type="button" class="type-filter-chip" data-filter-type="growth_measurement" title="Growth" aria-label="Filter to growth events">📏</button>
+          <button type="button" class="type-filter-chip" data-filter-type="nappy" title="Nappy" aria-label="Filter to nappy events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "nappy"}}</span></button>
+          <button type="button" class="type-filter-chip" data-filter-type="feed" title="Feed" aria-label="Filter to feed events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "feed"}}</span></button>
+          <button type="button" class="type-filter-chip" data-filter-type="pump" title="Pump" aria-label="Filter to pump events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "pump"}}</span></button>
+          <button type="button" class="type-filter-chip" data-filter-type="bath" title="Bath" aria-label="Filter to bath events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "bath"}}</span></button>
+          <button type="button" class="type-filter-chip" data-filter-type="sleep" title="Sleep" aria-label="Filter to sleep events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "sleep"}}</span></button>
+          <button type="button" class="type-filter-chip" data-filter-type="observation" title="Notes" aria-label="Filter to observation events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "observation"}}</span></button>
+          <button type="button" class="type-filter-chip" data-filter-type="temperature" title="Temperature" aria-label="Filter to temperature events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "temperature"}}</span></button>
+          <button type="button" class="type-filter-chip" data-filter-type="growth_measurement" title="Growth" aria-label="Filter to growth events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "growth_measurement"}}</span></button>
         </div>
       </div>
     </div>
@@ -68,35 +68,35 @@
 
       <div id="event-type-picker" class="event-type-picker">
         <button type="button" class="type-choice type-choice-nappy" data-type="nappy">
-          <span class="type-choice-icon nappy-icon" aria-hidden="true">{{template "nappy-icon" .}}</span>
+          <span class="type-choice-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" "nappy"}}</span>
           <span>Nappy</span>
         </button>
         <button type="button" class="type-choice type-choice-feed" data-type="feed">
-          <span class="type-choice-icon" aria-hidden="true">🍼</span>
+          <span class="type-choice-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" "feed"}}</span>
           <span>Feed</span>
         </button>
         <button type="button" class="type-choice type-choice-pump" data-type="pump">
-          <span class="type-choice-icon pump-icon" aria-hidden="true">{{template "pump-icon" .}}</span>
+          <span class="type-choice-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" "pump"}}</span>
           <span>Pump</span>
         </button>
         <button type="button" class="type-choice type-choice-bath" data-type="bath">
-          <span class="type-choice-icon" aria-hidden="true">🛁</span>
+          <span class="type-choice-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" "bath"}}</span>
           <span>Bath</span>
         </button>
         <button type="button" class="type-choice type-choice-sleep" data-type="sleep">
-          <span class="type-choice-icon" aria-hidden="true">😴</span>
+          <span class="type-choice-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" "sleep"}}</span>
           <span>Sleep</span>
         </button>
         <button type="button" class="type-choice type-choice-observation" data-type="observation">
-          <span class="type-choice-icon" aria-hidden="true">📝</span>
+          <span class="type-choice-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" "observation"}}</span>
           <span>Observation</span>
         </button>
         <button type="button" class="type-choice type-choice-temperature" data-type="temperature">
-          <span class="type-choice-icon" aria-hidden="true">🌡️</span>
+          <span class="type-choice-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" "temperature"}}</span>
           <span>Temperature</span>
         </button>
         <button type="button" class="type-choice type-choice-growth" data-type="growth_measurement">
-          <span class="type-choice-icon" aria-hidden="true">📏</span>
+          <span class="type-choice-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" "growth_measurement"}}</span>
           <span>Growth</span>
         </button>
       </div>
@@ -105,18 +105,18 @@
         <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
         <fieldset>
           <legend>Kind</legend>
-          <label><input type="radio" name="kind" value="wet" required checked> Wet</label>
-          <label><input type="radio" name="kind" value="poo"> Poo</label>
-          <label><input type="radio" name="kind" value="both"> Both</label>
+          <label><input type="radio" name="kind" value="wet" required checked><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-kind-icon" "wet"}}</span> Wet</label>
+          <label><input type="radio" name="kind" value="poo"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-kind-icon" "poo"}}</span> Poo</label>
+          <label><input type="radio" name="kind" value="both"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-kind-icon" "both"}}</span> Both</label>
         </fieldset>
 
         <fieldset class="label-chip-group" data-poo-size-field disabled>
           <legend>Poo size</legend>
-          <label><input type="radio" name="poo_size" value="smear"> 💨 Smear</label>
-          <label><input type="radio" name="poo_size" value="small"> 💩 Small</label>
-          <label><input type="radio" name="poo_size" value="medium" checked> 💩💩 Medium</label>
-          <label><input type="radio" name="poo_size" value="large"> 💩💩💩 Large</label>
-          <label><input type="radio" name="poo_size" value="blowout"> 💥 Blowout</label>
+          <label><input type="radio" name="poo_size" value="smear"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-poo-size-icon" "smear"}}</span> Smear</label>
+          <label><input type="radio" name="poo_size" value="small"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-poo-size-icon" "small"}}</span> Small</label>
+          <label><input type="radio" name="poo_size" value="medium" checked><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-poo-size-icon" "medium"}}</span> Medium</label>
+          <label><input type="radio" name="poo_size" value="large"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-poo-size-icon" "large"}}</span> Large</label>
+          <label><input type="radio" name="poo_size" value="blowout"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-poo-size-icon" "blowout"}}</span> Blowout</label>
         </fieldset>
 
         <fieldset class="label-chip-group">
@@ -434,17 +434,17 @@
         <div class="edit-event-fields" data-edit-type="nappy">
           <fieldset>
             <legend>Kind</legend>
-            <label><input type="radio" name="kind" value="wet"> Wet</label>
-            <label><input type="radio" name="kind" value="poo"> Poo</label>
-            <label><input type="radio" name="kind" value="both"> Both</label>
+            <label><input type="radio" name="kind" value="wet"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-kind-icon" "wet"}}</span> Wet</label>
+            <label><input type="radio" name="kind" value="poo"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-kind-icon" "poo"}}</span> Poo</label>
+            <label><input type="radio" name="kind" value="both"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-kind-icon" "both"}}</span> Both</label>
           </fieldset>
           <fieldset class="label-chip-group" data-poo-size-field disabled>
             <legend>Poo size</legend>
-            <label><input type="radio" name="poo_size" value="smear"> 💨 Smear</label>
-            <label><input type="radio" name="poo_size" value="small"> 💩 Small</label>
-            <label><input type="radio" name="poo_size" value="medium"> 💩💩 Medium</label>
-            <label><input type="radio" name="poo_size" value="large"> 💩💩💩 Large</label>
-            <label><input type="radio" name="poo_size" value="blowout"> 💥 Blowout</label>
+            <label><input type="radio" name="poo_size" value="smear"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-poo-size-icon" "smear"}}</span> Smear</label>
+            <label><input type="radio" name="poo_size" value="small"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-poo-size-icon" "small"}}</span> Small</label>
+            <label><input type="radio" name="poo_size" value="medium"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-poo-size-icon" "medium"}}</span> Medium</label>
+            <label><input type="radio" name="poo_size" value="large"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-poo-size-icon" "large"}}</span> Large</label>
+            <label><input type="radio" name="poo_size" value="blowout"><span class="nappy-option-icon" aria-hidden="true">{{template "nappy-poo-size-icon" "blowout"}}</span> Blowout</label>
           </fieldset>
           <fieldset class="label-chip-group">
             <legend>Labels (optional)</legend>

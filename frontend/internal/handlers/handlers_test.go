@@ -59,6 +59,27 @@ func TestFeedTimelineEventMarksMissingDurationOngoing(t *testing.T) {
 	}
 }
 
+func TestNappyTimelineEventUsesPlainPooSizeLabel(t *testing.T) {
+	loc := time.FixedZone("ACST", 9*60*60+30*60)
+	occurredAt := time.Date(2026, 7, 14, 9, 15, 0, 0, loc)
+	ev := backendclient.Event{
+		EventType:  "nappy",
+		OccurredAt: occurredAt,
+		Attributes: map[string]any{
+			"kind":     "both",
+			"poo_size": "large",
+		},
+	}
+
+	timelineEvent := nappyTimelineEvent(ev, loc, occurredAt.Add(15*time.Minute))
+	if timelineEvent.Detail != "Large" {
+		t.Fatalf("Detail = %q, want Large", timelineEvent.Detail)
+	}
+	if timelineEvent.PooSizeValue != "large" {
+		t.Fatalf("PooSizeValue = %q, want large", timelineEvent.PooSizeValue)
+	}
+}
+
 func TestSleepTimelineEventUsesSleepTypeAsLabel(t *testing.T) {
 	loc := time.FixedZone("ACST", 9*60*60+30*60)
 	occurredAt := time.Date(2026, 7, 14, 16, 30, 0, 0, loc)

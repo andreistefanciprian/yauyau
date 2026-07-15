@@ -668,10 +668,9 @@ h2 {
   color: var(--color-text-secondary);
 }
 
-.type-filter-chip .pump-icon svg,
-.type-filter-chip .nappy-icon svg {
-  width: 0.95rem;
-  height: 0.95rem;
+.type-filter-chip .event-type-icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .type-filter-chip[data-filter-type="nappy"].active { border-color: color-mix(in srgb, var(--color-event-nappy) 55%, var(--color-border)); background: var(--card-bg-nappy); }
@@ -984,16 +983,14 @@ h2 {
   line-height: 1;
 }
 
-.pump-icon,
-.nappy-icon {
+.event-type-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
 }
 
-.pump-icon svg,
-.nappy-icon svg {
+.event-type-icon svg {
   display: block;
   width: 1.35rem;
   height: 1.35rem;
@@ -1003,6 +1000,32 @@ h2 {
 .event-kind {
   font-weight: 400;
   color: var(--color-text-secondary);
+}
+
+.nappy-kind-icon,
+.nappy-poo-size-icon,
+.nappy-option-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.05rem;
+  vertical-align: -0.16em;
+}
+
+.nappy-kind-icon {
+  margin: 0 0.2rem;
+}
+
+.nappy-poo-size-icon {
+  margin-right: 0.3rem;
+}
+
+.nappy-kind-icon svg,
+.nappy-poo-size-icon svg,
+.nappy-option-icon svg {
+  display: block;
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: 0 0 auto;
 }
 
 .event-inline-detail {
@@ -1347,8 +1370,7 @@ dialog#confirm-dialog::backdrop {
   font-size: 1.75rem;
 }
 
-.type-choice-icon.pump-icon svg,
-.type-choice-icon.nappy-icon svg {
+.type-choice-icon.event-type-icon svg {
   width: 1.9rem;
   height: 1.9rem;
 }
