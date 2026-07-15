@@ -37,9 +37,11 @@ type Baby struct {
 }
 
 type User struct {
-	ID          string `json:"id"`
-	Email       string `json:"email"`
-	DisplayName string `json:"display_name,omitempty"`
+	ID                        string `json:"id"`
+	Email                     string `json:"email"`
+	DisplayName               string `json:"display_name,omitempty"`
+	CanManageDailyReportEmail bool   `json:"can_manage_daily_report_email"`
+	DailyReportEmailEnabled   bool   `json:"daily_report_email_enabled"`
 }
 
 type TimelineMember struct {

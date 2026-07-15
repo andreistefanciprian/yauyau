@@ -1456,6 +1456,18 @@ fieldset:disabled {
   gap: 0.25rem;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 650;
+}
+
+.checkbox-row input {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
 /* Pairs two fields (e.g. Type + Amount, Duration + Time) on one row; wraps
    to stacked rows on narrow screens rather than forcing an overflow. */
 .field-row {

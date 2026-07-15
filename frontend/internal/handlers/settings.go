@@ -15,6 +15,7 @@ import (
 type settingsPageData struct {
 	Baby            backendclient.Baby
 	Account         accountViewData
+	ReportEmails    reportEmailSettings
 	SexOptions      []babySexOption
 	Members         []backendclient.TimelineMember
 	CanManageBaby   bool
@@ -28,6 +29,13 @@ type settingsPageData struct {
 	UpdateError    string
 	DeleteError    string
 	TimelineNotice string
+}
+
+type reportEmailSettings struct {
+	CanManage          bool
+	DailyReportEnabled bool
+	Notice             string
+	Error              string
 }
 
 type babySexOption struct {
@@ -57,6 +65,34 @@ func (h *Handlers) UpdateAccountSettings(w http.ResponseWriter, r *http.Request)
 	h.renderSettings(w, r, settingsPageData{
 		Account:       accountFromUser(user),
 		AccountNotice: "Account settings updated.",
+	})
+}
+
+func (h *Handlers) UpdateReportEmailSettings(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	enabled := r.FormValue("daily_report_email_enabled") == "on"
+	user, err := h.Backend.UpdateReportPreferences(r.Context(), enabled)
+	if err != nil {
+		if errors.Is(err, backendclient.ErrForbidden) {
+			h.renderSettings(w, r, settingsPageData{SettingsNotice: "Only the timeline owner can update report emails."})
+			return
+		}
+		log.Printf("update report email settings: %v", err)
+		h.renderSettings(w, r, settingsPageData{ReportEmails: reportEmailSettings{Error: "Could not save report email settings. Please try again."}})
+		return
+	}
+
+	h.renderSettings(w, r, settingsPageData{
+		Account: accountFromUser(user),
+		ReportEmails: reportEmailSettings{
+			CanManage:          user.CanManageDailyReportEmail,
+			DailyReportEnabled: user.DailyReportEmailEnabled,
+			Notice:             "Report email settings updated.",
+		},
 	})
 }
 
@@ -230,6 +266,10 @@ func (h *Handlers) renderSettings(w http.ResponseWriter, r *http.Request, data s
 	}
 	if data.Account.Email == "" {
 		data.Account = h.loadAccount(r.Context())
+	}
+	if !data.ReportEmails.CanManage && data.Account.CanManageDailyReportEmail {
+		data.ReportEmails.CanManage = true
+		data.ReportEmails.DailyReportEnabled = data.Account.DailyReportEmailEnabled
 	}
 	data.CanManageBaby = data.Baby.CanInvite
 	data.SexOptions = sexOptions(data.Baby.Sex)

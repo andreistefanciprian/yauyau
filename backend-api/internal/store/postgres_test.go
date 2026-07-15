@@ -261,6 +261,9 @@ func TestCreateFamilyWithOwner(t *testing.T) {
 	if membership.Status != MembershipStatusActive {
 		t.Fatalf("expected status %q, got %q", MembershipStatusActive, membership.Status)
 	}
+	if !membership.DailyReportEmailEnabled {
+		t.Fatalf("expected owner daily report email to be enabled by default")
+	}
 }
 
 // TestCreateFamilyWithOwner_RejectsSecondActiveMembership guards the
@@ -398,6 +401,66 @@ func TestCreateInvite_CreatesUserAndMembership(t *testing.T) {
 	}
 	if membership.FamilyID == nil || *membership.FamilyID != familyID {
 		t.Fatalf("expected family id %v, got %v", familyID, membership.FamilyID)
+	}
+	if membership.DailyReportEmailEnabled {
+		t.Fatalf("expected invited member daily report email to be disabled by default")
+	}
+}
+
+func TestUpdateDailyReportEmailPreferenceOwnerOnly(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+
+	owner, err := s.UpsertUserByEmail(ctx, testEmail(t))
+	if err != nil {
+		t.Fatalf("upsert owner: %v", err)
+	}
+	familyID, err := s.CreateFamilyWithOwner(ctx, owner.ID, "test family")
+	if err != nil {
+		t.Fatalf("create family: %v", err)
+	}
+	inviteeEmail := testEmail(t)
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE email = ANY($1)`, []string{owner.Email, inviteeEmail})
+	})
+
+	updated, err := s.UpdateDailyReportEmailPreference(ctx, familyID, owner.ID, false)
+	if err != nil {
+		t.Fatalf("disable owner daily report email: %v", err)
+	}
+	if updated.DailyReportEmailEnabled {
+		t.Fatalf("expected owner daily report email to be disabled")
+	}
+	if err := Migrate(ctx, s.pool, "../../migrations"); err != nil {
+		t.Fatalf("rerun migrations: %v", err)
+	}
+	membership, err := s.GetFamilyMembershipForFamily(ctx, owner.ID, familyID)
+	if err != nil {
+		t.Fatalf("get membership after migration rerun: %v", err)
+	}
+	if membership.DailyReportEmailEnabled {
+		t.Fatalf("expected migration rerun to preserve owner opt-out")
+	}
+
+	updated, err = s.UpdateDailyReportEmailPreference(ctx, familyID, owner.ID, true)
+	if err != nil {
+		t.Fatalf("enable owner daily report email: %v", err)
+	}
+	if !updated.DailyReportEmailEnabled {
+		t.Fatalf("expected owner daily report email to be enabled")
+	}
+
+	if err := s.CreateInvite(ctx, familyID, inviteeEmail); err != nil {
+		t.Fatalf("create invite: %v", err)
+	}
+	invitee, err := s.UpsertUserByEmail(ctx, inviteeEmail)
+	if err != nil {
+		t.Fatalf("resolve invitee: %v", err)
+	}
+	if _, err := s.UpdateDailyReportEmailPreference(ctx, familyID, invitee.ID, true); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected member update to return ErrNotFound, got %v", err)
 	}
 }
 

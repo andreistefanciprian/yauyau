@@ -112,10 +112,11 @@ const (
 // treats a fixed-size array type like uuid.UUID as empty, but it does treat
 // a nil pointer as empty.
 type FamilyMembership struct {
-	Found    bool             `json:"found"`
-	FamilyID *uuid.UUID       `json:"family_id,omitempty"`
-	Role     MembershipRole   `json:"role,omitempty"`
-	Status   MembershipStatus `json:"status,omitempty"`
+	Found                   bool             `json:"found"`
+	FamilyID                *uuid.UUID       `json:"family_id,omitempty"`
+	Role                    MembershipRole   `json:"role,omitempty"`
+	Status                  MembershipStatus `json:"status,omitempty"`
+	DailyReportEmailEnabled bool             `json:"daily_report_email_enabled"`
 }
 
 // TimelineMember is a person with access to a baby's underlying family

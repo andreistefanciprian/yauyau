@@ -704,7 +704,7 @@ func (s *PostgresStore) UpdateUserDisplayName(ctx context.Context, id uuid.UUID,
 // over an arbitrary pending invite.
 func (s *PostgresStore) GetFamilyMembership(ctx context.Context, userID uuid.UUID) (FamilyMembership, error) {
 	const query = `
-		SELECT family_id, role, status
+		SELECT family_id, role, status, daily_report_email_enabled
 		FROM family_members
 		WHERE user_id = $1
 		ORDER BY (status = 'active') DESC, created_at ASC
@@ -714,7 +714,7 @@ func (s *PostgresStore) GetFamilyMembership(ctx context.Context, userID uuid.UUI
 	var m FamilyMembership
 	var familyID uuid.UUID
 	var role, status string
-	err := s.pool.QueryRow(ctx, query, userID).Scan(&familyID, &role, &status)
+	err := s.pool.QueryRow(ctx, query, userID).Scan(&familyID, &role, &status, &m.DailyReportEmailEnabled)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return FamilyMembership{Found: false}, nil
 	}
@@ -735,13 +735,14 @@ func (s *PostgresStore) GetFamilyMembership(ctx context.Context, userID uuid.UUI
 // authorizing against.
 func (s *PostgresStore) GetFamilyMembershipForFamily(ctx context.Context, userID, familyID uuid.UUID) (FamilyMembership, error) {
 	const query = `
-		SELECT role, status
+		SELECT role, status, daily_report_email_enabled
 		FROM family_members
 		WHERE user_id = $1 AND family_id = $2
 	`
 
 	var role, status string
-	err := s.pool.QueryRow(ctx, query, userID, familyID).Scan(&role, &status)
+	var dailyReportEmailEnabled bool
+	err := s.pool.QueryRow(ctx, query, userID, familyID).Scan(&role, &status, &dailyReportEmailEnabled)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return FamilyMembership{Found: false}, nil
 	}
@@ -750,10 +751,11 @@ func (s *PostgresStore) GetFamilyMembershipForFamily(ctx context.Context, userID
 	}
 
 	return FamilyMembership{
-		Found:    true,
-		FamilyID: &familyID,
-		Role:     MembershipRole(role),
-		Status:   MembershipStatus(status),
+		Found:                   true,
+		FamilyID:                &familyID,
+		Role:                    MembershipRole(role),
+		Status:                  MembershipStatus(status),
+		DailyReportEmailEnabled: dailyReportEmailEnabled,
 	}, nil
 }
 
@@ -794,8 +796,8 @@ func (s *PostgresStore) CreateFamilyWithOwner(ctx context.Context, userID uuid.U
 			INSERT INTO families (id, name) VALUES ($1, $2)
 			RETURNING id
 		)
-		INSERT INTO family_members (family_id, user_id, role, status)
-		SELECT id, $3, $4, $5 FROM new_family
+		INSERT INTO family_members (family_id, user_id, role, status, daily_report_email_enabled)
+		SELECT id, $3, $4, $5, true FROM new_family
 	`
 
 	familyID := uuid.New()
@@ -808,6 +810,39 @@ func (s *PostgresStore) CreateFamilyWithOwner(ctx context.Context, userID uuid.U
 	}
 
 	return familyID, nil
+}
+
+// UpdateDailyReportEmailPreference stores the scheduled daily email opt-in for
+// the current owner. The WHERE clause deliberately enforces the current
+// product rule: only active owners can opt in or out.
+func (s *PostgresStore) UpdateDailyReportEmailPreference(ctx context.Context, familyID, userID uuid.UUID, enabled bool) (FamilyMembership, error) {
+	const query = `
+		UPDATE family_members
+		SET daily_report_email_enabled = $1
+		WHERE family_id = $2
+			AND user_id = $3
+			AND role = $4
+			AND status = $5
+		RETURNING role, status, daily_report_email_enabled
+	`
+
+	var role, status string
+	var dailyReportEmailEnabled bool
+	err := s.pool.QueryRow(ctx, query, enabled, familyID, userID, MembershipRoleOwner, MembershipStatusActive).Scan(&role, &status, &dailyReportEmailEnabled)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return FamilyMembership{}, ErrNotFound
+	}
+	if err != nil {
+		return FamilyMembership{}, fmt.Errorf("updating daily report email preference: %w", err)
+	}
+
+	return FamilyMembership{
+		Found:                   true,
+		FamilyID:                &familyID,
+		Role:                    MembershipRole(role),
+		Status:                  MembershipStatus(status),
+		DailyReportEmailEnabled: dailyReportEmailEnabled,
+	}, nil
 }
 
 // CreateInvite resolves (creating if necessary) the invitee's user record by

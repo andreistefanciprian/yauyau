@@ -63,6 +63,22 @@
       </form>
     </section>
 
+    {{if .ReportEmails.CanManage}}
+    <section class="settings-section">
+      <h2>Report emails</h2>
+      {{if .ReportEmails.Notice}}<p class="settings-message">{{.ReportEmails.Notice}}</p>{{end}}
+      {{if .ReportEmails.Error}}<p class="invite-error">{{.ReportEmails.Error}}</p>{{end}}
+      <form method="post" action="/settings/report-emails" class="settings-form" data-disable-unchanged>
+        <label class="checkbox-row">
+          <input type="checkbox" name="daily_report_email_enabled"{{if .ReportEmails.DailyReportEnabled}} checked{{end}}>
+          <span>Daily report email</span>
+        </label>
+        <p class="settings-message">Sends the previous day's AI report at 9:00 AM in {{.Baby.Name}}'s timezone once scheduled delivery is enabled.</p>
+        <button type="submit">Save</button>
+      </form>
+    </section>
+    {{end}}
+
     {{if .CanManageBaby}}
     <section class="settings-section">
       <h2>Profile</h2>

@@ -57,6 +57,7 @@ type FamilyStore interface {
 	GetFamilyMembershipForFamily(ctx context.Context, userID, familyID uuid.UUID) (store.FamilyMembership, error)
 	HasPendingInviteOutsideFamily(ctx context.Context, userID, excludeFamilyID uuid.UUID) (bool, error)
 	CreateFamilyWithOwner(ctx context.Context, userID uuid.UUID, familyName string) (uuid.UUID, error)
+	UpdateDailyReportEmailPreference(ctx context.Context, familyID, userID uuid.UUID, enabled bool) (store.FamilyMembership, error)
 	ActivateInvitedMembership(ctx context.Context, userID, familyID uuid.UUID) error
 	CreateInvite(ctx context.Context, familyID uuid.UUID, email string) error
 	ListTimelineMembers(ctx context.Context, familyID uuid.UUID) ([]store.TimelineMember, error)

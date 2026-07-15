@@ -16,9 +16,15 @@ signature/expiry and decodes the caller's identity into context — see
 
 * `GET /healthz` — unauthenticated.
 * `GET /api/v1/users/me` → `GetCurrentUser`; returns the authenticated
-  user's id and email for account UI.
+  user's id, email, display name, and current report-email preference flags
+  for account/settings UI.
 * `PATCH /api/v1/users/me` → `UpdateCurrentUser`; updates optional account
   profile fields such as `display_name`.
+* `PATCH /api/v1/users/me/report-preferences` →
+  `UpdateReportPreferences`, owner-only; updates whether the current owner
+  should receive scheduled daily report emails once the scheduler exists.
+  Non-owners cannot update or receive daily report emails in the current
+  product slice.
 * `POST /api/v1/babies` → `CreateBaby`. A caller with no existing family
   membership gets a family created implicitly (auto-named, never shown to
   the user) and becomes its owner in the same call; a caller who already

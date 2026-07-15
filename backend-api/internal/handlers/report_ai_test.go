@@ -315,6 +315,10 @@ func (s *aiReportFakeStore) ArchiveBaby(context.Context, uuid.UUID, uuid.UUID) e
 	return errors.New("not implemented")
 }
 
+func (s *aiReportFakeStore) UpdateDailyReportEmailPreference(context.Context, uuid.UUID, uuid.UUID, bool) (store.FamilyMembership, error) {
+	return store.FamilyMembership{}, errors.New("not implemented")
+}
+
 func (s *aiReportFakeStore) CreateEvent(context.Context, uuid.UUID, uuid.UUID, string, map[string]any, time.Time) (store.Event, error) {
 	return store.Event{}, errors.New("not implemented")
 }

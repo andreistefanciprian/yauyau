@@ -39,6 +39,7 @@ const (
 type Backend interface {
 	GetCurrentUser(ctx context.Context) (backendclient.User, error)
 	UpdateCurrentUser(ctx context.Context, displayName string) (backendclient.User, error)
+	UpdateReportPreferences(ctx context.Context, dailyReportEmailEnabled bool) (backendclient.User, error)
 	GetCurrentBaby(ctx context.Context) (backendclient.Baby, error)
 	CreateBaby(ctx context.Context, name string) (backendclient.Baby, error)
 	UpdateCurrentBaby(ctx context.Context, baby backendclient.Baby) (backendclient.Baby, error)
@@ -135,9 +136,11 @@ type inviteStatus struct {
 }
 
 type accountViewData struct {
-	Label       string
-	Email       string
-	DisplayName string
+	Label                     string
+	Email                     string
+	DisplayName               string
+	CanManageDailyReportEmail bool
+	DailyReportEmailEnabled   bool
 }
 
 type indexPageData struct {
@@ -238,9 +241,11 @@ func accountFromUser(user backendclient.User) accountViewData {
 		label = user.Email
 	}
 	return accountViewData{
-		Label:       label,
-		Email:       user.Email,
-		DisplayName: user.DisplayName,
+		Label:                     label,
+		Email:                     user.Email,
+		DisplayName:               user.DisplayName,
+		CanManageDailyReportEmail: user.CanManageDailyReportEmail,
+		DailyReportEmailEnabled:   user.DailyReportEmailEnabled,
 	}
 }
 

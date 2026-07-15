@@ -88,6 +88,7 @@ func main() {
 			r.Get("/timeline/events", h.TimelineEvents)
 			r.Get("/settings", h.ShowSettings)
 			r.Post("/settings/account", h.UpdateAccountSettings)
+			r.Post("/settings/report-emails", h.UpdateReportEmailSettings)
 			r.Post("/settings/baby", h.UpdateBabySettings)
 			r.Post("/settings/baby/delete", h.ArchiveCurrentBaby)
 			r.Post("/settings/timeline/invite", h.CreateTimelineInvite)
