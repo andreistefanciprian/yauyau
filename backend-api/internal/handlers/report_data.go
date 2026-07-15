@@ -18,11 +18,12 @@ const maxReportDataDays = 31
 var errInvalidReportDataRange = errors.New("invalid report date range")
 
 type reportDataResponse struct {
-	Baby     reportBabyResponse     `json:"baby"`
-	Range    reportRangeResponse    `json:"range"`
-	Totals   reportTotalsResponse   `json:"totals"`
-	Baseline reportBaselineResponse `json:"baseline"`
-	Days     []reportDayResponse    `json:"days"`
+	Baby      reportBabyResponse     `json:"baby"`
+	Range     reportRangeResponse    `json:"range"`
+	Totals    reportTotalsResponse   `json:"totals"`
+	Analytics BabyAnalytics          `json:"analytics"`
+	Baseline  reportBaselineResponse `json:"baseline"`
+	Days      []reportDayResponse    `json:"days"`
 }
 
 type reportBabyResponse struct {
@@ -53,12 +54,14 @@ type reportDayResponse struct {
 	IsPartial  bool                  `json:"is_partial"`
 	Report     dailyReportResponse   `json:"report"`
 	Totals     reportTotalsResponse  `json:"totals"`
+	Analytics  BabyAnalytics         `json:"analytics"`
 	Events     []reportEventResponse `json:"events"`
 }
 
 type reportBaselineResponse struct {
-	Range  reportRangeResponse  `json:"range"`
-	Totals reportTotalsResponse `json:"totals"`
+	Range     reportRangeResponse  `json:"range"`
+	Totals    reportTotalsResponse `json:"totals"`
+	Analytics BabyAnalytics        `json:"analytics"`
 }
 
 type reportEventResponse struct {
@@ -227,6 +230,7 @@ func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Locatio
 			IsPartial:  isToday,
 			Report:     buildDailyReport(dayEvents, timelineDayWindow{From: dayStart, To: dayEnd}, window.GeneratedAt, dailyReportPeriodFor(dayStart, window.TodayStart)),
 			Totals:     buildReportTotals(dayEvents),
+			Analytics:  BuildBabyAnalytics(dayEvents, loc),
 			Events:     reportEvents,
 		})
 	}
@@ -243,9 +247,10 @@ func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Locatio
 			RangeEnd:      window.RangeEnd,
 			GeneratedAt:   window.GeneratedAt,
 		},
-		Totals:   buildReportTotals(events),
-		Baseline: buildReportBaseline(baselineWindow, baselineEvents),
-		Days:     days,
+		Totals:    buildReportTotals(events),
+		Analytics: BuildBabyAnalytics(events, loc),
+		Baseline:  buildReportBaseline(baselineWindow, loc, baselineEvents),
+		Days:      days,
 	}
 }
 
@@ -258,7 +263,7 @@ func sortEventsOldestFirst(events []store.Event) {
 	})
 }
 
-func buildReportBaseline(window reportDataWindow, events []store.Event) reportBaselineResponse {
+func buildReportBaseline(window reportDataWindow, loc *time.Location, events []store.Event) reportBaselineResponse {
 	return reportBaselineResponse{
 		Range: reportRangeResponse{
 			StartDate:     window.StartDate,
@@ -270,7 +275,8 @@ func buildReportBaseline(window reportDataWindow, events []store.Event) reportBa
 			RangeEnd:      window.RangeEnd,
 			GeneratedAt:   window.GeneratedAt,
 		},
-		Totals: buildReportTotals(events),
+		Totals:    buildReportTotals(events),
+		Analytics: BuildBabyAnalytics(events, loc),
 	}
 }
 
