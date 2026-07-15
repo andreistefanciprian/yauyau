@@ -70,6 +70,17 @@ func TestGenerateAIReportUsesResponsesStructuredOutput(t *testing.T) {
 		t.Fatalf("request store = %#v, want false", captured["store"])
 	}
 	input := captured["input"].([]any)
+	developerMessage := input[0].(map[string]any)
+	if developerMessage["role"] != "developer" {
+		t.Fatalf("developer message role = %#v, want developer", developerMessage["role"])
+	}
+	developerContent := developerMessage["content"].(string)
+	if !strings.Contains(developerContent, "Prompt version: ai_report_prompt.v1.") {
+		t.Fatalf("developer prompt = %q, want prompt version", developerContent)
+	}
+	if !strings.Contains(developerContent, "Do not diagnose") {
+		t.Fatalf("developer prompt = %q, want embedded product rules", developerContent)
+	}
 	userMessage := input[1].(map[string]any)
 	var modelInput map[string]any
 	if err := json.Unmarshal([]byte(userMessage["content"].(string)), &modelInput); err != nil {

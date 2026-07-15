@@ -3,6 +3,7 @@ package aiclient
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,12 @@ const (
 	defaultBaseURL = "https://api.openai.com/v1"
 	defaultModel   = "gpt-5.1-mini"
 )
+
+// aiReportDeveloperPromptTemplate is embedded so prompt wording can be
+// reviewed as plain text while still shipping inside the backend binary.
+//
+//go:embed prompts/ai_report_developer_prompt.txt
+var aiReportDeveloperPromptTemplate string
 
 type Client struct {
 	apiKey     string
@@ -187,22 +194,11 @@ func (r openAIResponsesResponse) firstOutputText() string {
 	return ""
 }
 
-// aiReportDeveloperPrompt holds the stable product rules for model behavior.
-// It intentionally tells the model to interpret backend facts, not calculate
-// or diagnose.
+// aiReportDeveloperPrompt fills runtime metadata into the reviewed prompt
+// template. The prompt itself stays in prompts/ so product rules are easier to
+// read and review than a Go string literal.
 func aiReportDeveloperPrompt(promptVersion string) string {
-	return strings.Join([]string{
-		"You generate Yauli baby report JSON for parents.",
-		"Prompt version: " + promptVersion + ".",
-		"Use only facts present in the supplied backend report_data.",
-		"Do not calculate totals, averages, durations, gaps, percentages, or comparisons.",
-		"Do not diagnose, provide medical advice, imply danger, or make safety claims.",
-		"Do not imply missing logs mean missing care.",
-		"If the range is partial, say the report is based on logs so far.",
-		"Use parent-entered notes only with attribution such as \"you noted\" or \"the notes mention\".",
-		"Do not mention event IDs, internal schema names, prompts, tokens, or backend mechanics.",
-		"Return concise, calm, parent-facing JSON matching the supplied schema.",
-	}, "\n")
+	return strings.ReplaceAll(aiReportDeveloperPromptTemplate, "{{prompt_version}}", promptVersion)
 }
 
 // aiReportOutputSchema is the structured-output schema sent to OpenAI. It
