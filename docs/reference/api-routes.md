@@ -68,11 +68,12 @@ signature/expiry and decodes the caller's identity into context — see
   factual report-data payload for one to 31 local calendar days. Supports
   inclusive `?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`; omitting both
   dates defaults to today. The response includes minimal baby context, range
-  metadata, factual totals and baby analytics for the whole range, and one
-  deterministic daily report plus factual totals, baby analytics, and
-  normalized oldest-first events per day. It also includes previous-7-day
-  baseline range metadata, totals, and baby analytics. It intentionally does
-  not include AI output yet.
+  metadata, factual totals and baby analytics for the whole range, including
+  selected-range comparison against previous-7-day baseline daily averages.
+  It returns one deterministic daily report plus factual totals, baby
+  analytics, and normalized oldest-first events per day. It also includes
+  previous-7-day baseline range metadata, totals, and baby analytics. It
+  intentionally does not include AI output yet.
 * `PATCH /api/v1/babies/current/events/{id}` → `UpdateEvent`, type-checked
   generic edit for an existing current-baby event.
 * `DELETE /api/v1/babies/current/events/{id}` → `DeleteEvent`, removes one

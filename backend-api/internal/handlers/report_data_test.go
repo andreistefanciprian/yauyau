@@ -170,11 +170,22 @@ func TestBuildReportDataGroupsDaysAndNormalizesEvents(t *testing.T) {
 	if resp.Analytics.Timeline.SpanMinutes == nil || *resp.Analytics.Timeline.SpanMinutes != 1510 {
 		t.Fatalf("range analytics timeline = %#v, want 1510 minute span", resp.Analytics.Timeline)
 	}
+	if resp.Analytics.Comparison == nil {
+		t.Fatalf("range analytics comparison is nil")
+	}
+	if resp.Analytics.Comparison.SelectedAverageDailyFeedCount != 0.5 ||
+		resp.Analytics.Comparison.BaselineAverageDailyFeedCount != 0.1 ||
+		resp.Analytics.Comparison.FeedCountDeltaFromBaselineDailyAverage != 0.4 {
+		t.Fatalf("feed comparison = %#v, want selected 0.5, baseline 0.1, delta 0.4", resp.Analytics.Comparison)
+	}
 	if resp.Days[0].Totals.EventCount != 1 || resp.Days[0].Totals.Nappies.MixedCount != 1 {
 		t.Fatalf("first day totals = %#v, want one mixed nappy", resp.Days[0].Totals)
 	}
 	if resp.Days[0].Analytics.Chronology.LastPooAt == nil {
 		t.Fatalf("first day analytics chronology = %#v, want last poo timestamp", resp.Days[0].Analytics.Chronology)
+	}
+	if resp.Days[0].Analytics.Comparison != nil {
+		t.Fatalf("first day analytics comparison = %#v, want nil", resp.Days[0].Analytics.Comparison)
 	}
 	if resp.Days[1].Totals.EventCount != 1 || resp.Days[1].Totals.Feeds.ExpressedMl != 80 {
 		t.Fatalf("second day totals = %#v, want one 80ml expressed feed", resp.Days[1].Totals)
@@ -187,6 +198,9 @@ func TestBuildReportDataGroupsDaysAndNormalizesEvents(t *testing.T) {
 	}
 	if resp.Baseline.Analytics.Timeline.SpanMinutes == nil || *resp.Baseline.Analytics.Timeline.SpanMinutes != 1510 {
 		t.Fatalf("baseline analytics timeline = %#v, want 1510 minute span", resp.Baseline.Analytics.Timeline)
+	}
+	if resp.Baseline.Analytics.Comparison != nil {
+		t.Fatalf("baseline analytics comparison = %#v, want nil", resp.Baseline.Analytics.Comparison)
 	}
 
 	feed := resp.Days[1].Events[0]

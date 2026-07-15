@@ -492,6 +492,7 @@ Recommended sequence:
    * Add selected range versus baseline daily-average comparisons.
    * Compare like with like; do not compare a one-day value with a seven-day
      total.
+   * Status: implemented for selected-range analytics in `/reports/data`.
 
 6. **AI backend**
    * Add OpenAI client.

@@ -159,6 +159,39 @@ func TestBuildBabyAnalyticsRelationshipsArePartitionedByLocalDate(t *testing.T) 
 	}
 }
 
+func TestBuildComparisonAnalyticsNormalizesDailyAverages(t *testing.T) {
+	comparison := buildComparisonAnalytics(
+		2,
+		7,
+		reportTotalsResponse{
+			Feeds:   reportFeedTotals{Count: 4},
+			Nappies: reportNappyTotals{Count: 5},
+			Sleeps:  reportSleepTotals{CompletedCount: 3, TotalDurationMinutes: 250},
+		},
+		reportTotalsResponse{
+			Feeds:   reportFeedTotals{Count: 7},
+			Nappies: reportNappyTotals{Count: 14},
+			Sleeps:  reportSleepTotals{CompletedCount: 7, TotalDurationMinutes: 700},
+		},
+	)
+
+	if comparison.SelectedDaysIncluded != 2 || comparison.BaselineDaysIncluded != 7 {
+		t.Fatalf("days = %d/%d, want 2/7", comparison.SelectedDaysIncluded, comparison.BaselineDaysIncluded)
+	}
+	if comparison.SelectedAverageDailyFeedCount != 2 || comparison.BaselineAverageDailyFeedCount != 1 || comparison.FeedCountDeltaFromBaselineDailyAverage != 1 {
+		t.Fatalf("feed comparison = %#v, want selected 2, baseline 1, delta 1", comparison)
+	}
+	if comparison.SelectedAverageDailyNappyCount != 2.5 || comparison.BaselineAverageDailyNappyCount != 2 || comparison.NappyCountDeltaFromBaselineDailyAverage != 0.5 {
+		t.Fatalf("nappy comparison = %#v, want selected 2.5, baseline 2, delta 0.5", comparison)
+	}
+	if comparison.SelectedAverageDailyCompletedSleepCount != 1.5 || comparison.BaselineAverageDailyCompletedSleepCount != 1 || comparison.CompletedSleepCountDeltaFromBaselineDailyAverage != 0.5 {
+		t.Fatalf("completed sleep comparison = %#v, want selected 1.5, baseline 1, delta 0.5", comparison)
+	}
+	if comparison.SelectedAverageDailySleepMinutes != 125 || comparison.BaselineAverageDailySleepMinutes != 100 || comparison.SleepMinutesDeltaFromBaselineDailyAverage != 25 {
+		t.Fatalf("sleep minutes comparison = %#v, want selected 125, baseline 100, delta 25", comparison)
+	}
+}
+
 func assertTimeEqual(t *testing.T, got *time.Time, want time.Time) {
 	t.Helper()
 	if got == nil {

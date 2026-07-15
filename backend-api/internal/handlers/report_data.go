@@ -235,6 +235,11 @@ func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Locatio
 		})
 	}
 
+	totals := buildReportTotals(events)
+	analytics := BuildBabyAnalytics(events, loc)
+	baseline := buildReportBaseline(baselineWindow, loc, baselineEvents)
+	analytics.Comparison = buildComparisonAnalytics(window.DaysIncluded, baselineWindow.DaysIncluded, totals, baseline.Totals)
+
 	return reportDataResponse{
 		Baby: reportBabyFromStore(baby, window.GeneratedAt, loc),
 		Range: reportRangeResponse{
@@ -247,9 +252,9 @@ func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Locatio
 			RangeEnd:      window.RangeEnd,
 			GeneratedAt:   window.GeneratedAt,
 		},
-		Totals:    buildReportTotals(events),
-		Analytics: BuildBabyAnalytics(events, loc),
-		Baseline:  buildReportBaseline(baselineWindow, loc, baselineEvents),
+		Totals:    totals,
+		Analytics: analytics,
+		Baseline:  baseline,
 		Days:      days,
 	}
 }

@@ -116,14 +116,15 @@ Use these analytics sections:
     "timeline": {},
     "chronology": {},
     "intervals": {},
-    "relationships": []
+    "relationships": [],
+    "comparison": {}
   }
 }
 ```
 
-Do not include an empty `comparison` object before comparison analytics are
-implemented. Add `comparison` only after selected-range and baseline analytics
-can be normalized to the same unit.
+Include `comparison` only on selected-range analytics when baseline comparison
+has been calculated. Do not include `comparison` on individual day analytics or
+baseline analytics.
 
 ## PR Sequence
 
@@ -141,16 +142,6 @@ No comparison yet.
 
 ### Analytics PR 2
 
-Add metrics that require slightly more product care:
-
-* wake windows;
-* most active period;
-* quietest period;
-* notable intervals, only if they simplify consumers without duplicating too
-  much interval data.
-
-### Analytics PR 3
-
 Add baseline comparison:
 
 * selected range versus baseline daily averages;
@@ -158,6 +149,16 @@ Add baseline comparison:
 * clear deltas.
 
 Comparison must compare like with like.
+
+### Later Analytics PRs
+
+Add metrics that require slightly more product care:
+
+* wake windows;
+* most active period;
+* quietest period;
+* notable intervals, only if they simplify consumers without duplicating too
+  much interval data.
 
 ## Analytics PR 1 Shape
 
@@ -460,7 +461,8 @@ Comparison helps answer:
 * "Has today been different?"
 * "How does this selected range compare with recent days?"
 
-Comparison should not be included in PR 1.
+Comparison is included only on selected-range analytics. It compares the
+selected range to the previous-7-day baseline using daily averages.
 
 ### Hard Rule
 
@@ -495,10 +497,74 @@ For multi-day selected ranges, normalize the selected range too:
 }
 ```
 
-Do not add comparison fields until both selected and baseline analytics can be
-normalized to the same unit, usually per-day averages.
+Comparison fields must use selected and baseline values normalized to the same
+unit, usually per-day averages.
 
-## PR 2 Candidates
+Initial fields:
+
+```json
+{
+  "comparison": {
+    "selected_days_included": 1,
+    "baseline_days_included": 7,
+
+    "selected_average_daily_feed_count": 7,
+    "baseline_average_daily_feed_count": 7,
+    "feed_count_delta_from_baseline_daily_average": 0,
+
+    "selected_average_daily_nappy_count": 8,
+    "baseline_average_daily_nappy_count": 6.9,
+    "nappy_count_delta_from_baseline_daily_average": 1.1,
+
+    "selected_average_daily_completed_sleep_count": 3,
+    "baseline_average_daily_completed_sleep_count": 3.4,
+    "completed_sleep_count_delta_from_baseline_daily_average": -0.4,
+
+    "selected_average_daily_sleep_minutes": 260,
+    "baseline_average_daily_sleep_minutes": 310,
+    "sleep_minutes_delta_from_baseline_daily_average": -50
+  }
+}
+```
+
+Rules:
+
+* Round averages and deltas to one decimal place.
+* Calculate deltas as selected daily average minus baseline daily average.
+* Do not compare selected values to baseline totals.
+* Do not include comparison in `days[].analytics` or `baseline.analytics`.
+
+### Partial Ranges
+
+The selected range can be partial, most commonly when requesting today's
+calendar day before it has finished. The response already marks this with
+`range.is_partial: true`.
+
+For partial selected ranges, the current comparison fields should be treated as
+partial context, not as final daily deltas. A today-so-far selected range is
+still divided by `selected_days_included`, while the baseline uses complete
+previous local calendar days. This can help AI understand that the selected
+window is still developing, but consumers must not present the deltas as if
+the day were complete.
+
+AI instructions should make this explicit. When `range.is_partial` is `true`,
+AI must not describe comparison deltas as final daily differences. Prefer
+phrases such as "so far today", "at this point in the day", or "based on the
+logs so far", and mention that the pattern may change as more events are
+recorded.
+
+Scheduled reports should prefer complete selected windows, such as yesterday,
+a completed last-three-days range, or a completed last-seven-days range. In
+those cases, selected daily averages and baseline daily averages are directly
+comparable and the comparison fields are suitable for email/report generation.
+
+Future improvement: add an explicit comparison mode such as
+`partial_elapsed_window` for today-so-far. That mode should compare today's
+midnight-to-now window against each previous baseline day from midnight to the
+same local cutoff time, rather than comparing a partial day to full-day
+baseline averages.
+
+## Later Candidates
 
 These are useful, but need more care than PR 1.
 

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"math"
 	"time"
 
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
@@ -11,6 +12,7 @@ type BabyAnalytics struct {
 	Chronology    ChronologyAnalytics     `json:"chronology"`
 	Intervals     IntervalAnalytics       `json:"intervals"`
 	Relationships []RelationshipAnalytics `json:"relationships"`
+	Comparison    *ComparisonAnalytics    `json:"comparison,omitempty"`
 }
 
 type TimelineAnalytics struct {
@@ -55,6 +57,24 @@ type RelationshipAnalytics struct {
 	Count         int    `json:"count"`
 }
 
+type ComparisonAnalytics struct {
+	SelectedDaysIncluded int `json:"selected_days_included"`
+	BaselineDaysIncluded int `json:"baseline_days_included"`
+
+	SelectedAverageDailyFeedCount                    float64 `json:"selected_average_daily_feed_count"`
+	BaselineAverageDailyFeedCount                    float64 `json:"baseline_average_daily_feed_count"`
+	FeedCountDeltaFromBaselineDailyAverage           float64 `json:"feed_count_delta_from_baseline_daily_average"`
+	SelectedAverageDailyNappyCount                   float64 `json:"selected_average_daily_nappy_count"`
+	BaselineAverageDailyNappyCount                   float64 `json:"baseline_average_daily_nappy_count"`
+	NappyCountDeltaFromBaselineDailyAverage          float64 `json:"nappy_count_delta_from_baseline_daily_average"`
+	SelectedAverageDailyCompletedSleepCount          float64 `json:"selected_average_daily_completed_sleep_count"`
+	BaselineAverageDailyCompletedSleepCount          float64 `json:"baseline_average_daily_completed_sleep_count"`
+	CompletedSleepCountDeltaFromBaselineDailyAverage float64 `json:"completed_sleep_count_delta_from_baseline_daily_average"`
+	SelectedAverageDailySleepMinutes                 float64 `json:"selected_average_daily_sleep_minutes"`
+	BaselineAverageDailySleepMinutes                 float64 `json:"baseline_average_daily_sleep_minutes"`
+	SleepMinutesDeltaFromBaselineDailyAverage        float64 `json:"sleep_minutes_delta_from_baseline_daily_average"`
+}
+
 type relationshipDefinition struct {
 	Key    string
 	From   string
@@ -75,6 +95,35 @@ func BuildBabyAnalytics(events []store.Event, loc *time.Location) BabyAnalytics 
 		Chronology:    buildChronologyAnalytics(events, loc),
 		Intervals:     buildIntervalAnalytics(events, loc),
 		Relationships: buildRelationshipAnalytics(events, loc),
+	}
+}
+
+func buildComparisonAnalytics(selectedDaysIncluded, baselineDaysIncluded int, selectedTotals, baselineTotals reportTotalsResponse) *ComparisonAnalytics {
+	selectedFeedAverage := dailyAverage(selectedTotals.Feeds.Count, selectedDaysIncluded)
+	baselineFeedAverage := dailyAverage(baselineTotals.Feeds.Count, baselineDaysIncluded)
+	selectedNappyAverage := dailyAverage(selectedTotals.Nappies.Count, selectedDaysIncluded)
+	baselineNappyAverage := dailyAverage(baselineTotals.Nappies.Count, baselineDaysIncluded)
+	selectedCompletedSleepAverage := dailyAverage(selectedTotals.Sleeps.CompletedCount, selectedDaysIncluded)
+	baselineCompletedSleepAverage := dailyAverage(baselineTotals.Sleeps.CompletedCount, baselineDaysIncluded)
+	selectedSleepMinutesAverage := dailyAverage(selectedTotals.Sleeps.TotalDurationMinutes, selectedDaysIncluded)
+	baselineSleepMinutesAverage := dailyAverage(baselineTotals.Sleeps.TotalDurationMinutes, baselineDaysIncluded)
+
+	return &ComparisonAnalytics{
+		SelectedDaysIncluded: selectedDaysIncluded,
+		BaselineDaysIncluded: baselineDaysIncluded,
+
+		SelectedAverageDailyFeedCount:                    selectedFeedAverage,
+		BaselineAverageDailyFeedCount:                    baselineFeedAverage,
+		FeedCountDeltaFromBaselineDailyAverage:           deltaFromBaselineAverage(selectedFeedAverage, baselineFeedAverage),
+		SelectedAverageDailyNappyCount:                   selectedNappyAverage,
+		BaselineAverageDailyNappyCount:                   baselineNappyAverage,
+		NappyCountDeltaFromBaselineDailyAverage:          deltaFromBaselineAverage(selectedNappyAverage, baselineNappyAverage),
+		SelectedAverageDailyCompletedSleepCount:          selectedCompletedSleepAverage,
+		BaselineAverageDailyCompletedSleepCount:          baselineCompletedSleepAverage,
+		CompletedSleepCountDeltaFromBaselineDailyAverage: deltaFromBaselineAverage(selectedCompletedSleepAverage, baselineCompletedSleepAverage),
+		SelectedAverageDailySleepMinutes:                 selectedSleepMinutesAverage,
+		BaselineAverageDailySleepMinutes:                 baselineSleepMinutesAverage,
+		SleepMinutesDeltaFromBaselineDailyAverage:        deltaFromBaselineAverage(selectedSleepMinutesAverage, baselineSleepMinutesAverage),
 	}
 }
 
@@ -256,4 +305,19 @@ func summarizeMinutes(values []int) (average int, longest int, shortest int) {
 	}
 	average = int(float64(total)/float64(len(values)) + 0.5)
 	return average, longest, shortest
+}
+
+func roundComparisonValue(value float64) float64 {
+	return math.Round(value*10) / 10
+}
+
+func dailyAverage(total, daysIncluded int) float64 {
+	if daysIncluded <= 0 {
+		return 0
+	}
+	return roundComparisonValue(float64(total) / float64(daysIncluded))
+}
+
+func deltaFromBaselineAverage(selectedAverage, baselineAverage float64) float64 {
+	return roundComparisonValue(selectedAverage - baselineAverage)
 }
