@@ -5,19 +5,18 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/andreistefanciprian/yauli/backend-api/internal/aireport"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
 const (
-	aiReportInputSchemaVersion  = "ai_report_input.v1"
-	aiReportOutputSchemaVersion = "ai_report_output.v1"
-	aiReportPromptVersion       = "ai_report_prompt.v1"
-	defaultAIReportLocale       = "en"
+	defaultAIReportLocale = "en"
 
 	aiReportTypeDaily  = "daily"
 	aiReportTypeWeekly = "weekly"
@@ -39,6 +38,8 @@ type aiReportCacheMissResponse struct {
 	InputHash  string `json:"input_hash"`
 }
 
+// aiReportHashEnvelope is the stable cache identity payload. Delivery is not
+// included here because v1 AI report content is channel-neutral.
 type aiReportHashEnvelope struct {
 	InputSchemaVersion  string `json:"input_schema_version"`
 	OutputSchemaVersion string `json:"output_schema_version"`
@@ -48,10 +49,9 @@ type aiReportHashEnvelope struct {
 	ReportData          any    `json:"report_data"`
 }
 
-// CreateAIReport returns cached AI report JSON for the selected range, or a
-// clear 501 while generation is intentionally not implemented yet. This
-// endpoint is expected to be leveraged by future MCP tools and scheduled
-// email jobs once AI generation exists.
+// CreateAIReport returns cached AI report JSON for the selected range, or
+// generates and caches it when AI generation is configured. This endpoint is
+// expected to be leveraged by future MCP tools and scheduled email jobs.
 func (h *Handlers) CreateAIReport(w http.ResponseWriter, r *http.Request) {
 	baby, ok := h.currentBabyForRequest(w, r)
 	if !ok {
@@ -83,7 +83,14 @@ func (h *Handlers) CreateAIReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inputHash, err := aiReportInputHash(req.ReportType, req.Locale, reportData)
+	canonicalReportData, err := canonicalAIReportData(reportData)
+	if err != nil {
+		log.Printf("canonicalize AI report data: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to prepare AI report")
+		return
+	}
+
+	inputHash, err := aiReportInputHash(req.ReportType, req.Locale, canonicalReportData)
 	if err != nil {
 		log.Printf("hash AI report input: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to prepare AI report")
@@ -92,13 +99,7 @@ func (h *Handlers) CreateAIReport(w http.ResponseWriter, r *http.Request) {
 
 	cached, err := h.Store.GetAIReportCache(r.Context(), baby.FamilyID, baby.ID, req.ReportType, window.RangeStart, window.RangeEnd, inputHash)
 	if errors.Is(err, store.ErrNotFound) {
-		writeJSON(w, http.StatusNotImplemented, aiReportCacheMissResponse{
-			Error:      "AI report generation is not implemented yet",
-			ReportType: req.ReportType,
-			StartDate:  window.StartDate,
-			EndDate:    window.EndDate,
-			InputHash:  inputHash,
-		})
+		h.generateAndCacheAIReport(w, r, baby, req, window, canonicalReportData, inputHash)
 		return
 	}
 	if err != nil {
@@ -110,6 +111,66 @@ func (h *Handlers) CreateAIReport(w http.ResponseWriter, r *http.Request) {
 	writeRawJSON(w, http.StatusOK, cached.ContentJSON)
 }
 
+// generateAndCacheAIReport is the cache-miss path. It keeps model I/O,
+// output validation, and cache persistence together so invalid model output
+// can never be stored.
+func (h *Handlers) generateAndCacheAIReport(w http.ResponseWriter, r *http.Request, baby store.Baby, req aiReportRequest, window reportDataWindow, reportData any, inputHash string) {
+	if h.AI == nil {
+		writeJSON(w, http.StatusNotImplemented, aiReportCacheMissResponse{
+			Error:      "AI report generation is not configured",
+			ReportType: req.ReportType,
+			StartDate:  window.StartDate,
+			EndDate:    window.EndDate,
+			InputHash:  inputHash,
+		})
+		return
+	}
+
+	result, err := h.AI.GenerateAIReport(r.Context(), aireport.GenerationInput{
+		InputSchemaVersion:  aireport.InputSchemaVersion,
+		OutputSchemaVersion: aireport.OutputSchemaVersion,
+		PromptVersion:       aireport.PromptVersion,
+		ReportType:          req.ReportType,
+		Locale:              req.Locale,
+		ReportData:          reportData,
+	})
+	if err != nil {
+		log.Printf("generate AI report: %v", err)
+		writeError(w, http.StatusBadGateway, "failed to generate AI report")
+		return
+	}
+
+	contentJSON, err := validateAIReportOutput(result.ContentJSON)
+	if err != nil {
+		log.Printf("validate AI report output: %v", err)
+		writeError(w, http.StatusBadGateway, "AI report output was invalid")
+		return
+	}
+
+	cached, err := h.Store.CreateAIReportCache(r.Context(), store.AIReportCache{
+		FamilyID:            baby.FamilyID,
+		BabyID:              baby.ID,
+		ReportType:          req.ReportType,
+		RangeStart:          window.RangeStart,
+		RangeEnd:            window.RangeEnd,
+		InputHash:           inputHash,
+		PromptVersion:       aireport.PromptVersion,
+		InputSchemaVersion:  aireport.InputSchemaVersion,
+		OutputSchemaVersion: aireport.OutputSchemaVersion,
+		Model:               result.Model,
+		ContentJSON:         contentJSON,
+	})
+	if err != nil {
+		log.Printf("cache AI report: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to cache AI report")
+		return
+	}
+
+	writeRawJSON(w, http.StatusOK, cached.ContentJSON)
+}
+
+// validAIReportRequest ties report_type to the supported date-window sizes
+// so "daily" cannot silently generate a week-sized report and vice versa.
 func validAIReportRequest(reportType string, daysIncluded int) bool {
 	switch reportType {
 	case aiReportTypeDaily:
@@ -121,6 +182,8 @@ func validAIReportRequest(reportType string, daysIncluded int) bool {
 	}
 }
 
+// normalizeAIReportLocale keeps the endpoint usable before the frontend or
+// scheduled jobs send locale explicitly.
 func normalizeAIReportLocale(locale string) string {
 	locale = strings.TrimSpace(locale)
 	if locale == "" {
@@ -129,15 +192,13 @@ func normalizeAIReportLocale(locale string) string {
 	return locale
 }
 
-func aiReportInputHash(reportType, locale string, reportData reportDataResponse) (string, error) {
-	canonicalReportData, err := canonicalAIReportData(reportData)
-	if err != nil {
-		return "", err
-	}
+// aiReportInputHash hashes only deterministic, semantic inputs. Volatile
+// generated_at values must already be removed from canonicalReportData.
+func aiReportInputHash(reportType, locale string, canonicalReportData any) (string, error) {
 	payload, err := json.Marshal(aiReportHashEnvelope{
-		InputSchemaVersion:  aiReportInputSchemaVersion,
-		OutputSchemaVersion: aiReportOutputSchemaVersion,
-		PromptVersion:       aiReportPromptVersion,
+		InputSchemaVersion:  aireport.InputSchemaVersion,
+		OutputSchemaVersion: aireport.OutputSchemaVersion,
+		PromptVersion:       aireport.PromptVersion,
 		ReportType:          reportType,
 		Locale:              locale,
 		ReportData:          canonicalReportData,
@@ -149,6 +210,9 @@ func aiReportInputHash(reportType, locale string, reportData reportDataResponse)
 	return hex.EncodeToString(sum[:]), nil
 }
 
+// canonicalAIReportData converts the typed report-data response into a
+// generic JSON tree so volatile generated_at fields can be removed before
+// hashing or sending to the model.
 func canonicalAIReportData(reportData reportDataResponse) (any, error) {
 	raw, err := json.Marshal(reportData)
 	if err != nil {
@@ -163,6 +227,9 @@ func canonicalAIReportData(reportData reportDataResponse) (any, error) {
 	return canonical, nil
 }
 
+// removeGeneratedAt recursively drops generated_at timestamps. Those values
+// describe when backend assembled the report, not what happened in the baby
+// timeline, so they should not affect cache identity.
 func removeGeneratedAt(value any) {
 	switch typed := value.(type) {
 	case map[string]any:
@@ -175,4 +242,58 @@ func removeGeneratedAt(value any) {
 			removeGeneratedAt(child)
 		}
 	}
+}
+
+// validateAIReportOutput enforces the backend-owned output contract before
+// generated JSON is cached or returned to callers.
+func validateAIReportOutput(raw json.RawMessage) (json.RawMessage, error) {
+	var output aireport.Output
+	if err := json.Unmarshal(raw, &output); err != nil {
+		return nil, fmt.Errorf("decode output: %w", err)
+	}
+	if output.SchemaVersion != aireport.OutputSchemaVersion {
+		return nil, fmt.Errorf("schema_version = %q, want %q", output.SchemaVersion, aireport.OutputSchemaVersion)
+	}
+	if strings.TrimSpace(output.Title) == "" {
+		return nil, errors.New("title is required")
+	}
+	if strings.TrimSpace(output.Summary) == "" {
+		return nil, errors.New("summary is required")
+	}
+	if output.Highlights == nil {
+		return nil, errors.New("highlights is required")
+	}
+	if len(output.Highlights) > 5 {
+		return nil, errors.New("highlights exceeds max 5")
+	}
+	if output.Patterns == nil {
+		return nil, errors.New("patterns is required")
+	}
+	if len(output.Patterns) > 3 {
+		return nil, errors.New("patterns exceeds max 3")
+	}
+	if output.Comparison == nil {
+		return nil, errors.New("comparison is required")
+	}
+	if len(output.Comparison) > 3 {
+		return nil, errors.New("comparison exceeds max 3")
+	}
+	if output.Caveats == nil {
+		return nil, errors.New("caveats is required")
+	}
+	if len(output.Caveats) > 2 {
+		return nil, errors.New("caveats exceeds max 2")
+	}
+	if output.QuestionsForParent == nil {
+		return nil, errors.New("questions_for_parent is required")
+	}
+	if len(output.QuestionsForParent) > 3 {
+		return nil, errors.New("questions_for_parent exceeds max 3")
+	}
+
+	normalized, err := json.Marshal(output)
+	if err != nil {
+		return nil, fmt.Errorf("encode normalized output: %w", err)
+	}
+	return normalized, nil
 }

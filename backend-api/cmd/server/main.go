@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/andreistefanciprian/yauli/backend-api/internal/aiclient"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/authclient"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/authctx"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/handlers"
@@ -62,6 +63,9 @@ func main() {
 	}
 
 	h := handlers.New(store.NewPostgresStore(pool), authclient.New(authServiceURL, frontendAuthSecret))
+	if openAIAPIKey := os.Getenv("OPENAI_API_KEY"); openAIAPIKey != "" {
+		h.AI = aiclient.New(openAIAPIKey, os.Getenv("OPENAI_MODEL"))
+	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)

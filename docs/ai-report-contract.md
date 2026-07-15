@@ -635,6 +635,13 @@ Rules:
 * uses deterministic report data and baseline as input;
 * returns cached output if the input hash matches;
 * regenerates only when input changes or cache policy says to refresh.
+* returns a clear not-configured response on cache miss when
+  `OPENAI_API_KEY` is not set.
+
+Generation configuration:
+
+* `OPENAI_API_KEY`: enables cache-miss generation in `backend-api`;
+* `OPENAI_MODEL`: optional model override.
 
 Scheduled email jobs should call the same backend AI report generation path
 with a complete selected range. For example, a weekly scheduled email can use
@@ -760,6 +767,7 @@ Recommended sequence:
    * Add OpenAI client.
    * Generate `ai_report_output.v1` JSON on cache misses.
    * Validate model output before caching it.
+   * Configure generation with `OPENAI_API_KEY` and optional `OPENAI_MODEL`.
 
 8. **Scheduled report delivery**
    * Add daily and weekly scheduled report jobs.
@@ -784,7 +792,6 @@ Recommended sequence:
   insights?
 * Should AI output be editable/dismissible by parents?
 * Should AI insights be stored permanently or treated as regenerable cache?
-* What model should be the default OpenAI model for this feature?
 * Should the first AI version support past days, today only, or every range
   supported by the timeline?
 * Will a future version need explicit delivery-specific style profiles, or is

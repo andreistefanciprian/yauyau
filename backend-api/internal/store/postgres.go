@@ -334,6 +334,9 @@ func (s *PostgresStore) ListAllEvents(ctx context.Context, familyID, babyID uuid
 	return results, nil
 }
 
+// GetAIReportCache returns a previously generated AI report for this exact
+// semantic input hash. ErrNotFound means the caller should generate a fresh
+// report if generation is configured.
 func (s *PostgresStore) GetAIReportCache(ctx context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash string) (AIReportCache, error) {
 	const query = `
 		SELECT
@@ -370,6 +373,8 @@ func (s *PostgresStore) GetAIReportCache(ctx context.Context, familyID, babyID u
 	return report, nil
 }
 
+// CreateAIReportCache stores generated report JSON as a regenerable cache
+// entry. The unique key makes retries idempotent for the same report input.
 func (s *PostgresStore) CreateAIReportCache(ctx context.Context, report AIReportCache) (AIReportCache, error) {
 	if report.ID == uuid.Nil {
 		report.ID = uuid.New()
@@ -437,6 +442,8 @@ func (s *PostgresStore) CreateAIReportCache(ctx context.Context, report AIReport
 	return saved, nil
 }
 
+// scanAIReportCache centralizes row mapping so create and get keep the same
+// column order and response shape.
 func scanAIReportCache(row pgx.Row) (AIReportCache, error) {
 	var report AIReportCache
 	err := row.Scan(

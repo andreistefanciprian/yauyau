@@ -13,6 +13,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
+	"github.com/andreistefanciprian/yauli/backend-api/internal/aireport"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/authctx"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
@@ -57,7 +58,11 @@ func TestAIReportInputHashIgnoresGeneratedAt(t *testing.T) {
 		}},
 	}
 
-	firstHash, err := aiReportInputHash(aiReportTypeDaily, defaultAIReportLocale, reportData)
+	canonical, err := canonicalAIReportData(reportData)
+	if err != nil {
+		t.Fatalf("canonicalAIReportData returned error: %v", err)
+	}
+	firstHash, err := aiReportInputHash(aiReportTypeDaily, defaultAIReportLocale, canonical)
 	if err != nil {
 		t.Fatalf("aiReportInputHash returned error: %v", err)
 	}
@@ -66,7 +71,11 @@ func TestAIReportInputHashIgnoresGeneratedAt(t *testing.T) {
 	reportData.Baseline.Range.GeneratedAt = generatedAt.Add(2 * time.Hour)
 	reportData.Days[0].Report.GeneratedAt = generatedAt.Add(3 * time.Hour)
 
-	secondHash, err := aiReportInputHash(aiReportTypeDaily, defaultAIReportLocale, reportData)
+	canonical, err = canonicalAIReportData(reportData)
+	if err != nil {
+		t.Fatalf("canonicalAIReportData returned error: %v", err)
+	}
+	secondHash, err := aiReportInputHash(aiReportTypeDaily, defaultAIReportLocale, canonical)
 	if err != nil {
 		t.Fatalf("aiReportInputHash returned error: %v", err)
 	}
@@ -77,7 +86,10 @@ func TestAIReportInputHashIgnoresGeneratedAt(t *testing.T) {
 }
 
 func TestAIReportInputHashIncludesSemanticInputs(t *testing.T) {
-	reportData := reportDataResponse{}
+	reportData, err := canonicalAIReportData(reportDataResponse{})
+	if err != nil {
+		t.Fatalf("canonicalAIReportData returned error: %v", err)
+	}
 
 	dailyHash, err := aiReportInputHash(aiReportTypeDaily, defaultAIReportLocale, reportData)
 	if err != nil {
@@ -173,8 +185,73 @@ func TestCreateAIReportReturnsNotImplementedOnCacheMiss(t *testing.T) {
 	if rec.Code != http.StatusNotImplemented {
 		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusNotImplemented, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "AI report generation is not implemented yet") {
+	if !strings.Contains(rec.Body.String(), "AI report generation is not configured") {
 		t.Fatalf("body = %s, want not implemented error", rec.Body.String())
+	}
+}
+
+func TestCreateAIReportGeneratesAndCachesOnCacheMiss(t *testing.T) {
+	baby := store.Baby{
+		ID:       uuid.New(),
+		FamilyID: uuid.New(),
+		Name:     "YauYau",
+		Timezone: "Australia/Adelaide",
+	}
+	output := json.RawMessage(`{"schema_version":"ai_report_output.v1","title":"Generated report","summary":"Generated from report data.","highlights":["One useful fact."],"patterns":[],"comparison":[],"caveats":[],"questions_for_parent":[]}`)
+	fakeStore := &aiReportFakeStore{
+		baby:     baby,
+		cacheErr: store.ErrNotFound,
+	}
+	h := &Handlers{
+		Store: fakeStore,
+		AI:    &fakeAIReportGenerator{output: output, model: "test-model"},
+	}
+
+	rec := httptest.NewRecorder()
+	req := authenticatedAIReportRequest(t, baby.FamilyID, `{"report_type":"daily","start_date":"2026-07-13","end_date":"2026-07-13"}`)
+
+	h.CreateAIReport(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if fakeStore.created.InputHash == "" {
+		t.Fatal("generated report was not cached")
+	}
+	if fakeStore.created.Model != "test-model" {
+		t.Fatalf("cached model = %q, want test-model", fakeStore.created.Model)
+	}
+	if !strings.Contains(rec.Body.String(), "Generated report") {
+		t.Fatalf("body = %s, want generated report", rec.Body.String())
+	}
+}
+
+func TestCreateAIReportRejectsInvalidGeneratedOutput(t *testing.T) {
+	baby := store.Baby{
+		ID:       uuid.New(),
+		FamilyID: uuid.New(),
+		Name:     "YauYau",
+		Timezone: "Australia/Adelaide",
+	}
+	fakeStore := &aiReportFakeStore{
+		baby:     baby,
+		cacheErr: store.ErrNotFound,
+	}
+	h := &Handlers{
+		Store: fakeStore,
+		AI:    &fakeAIReportGenerator{output: json.RawMessage(`{"schema_version":"ai_report_output.v1","title":"","summary":"Missing title.","highlights":[],"patterns":[],"comparison":[],"caveats":[],"questions_for_parent":[]}`)},
+	}
+
+	rec := httptest.NewRecorder()
+	req := authenticatedAIReportRequest(t, baby.FamilyID, `{"report_type":"daily","start_date":"2026-07-13","end_date":"2026-07-13"}`)
+
+	h.CreateAIReport(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusBadGateway, rec.Body.String())
+	}
+	if fakeStore.created.InputHash != "" {
+		t.Fatalf("invalid generated report should not be cached: %#v", fakeStore.created)
 	}
 }
 
@@ -215,6 +292,7 @@ type aiReportFakeStore struct {
 	cachedContent  json.RawMessage
 	cacheErr       error
 	cacheInputHash string
+	created        store.AIReportCache
 }
 
 func (s *aiReportFakeStore) GetBaby(context.Context, uuid.UUID) (store.Baby, error) {
@@ -267,5 +345,29 @@ func (s *aiReportFakeStore) GetAIReportCache(_ context.Context, familyID, babyID
 		RangeEnd:    rangeEnd,
 		InputHash:   inputHash,
 		ContentJSON: s.cachedContent,
+	}, nil
+}
+
+func (s *aiReportFakeStore) CreateAIReportCache(_ context.Context, report store.AIReportCache) (store.AIReportCache, error) {
+	s.created = report
+	if s.created.ID == uuid.Nil {
+		s.created.ID = uuid.New()
+	}
+	return s.created, nil
+}
+
+type fakeAIReportGenerator struct {
+	output json.RawMessage
+	model  string
+	err    error
+}
+
+func (g *fakeAIReportGenerator) GenerateAIReport(context.Context, aireport.GenerationInput) (aireport.GenerationResult, error) {
+	if g.err != nil {
+		return aireport.GenerationResult{}, g.err
+	}
+	return aireport.GenerationResult{
+		Model:       g.model,
+		ContentJSON: g.output,
 	}, nil
 }

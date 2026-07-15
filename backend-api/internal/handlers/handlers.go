@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/andreistefanciprian/yauli/backend-api/internal/aireport"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
@@ -38,6 +39,7 @@ type Store interface {
 	ListAllEvents(ctx context.Context, familyID, babyID uuid.UUID, from, to time.Time, limit int) ([]store.Event, error)
 	DeleteEvent(ctx context.Context, familyID, babyID, id uuid.UUID) error
 	GetAIReportCache(ctx context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash string) (store.AIReportCache, error)
+	CreateAIReportCache(ctx context.Context, report store.AIReportCache) (store.AIReportCache, error)
 }
 
 // FamilyStore is the persistence boundary the internal, auth-service-facing
@@ -63,6 +65,12 @@ type FamilyStore interface {
 // membership changes that must revoke durable sessions.
 type AuthClient interface {
 	RevokeFamilyMemberSessions(ctx context.Context, userID, familyID uuid.UUID) error
+}
+
+// AIReportGenerator is the model boundary for turning deterministic report
+// data into validated ai_report_output JSON.
+type AIReportGenerator interface {
+	GenerateAIReport(ctx context.Context, input aireport.GenerationInput) (aireport.GenerationResult, error)
 }
 
 // allEventsLimit caps the combined /events endpoint. It's set higher than
@@ -275,6 +283,7 @@ type Handlers struct {
 	Store       Store
 	FamilyStore FamilyStore
 	Auth        AuthClient
+	AI          AIReportGenerator
 }
 
 // New wires up Handlers from a single concrete store that satisfies both
