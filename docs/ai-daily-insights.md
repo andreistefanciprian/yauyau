@@ -96,9 +96,8 @@ This is useful for the UI, but it is not enough context for AI insights.
 
 Report data is the complete factual input for one selected local date range.
 For a one-day report, `start_date` and `end_date` are the same date. It should
-include range-level totals, daily reports, daily totals, and ordered raw
-events. Baby analytics should be added separately after the factual contract
-is stable.
+include range-level totals and analytics, daily reports, daily totals, daily
+analytics, and ordered raw events.
 
 Proposed endpoint:
 
@@ -326,8 +325,9 @@ Example:
 }
 ```
 
-The first baseline version should return factual totals only. Baseline
-analytics and averages should be added after the analytics builder exists.
+The baseline should return factual totals and baby analytics. Baseline
+averages and comparisons should be added only when the comparison layer is
+implemented.
 
 ## AI Input
 
@@ -486,6 +486,7 @@ Recommended sequence:
    * Add deterministic timeline, chronology, interval, and relationship
      analytics.
    * Add focused unit tests for calculations.
+   * Status: implemented for `/reports/data`.
 
 5. **Analytics comparison**
    * Add selected range versus baseline daily-average comparisons.
