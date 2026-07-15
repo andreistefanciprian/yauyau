@@ -45,6 +45,21 @@ type Event struct {
 	Attributes map[string]any `json:"attributes"`
 }
 
+// BabyLatestGrowth is a projection of the latest known growth measurements
+// for a baby. Growth measurement events remain the source of truth; this
+// record exists so report generation does not need to scan old events.
+type BabyLatestGrowth struct {
+	FamilyID                    uuid.UUID
+	BabyID                      uuid.UUID
+	WeightGrams                 *int
+	WeightMeasuredAt            *time.Time
+	LengthCM                    *float64
+	LengthMeasuredAt            *time.Time
+	HeadCircumferenceCM         *float64
+	HeadCircumferenceMeasuredAt *time.Time
+	UpdatedAt                   time.Time
+}
+
 // AIReportCache is a regenerable cached AI interpretation of deterministic
 // report data. Events remain the canonical baby history.
 type AIReportCache struct {

@@ -1009,3 +1009,93 @@ func TestUpdateEvent(t *testing.T) {
 		t.Fatalf("expected event_type mismatch to return ErrNotFound, got %v", err)
 	}
 }
+
+func TestBabyLatestGrowthProjectionRefreshesFromGrowthEvents(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+
+	owner, err := s.UpsertUserByEmail(ctx, testEmail(t))
+	if err != nil {
+		t.Fatalf("upsert owner: %v", err)
+	}
+	familyID, err := s.CreateFamilyWithOwner(ctx, owner.ID, "test family")
+	if err != nil {
+		t.Fatalf("create family: %v", err)
+	}
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM baby_latest_growth WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM events WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM babies WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE id = $1`, owner.ID)
+	})
+
+	baby, err := s.CreateBaby(ctx, familyID, "YauYau", "Australia/Adelaide")
+	if err != nil {
+		t.Fatalf("create baby: %v", err)
+	}
+	firstMeasuredAt := time.Date(2026, 7, 1, 9, 0, 0, 0, time.UTC)
+	first, err := s.CreateEvent(ctx, familyID, baby.ID, "growth_measurement", map[string]any{
+		"weight_grams":          7200,
+		"length_cm":             66.5,
+		"head_circumference_cm": 42.1,
+	}, firstMeasuredAt)
+	if err != nil {
+		t.Fatalf("create first growth event: %v", err)
+	}
+	secondMeasuredAt := time.Date(2026, 7, 10, 9, 0, 0, 0, time.UTC)
+	if _, err := s.CreateEvent(ctx, familyID, baby.ID, "growth_measurement", map[string]any{
+		"weight_grams": 7400,
+	}, secondMeasuredAt); err != nil {
+		t.Fatalf("create second growth event: %v", err)
+	}
+	if _, err := s.CreateEvent(ctx, familyID, baby.ID, "nappy", map[string]any{"kind": "wet"}, secondMeasuredAt.Add(time.Hour)); err != nil {
+		t.Fatalf("create unrelated event: %v", err)
+	}
+
+	gotEvent, err := s.GetEvent(ctx, familyID, baby.ID, first.ID)
+	if err != nil {
+		t.Fatalf("get event: %v", err)
+	}
+	if gotEvent.EventType != "growth_measurement" {
+		t.Fatalf("GetEvent EventType = %q, want growth_measurement", gotEvent.EventType)
+	}
+
+	growth, err := s.RefreshBabyLatestGrowth(ctx, familyID, baby.ID)
+	if err != nil {
+		t.Fatalf("refresh latest growth: %v", err)
+	}
+	if growth.WeightGrams == nil || *growth.WeightGrams != 7400 || growth.WeightMeasuredAt == nil || !growth.WeightMeasuredAt.Equal(secondMeasuredAt) {
+		t.Fatalf("weight projection = %#v at %v, want 7400 at %v", growth.WeightGrams, growth.WeightMeasuredAt, secondMeasuredAt)
+	}
+	if growth.LengthCM == nil || *growth.LengthCM != 66.5 || growth.LengthMeasuredAt == nil || !growth.LengthMeasuredAt.Equal(firstMeasuredAt) {
+		t.Fatalf("length projection = %#v at %v, want 66.5 at %v", growth.LengthCM, growth.LengthMeasuredAt, firstMeasuredAt)
+	}
+	if growth.HeadCircumferenceCM == nil || *growth.HeadCircumferenceCM != 42.1 || growth.HeadCircumferenceMeasuredAt == nil || !growth.HeadCircumferenceMeasuredAt.Equal(firstMeasuredAt) {
+		t.Fatalf("head projection = %#v at %v, want 42.1 at %v", growth.HeadCircumferenceCM, growth.HeadCircumferenceMeasuredAt, firstMeasuredAt)
+	}
+
+	saved, err := s.GetBabyLatestGrowth(ctx, familyID, baby.ID)
+	if err != nil {
+		t.Fatalf("get latest growth: %v", err)
+	}
+	if saved.WeightGrams == nil || *saved.WeightGrams != 7400 {
+		t.Fatalf("saved latest growth = %#v, want weight 7400", saved)
+	}
+
+	if err := s.DeleteEvent(ctx, familyID, baby.ID, first.ID); err != nil {
+		t.Fatalf("delete first growth event: %v", err)
+	}
+	growth, err = s.RefreshBabyLatestGrowth(ctx, familyID, baby.ID)
+	if err != nil {
+		t.Fatalf("refresh after delete: %v", err)
+	}
+	if growth.LengthCM != nil || growth.HeadCircumferenceCM != nil {
+		t.Fatalf("length/head should clear after source delete, got %#v", growth)
+	}
+
+	if err := s.DeleteEvent(ctx, familyID, baby.ID, gotEvent.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected second delete of same event to return ErrNotFound, got %v", err)
+	}
+}

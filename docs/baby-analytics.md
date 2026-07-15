@@ -840,5 +840,37 @@ Tests should cover:
   response contract?
 * Should ongoing feed count include bottle feeds that have amount but no
   duration, or only feeds started through the "start feed" flow?
-* Should growth measurements ever appear in analytics, or are they better
-  handled in a separate profile/health context?
+
+## Growth Context
+
+Growth measurements should not be folded into timeline analytics for PR 1.
+They answer a different question than daily rhythm, intervals, and
+relationships.
+
+Instead, reports should receive optional baby context from a
+`baby_latest_growth` projection:
+
+```json
+{
+  "baby": {
+    "latest_growth": {
+      "weight": {
+        "grams": 7200,
+        "measured_at": "2026-07-10T08:00:00+09:30",
+        "age_days": 190
+      },
+      "length": {
+        "cm": 66.5,
+        "measured_at": "2026-07-01T08:00:00+09:30",
+        "age_days": 181
+      }
+    }
+  }
+}
+```
+
+Growth measurement events remain the source of truth. The projection is updated
+when growth measurement events are created, edited, or deleted, so reports do
+not need to scan years of historical events just to provide the latest known
+weight or length. Each measurement carries its own timestamp because families
+may record weight, length, and head circumference on different dates.

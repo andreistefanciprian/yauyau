@@ -249,6 +249,34 @@ func (s *PostgresStore) CreateEvent(ctx context.Context, familyID, babyID uuid.U
 	}, nil
 }
 
+// GetEvent returns one event for the current baby. Handlers use this when a
+// generic event route needs the event type before deciding follow-up work.
+func (s *PostgresStore) GetEvent(ctx context.Context, familyID, babyID, id uuid.UUID) (Event, error) {
+	const query = `
+		SELECT id, baby_id, event_type, attributes, occurred_at, created_at
+		FROM events
+		WHERE id = $1 AND family_id = $2 AND baby_id = $3
+	`
+
+	var ev Event
+	err := s.pool.QueryRow(ctx, query, id, familyID, babyID).Scan(
+		&ev.ID,
+		&ev.BabyID,
+		&ev.EventType,
+		&ev.Attributes,
+		&ev.OccurredAt,
+		&ev.CreatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Event{}, ErrNotFound
+	}
+	if err != nil {
+		return Event{}, fmt.Errorf("getting event: %w", err)
+	}
+
+	return ev, nil
+}
+
 // UpdateEvent replaces the editable fields of an existing event that belongs
 // to the current baby. eventType is part of the WHERE clause so callers
 // cannot accidentally transform a nappy into a feed by posting mismatched
@@ -332,6 +360,151 @@ func (s *PostgresStore) ListAllEvents(ctx context.Context, familyID, babyID uuid
 	}
 
 	return results, nil
+}
+
+// GetBabyLatestGrowth returns the current projection of the latest known
+// growth measurements for babyID. ErrNotFound means no growth measurements
+// have been recorded yet.
+func (s *PostgresStore) GetBabyLatestGrowth(ctx context.Context, familyID, babyID uuid.UUID) (BabyLatestGrowth, error) {
+	const query = `
+		SELECT
+			family_id,
+			baby_id,
+			weight_grams,
+			weight_measured_at,
+			length_cm,
+			length_measured_at,
+			head_circumference_cm,
+			head_circumference_measured_at,
+			updated_at
+		FROM baby_latest_growth
+		WHERE family_id = $1 AND baby_id = $2
+	`
+
+	growth, err := scanBabyLatestGrowth(s.pool.QueryRow(ctx, query, familyID, babyID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return BabyLatestGrowth{}, ErrNotFound
+	}
+	if err != nil {
+		return BabyLatestGrowth{}, fmt.Errorf("getting baby latest growth: %w", err)
+	}
+
+	return growth, nil
+}
+
+// RefreshBabyLatestGrowth rebuilds the latest-growth projection from
+// growth_measurement events after one of those events is created, edited, or
+// deleted. It keeps each measurement type independent because families often
+// record weight, length, and head circumference at different times.
+func (s *PostgresStore) RefreshBabyLatestGrowth(ctx context.Context, familyID, babyID uuid.UUID) (BabyLatestGrowth, error) {
+	const query = `
+		WITH latest_weight AS (
+			SELECT (attributes->>'weight_grams')::integer AS weight_grams, occurred_at
+			FROM events
+			WHERE family_id = $1
+				AND baby_id = $2
+				AND event_type = 'growth_measurement'
+				AND attributes ? 'weight_grams'
+			ORDER BY occurred_at DESC, id DESC
+			LIMIT 1
+		),
+		latest_length AS (
+			SELECT (attributes->>'length_cm')::double precision AS length_cm, occurred_at
+			FROM events
+			WHERE family_id = $1
+				AND baby_id = $2
+				AND event_type = 'growth_measurement'
+				AND attributes ? 'length_cm'
+			ORDER BY occurred_at DESC, id DESC
+			LIMIT 1
+		),
+		latest_head AS (
+			SELECT (attributes->>'head_circumference_cm')::double precision AS head_circumference_cm, occurred_at
+			FROM events
+			WHERE family_id = $1
+				AND baby_id = $2
+				AND event_type = 'growth_measurement'
+				AND attributes ? 'head_circumference_cm'
+			ORDER BY occurred_at DESC, id DESC
+			LIMIT 1
+		)
+		INSERT INTO baby_latest_growth (
+			family_id,
+			baby_id,
+			weight_grams,
+			weight_measured_at,
+			length_cm,
+			length_measured_at,
+			head_circumference_cm,
+			head_circumference_measured_at,
+			updated_at
+		)
+		SELECT
+			$1,
+			$2,
+			latest_weight.weight_grams,
+			latest_weight.occurred_at,
+			latest_length.length_cm,
+			latest_length.occurred_at,
+			latest_head.head_circumference_cm,
+			latest_head.occurred_at,
+			now()
+		FROM (SELECT 1) seed
+		LEFT JOIN latest_weight ON true
+		LEFT JOIN latest_length ON true
+		LEFT JOIN latest_head ON true
+		WHERE latest_weight.weight_grams IS NOT NULL
+			OR latest_length.length_cm IS NOT NULL
+			OR latest_head.head_circumference_cm IS NOT NULL
+		ON CONFLICT (family_id, baby_id)
+		DO UPDATE SET
+			weight_grams = EXCLUDED.weight_grams,
+			weight_measured_at = EXCLUDED.weight_measured_at,
+			length_cm = EXCLUDED.length_cm,
+			length_measured_at = EXCLUDED.length_measured_at,
+			head_circumference_cm = EXCLUDED.head_circumference_cm,
+			head_circumference_measured_at = EXCLUDED.head_circumference_measured_at,
+			updated_at = EXCLUDED.updated_at
+		RETURNING
+			family_id,
+			baby_id,
+			weight_grams,
+			weight_measured_at,
+			length_cm,
+			length_measured_at,
+			head_circumference_cm,
+			head_circumference_measured_at,
+			updated_at
+	`
+
+	growth, err := scanBabyLatestGrowth(s.pool.QueryRow(ctx, query, familyID, babyID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		if _, deleteErr := s.pool.Exec(ctx, `DELETE FROM baby_latest_growth WHERE family_id = $1 AND baby_id = $2`, familyID, babyID); deleteErr != nil {
+			return BabyLatestGrowth{}, fmt.Errorf("deleting empty baby latest growth projection: %w", deleteErr)
+		}
+		return BabyLatestGrowth{}, ErrNotFound
+	}
+	if err != nil {
+		return BabyLatestGrowth{}, fmt.Errorf("refreshing baby latest growth: %w", err)
+	}
+
+	return growth, nil
+}
+
+func scanBabyLatestGrowth(row pgx.Row) (BabyLatestGrowth, error) {
+	var growth BabyLatestGrowth
+	err := row.Scan(
+		&growth.FamilyID,
+		&growth.BabyID,
+		&growth.WeightGrams,
+		&growth.WeightMeasuredAt,
+		&growth.LengthCM,
+		&growth.LengthMeasuredAt,
+		&growth.HeadCircumferenceCM,
+		&growth.HeadCircumferenceMeasuredAt,
+		&growth.UpdatedAt,
+	)
+	return growth, err
 }
 
 // GetAIReportCache returns a previously generated AI report for this exact

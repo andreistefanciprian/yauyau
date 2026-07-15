@@ -28,11 +28,30 @@ type reportDataResponse struct {
 }
 
 type reportBabyResponse struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	Timezone  string    `json:"timezone"`
-	BirthDate string    `json:"birth_date,omitempty"`
-	AgeDays   *int      `json:"age_days,omitempty"`
+	ID           uuid.UUID                   `json:"id"`
+	Name         string                      `json:"name"`
+	Timezone     string                      `json:"timezone"`
+	BirthDate    string                      `json:"birth_date,omitempty"`
+	AgeDays      *int                        `json:"age_days,omitempty"`
+	LatestGrowth *reportLatestGrowthResponse `json:"latest_growth,omitempty"`
+}
+
+type reportLatestGrowthResponse struct {
+	Weight            *reportLatestGrowthIntMeasurement   `json:"weight,omitempty"`
+	Length            *reportLatestGrowthFloatMeasurement `json:"length,omitempty"`
+	HeadCircumference *reportLatestGrowthFloatMeasurement `json:"head_circumference,omitempty"`
+}
+
+type reportLatestGrowthIntMeasurement struct {
+	Grams      int       `json:"grams"`
+	MeasuredAt time.Time `json:"measured_at"`
+	AgeDays    *int      `json:"age_days,omitempty"`
+}
+
+type reportLatestGrowthFloatMeasurement struct {
+	CM         float64   `json:"cm"`
+	MeasuredAt time.Time `json:"measured_at"`
+	AgeDays    *int      `json:"age_days,omitempty"`
 }
 
 type reportRangeResponse struct {
@@ -134,7 +153,12 @@ func (h *Handlers) buildReportDataForBaby(ctx context.Context, baby store.Baby, 
 		return reportDataResponse{}, reportDataWindow{}, fmt.Errorf("list report baseline events: %w", err)
 	}
 
-	return buildReportData(baby, window, loc, events, baselineWindow, baselineEvents), window, nil
+	latestGrowth, err := h.Store.GetBabyLatestGrowth(ctx, baby.FamilyID, baby.ID)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return reportDataResponse{}, reportDataWindow{}, fmt.Errorf("get baby latest growth: %w", err)
+	}
+
+	return buildReportData(baby, latestGrowth, window, loc, events, baselineWindow, baselineEvents), window, nil
 }
 
 func reportDataWindowFor(rawStartDate, rawEndDate string, loc *time.Location, now time.Time) (reportDataWindow, error) {
@@ -205,7 +229,7 @@ func reportDataBaselineWindowFor(window reportDataWindow) reportDataWindow {
 	}
 }
 
-func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Location, events []store.Event, baselineWindow reportDataWindow, baselineEvents []store.Event) reportDataResponse {
+func buildReportData(baby store.Baby, latestGrowth store.BabyLatestGrowth, window reportDataWindow, loc *time.Location, events []store.Event, baselineWindow reportDataWindow, baselineEvents []store.Event) reportDataResponse {
 	sortEventsOldestFirst(events)
 	sortEventsOldestFirst(baselineEvents)
 
@@ -245,7 +269,7 @@ func buildReportData(baby store.Baby, window reportDataWindow, loc *time.Locatio
 	analytics.Comparison = buildComparisonAnalytics(window.DaysIncluded, baselineWindow.DaysIncluded, totals, baseline.Totals)
 
 	return reportDataResponse{
-		Baby: reportBabyFromStore(baby, window.GeneratedAt, loc),
+		Baby: reportBabyFromStore(baby, latestGrowth, window.GeneratedAt, loc),
 		Range: reportRangeResponse{
 			StartDate:     window.StartDate,
 			EndDate:       window.EndDate,
@@ -299,31 +323,73 @@ func eventsForWindow(events []store.Event, from, to time.Time) []store.Event {
 	return matched
 }
 
-func reportBabyFromStore(baby store.Baby, generatedAt time.Time, loc *time.Location) reportBabyResponse {
+func reportBabyFromStore(baby store.Baby, latestGrowth store.BabyLatestGrowth, generatedAt time.Time, loc *time.Location) reportBabyResponse {
 	resp := reportBabyResponse{
 		ID:        baby.ID,
 		Name:      baby.Name,
 		Timezone:  baby.Timezone,
 		BirthDate: baby.BirthDate,
 	}
+	resp.LatestGrowth = reportLatestGrowthFromStore(baby, latestGrowth, loc)
 	if baby.BirthDate != "" {
-		if birthDate, err := time.Parse(time.DateOnly, baby.BirthDate); err == nil {
-			generatedDate := generatedAt.In(loc)
-			today := time.Date(generatedDate.Year(), generatedDate.Month(), generatedDate.Day(), 0, 0, 0, 0, loc)
-			birthDay := time.Date(birthDate.Year(), birthDate.Month(), birthDate.Day(), 0, 0, 0, 0, loc)
-			if birthDay.After(today) {
-				return resp
-			}
-			ageDays := 0
-			for cursor := birthDay; cursor.Before(today); cursor = cursor.AddDate(0, 0, 1) {
-				ageDays++
-			}
-			if ageDays >= 0 {
-				resp.AgeDays = &ageDays
-			}
+		if ageDays := babyAgeDaysAt(baby, generatedAt, loc); ageDays != nil {
+			resp.AgeDays = ageDays
 		}
 	}
 	return resp
+}
+
+func reportLatestGrowthFromStore(baby store.Baby, latestGrowth store.BabyLatestGrowth, loc *time.Location) *reportLatestGrowthResponse {
+	resp := reportLatestGrowthResponse{}
+	if latestGrowth.WeightGrams != nil && latestGrowth.WeightMeasuredAt != nil {
+		measuredAt := latestGrowth.WeightMeasuredAt.In(loc)
+		resp.Weight = &reportLatestGrowthIntMeasurement{
+			Grams:      *latestGrowth.WeightGrams,
+			MeasuredAt: measuredAt,
+			AgeDays:    babyAgeDaysAt(baby, measuredAt, loc),
+		}
+	}
+	if latestGrowth.LengthCM != nil && latestGrowth.LengthMeasuredAt != nil {
+		measuredAt := latestGrowth.LengthMeasuredAt.In(loc)
+		resp.Length = &reportLatestGrowthFloatMeasurement{
+			CM:         *latestGrowth.LengthCM,
+			MeasuredAt: measuredAt,
+			AgeDays:    babyAgeDaysAt(baby, measuredAt, loc),
+		}
+	}
+	if latestGrowth.HeadCircumferenceCM != nil && latestGrowth.HeadCircumferenceMeasuredAt != nil {
+		measuredAt := latestGrowth.HeadCircumferenceMeasuredAt.In(loc)
+		resp.HeadCircumference = &reportLatestGrowthFloatMeasurement{
+			CM:         *latestGrowth.HeadCircumferenceCM,
+			MeasuredAt: measuredAt,
+			AgeDays:    babyAgeDaysAt(baby, measuredAt, loc),
+		}
+	}
+	if resp.Weight == nil && resp.Length == nil && resp.HeadCircumference == nil {
+		return nil
+	}
+	return &resp
+}
+
+func babyAgeDaysAt(baby store.Baby, at time.Time, loc *time.Location) *int {
+	if baby.BirthDate == "" {
+		return nil
+	}
+	birthDate, err := time.Parse(time.DateOnly, baby.BirthDate)
+	if err != nil {
+		return nil
+	}
+	localAt := at.In(loc)
+	day := time.Date(localAt.Year(), localAt.Month(), localAt.Day(), 0, 0, 0, 0, loc)
+	birthDay := time.Date(birthDate.Year(), birthDate.Month(), birthDate.Day(), 0, 0, 0, 0, loc)
+	if birthDay.After(day) {
+		return nil
+	}
+	ageDays := 0
+	for cursor := birthDay; cursor.Before(day); cursor = cursor.AddDate(0, 0, 1) {
+		ageDays++
+	}
+	return &ageDays
 }
 
 func reportDayLabel(dayStart, todayStart time.Time) string {

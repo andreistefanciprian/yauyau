@@ -150,7 +150,24 @@ This endpoint should be backend-owned and can later be reused by MCP tools.
     "name": "YauYau",
     "timezone": "Australia/Adelaide",
     "birth_date": "2026-01-01",
-    "age_days": 193
+    "age_days": 193,
+    "latest_growth": {
+      "weight": {
+        "grams": 7200,
+        "measured_at": "2026-07-10T08:00:00+09:30",
+        "age_days": 190
+      },
+      "length": {
+        "cm": 66.5,
+        "measured_at": "2026-07-01T08:00:00+09:30",
+        "age_days": 181
+      },
+      "head_circumference": {
+        "cm": 42.1,
+        "measured_at": "2026-07-01T08:00:00+09:30",
+        "age_days": 181
+      }
+    }
   },
   "range": {
     "start_date": "2026-07-13",
@@ -207,6 +224,15 @@ This endpoint should be backend-owned and can later be reused by MCP tools.
 
 Events should be grouped by local day and ordered oldest-first for narrative
 analysis.
+
+`baby.latest_growth` is optional context built from the latest known growth
+measurement event for each measurement type. Weight, length, and head
+circumference can have different `measured_at` timestamps because families may
+record them separately. These values are not derived from the selected report
+window; they are a current baby-context projection available when the report is
+generated. The timestamp and measurement-age must stay with each value so AI
+can say "last recorded" rather than implying the measurement was taken during
+the report range.
 
 ## Totals
 
@@ -419,6 +445,7 @@ GET /api/v1/babies/current/reports/data?start_date=YYYY-MM-DD&end_date=YYYY-MM-D
 It should include:
 
 * baby context;
+* latest known baby growth context, when recorded;
 * selected range metadata;
 * deterministic daily report;
 * totals;

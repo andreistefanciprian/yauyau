@@ -140,14 +140,35 @@ func TestBuildReportDataGroupsDaysAndNormalizesEvents(t *testing.T) {
 			"kind": "wet",
 		},
 	}
+	weightMeasuredAt := time.Date(2026, 7, 10, 8, 0, 0, 0, loc)
+	lengthMeasuredAt := time.Date(2026, 7, 1, 8, 0, 0, 0, loc)
+	weightGrams := 7200
+	lengthCM := 66.5
+	latestGrowth := store.BabyLatestGrowth{
+		FamilyID:         baby.FamilyID,
+		BabyID:           babyID,
+		WeightGrams:      &weightGrams,
+		WeightMeasuredAt: &weightMeasuredAt,
+		LengthCM:         &lengthCM,
+		LengthMeasuredAt: &lengthMeasuredAt,
+	}
 
-	resp := buildReportData(baby, window, loc, []store.Event{later, earlier}, baselineWindow, []store.Event{baselineFeed, baselineNappy})
+	resp := buildReportData(baby, latestGrowth, window, loc, []store.Event{later, earlier}, baselineWindow, []store.Event{baselineFeed, baselineNappy})
 
 	if resp.Baby.ID != babyID || resp.Baby.Name != "YauYau" {
 		t.Fatalf("Baby = %#v", resp.Baby)
 	}
 	if resp.Baby.AgeDays == nil || *resp.Baby.AgeDays != 193 {
 		t.Fatalf("AgeDays = %v, want 193", resp.Baby.AgeDays)
+	}
+	if resp.Baby.LatestGrowth == nil || resp.Baby.LatestGrowth.Weight == nil || resp.Baby.LatestGrowth.Weight.Grams != 7200 {
+		t.Fatalf("latest growth weight = %#v, want 7200g", resp.Baby.LatestGrowth)
+	}
+	if resp.Baby.LatestGrowth.Weight.AgeDays == nil || *resp.Baby.LatestGrowth.Weight.AgeDays != 190 {
+		t.Fatalf("latest growth weight age_days = %v, want 190", resp.Baby.LatestGrowth.Weight.AgeDays)
+	}
+	if resp.Baby.LatestGrowth.Length == nil || resp.Baby.LatestGrowth.Length.CM != 66.5 {
+		t.Fatalf("latest growth length = %#v, want 66.5cm", resp.Baby.LatestGrowth)
 	}
 	if resp.Range.DaysIncluded != 2 || !resp.Range.IncludesToday || !resp.Range.IsPartial {
 		t.Fatalf("Range = %#v", resp.Range)
@@ -236,7 +257,7 @@ func TestBuildReportDataOrdersEqualTimestampsByEventID(t *testing.T) {
 		ID:       uuid.New(),
 		Name:     "YauYau",
 		Timezone: "Australia/Adelaide",
-	}, window, loc, []store.Event{
+	}, store.BabyLatestGrowth{}, window, loc, []store.Event{
 		{ID: secondID, EventType: eventTypeNappy, OccurredAt: occurredAt, Attributes: map[string]any{"kind": "wet"}},
 		{ID: firstID, EventType: eventTypeFeed, OccurredAt: occurredAt, Attributes: map[string]any{"type": "expressed"}},
 	}, reportDataBaselineWindowFor(window), nil)

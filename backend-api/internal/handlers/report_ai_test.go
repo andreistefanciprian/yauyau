@@ -319,6 +319,10 @@ func (s *aiReportFakeStore) CreateEvent(context.Context, uuid.UUID, uuid.UUID, s
 	return store.Event{}, errors.New("not implemented")
 }
 
+func (s *aiReportFakeStore) GetEvent(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (store.Event, error) {
+	return store.Event{}, errors.New("not implemented")
+}
+
 func (s *aiReportFakeStore) UpdateEvent(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string, map[string]any, time.Time) (store.Event, error) {
 	return store.Event{}, errors.New("not implemented")
 }
@@ -329,6 +333,14 @@ func (s *aiReportFakeStore) ListAllEvents(context.Context, uuid.UUID, uuid.UUID,
 
 func (s *aiReportFakeStore) DeleteEvent(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error {
 	return errors.New("not implemented")
+}
+
+func (s *aiReportFakeStore) GetBabyLatestGrowth(context.Context, uuid.UUID, uuid.UUID) (store.BabyLatestGrowth, error) {
+	return store.BabyLatestGrowth{}, store.ErrNotFound
+}
+
+func (s *aiReportFakeStore) RefreshBabyLatestGrowth(context.Context, uuid.UUID, uuid.UUID) (store.BabyLatestGrowth, error) {
+	return store.BabyLatestGrowth{}, errors.New("not implemented")
 }
 
 func (s *aiReportFakeStore) GetAIReportCache(_ context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash string) (store.AIReportCache, error) {
