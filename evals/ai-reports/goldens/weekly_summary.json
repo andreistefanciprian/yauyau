@@ -1,0 +1,128 @@
+{
+  "id": "weekly_summary",
+  "description": "Weekly report should stay high-level and compact, not list every event.",
+  "input": {
+    "schema_version": "ai_report_input.v1",
+    "report_type": "weekly",
+    "audience": "parent",
+    "locale": "en",
+    "report_data": {
+      "baby": {
+        "name": "YauYau",
+        "timezone": "Australia/Adelaide",
+        "age_days": 199
+      },
+      "range": {
+        "start_date": "2026-07-08",
+        "end_date": "2026-07-14",
+        "days_included": 7,
+        "includes_today": false,
+        "is_partial": false
+      },
+      "totals": {
+        "event_count": 164,
+        "feeds": {
+          "count": 48,
+          "expressed_ml": 3220,
+          "formula_ml": 320,
+          "total_ml": 3540
+        },
+        "nappies": {
+          "count": 61,
+          "wet_only_count": 13,
+          "poo_only_count": 8,
+          "mixed_count": 40
+        },
+        "sleeps": {
+          "count": 29,
+          "completed_count": 29,
+          "ongoing_count": 0,
+          "total_duration_minutes": 1950
+        }
+      },
+      "analytics": {
+        "timeline": {
+          "span_minutes": 10020
+        },
+        "intervals": {
+          "feeds": {
+            "average_gap_minutes": 205,
+            "median_gap_minutes": 190,
+            "longest_gap_minutes": 315,
+            "shortest_gap_minutes": 70,
+            "largest_feed_ml": 100,
+            "average_feed_ml": 74
+          },
+          "sleeps": {
+            "average_duration_minutes": 67,
+            "longest_duration_minutes": 165
+          }
+        },
+        "relationships": [
+          {
+            "key": "feed_then_sleep",
+            "from": "feed",
+            "to": "sleep",
+            "window_minutes": 45,
+            "count": 15
+          }
+        ],
+        "comparison": {
+          "selected_average_daily_feed_count": 6.9,
+          "baseline_average_daily_feed_count": 6.7,
+          "feed_count_delta_from_baseline_daily_average": 0.2,
+          "selected_average_daily_sleep_minutes": 278.6,
+          "baseline_average_daily_sleep_minutes": 265.4,
+          "sleep_minutes_delta_from_baseline_daily_average": 13.2
+        }
+      },
+      "days": [
+        { "local_date": "2026-07-08", "is_partial": false, "events": [] },
+        { "local_date": "2026-07-09", "is_partial": false, "events": [] },
+        { "local_date": "2026-07-10", "is_partial": false, "events": [] },
+        { "local_date": "2026-07-11", "is_partial": false, "events": [] },
+        { "local_date": "2026-07-12", "is_partial": false, "events": [] },
+        { "local_date": "2026-07-13", "is_partial": false, "events": [] },
+        { "local_date": "2026-07-14", "is_partial": false, "events": [] }
+      ]
+    }
+  },
+  "golden_output": {
+    "schema_version": "ai_report_output.v1",
+    "title": "YauYau's week",
+    "summary": "Across the week, YauYau's logged feeds, nappies, and sleep stayed close to the recent baseline, with sleep time slightly higher on average.",
+    "highlights": [
+      "48 feeds were logged across the seven days.",
+      "Sleep totalled 1950 minutes across 29 completed sleeps.",
+      "The longest recorded sleep was 165 minutes.",
+      "61 nappies were logged across the week."
+    ],
+    "patterns": [
+      "Several sleeps began within 45 minutes after feeds."
+    ],
+    "comparison": [
+      "Average daily feed count was close to the recent baseline.",
+      "Average daily sleep time was slightly above the recent baseline."
+    ],
+    "caveats": [],
+    "questions_for_parent": [
+      "Would you like a day-by-day breakdown of sleep?"
+    ]
+  },
+  "checks": {
+    "required_substrings": [
+      "Across the week",
+      "seven days"
+    ],
+    "forbidden_substrings": [
+      "every event",
+      "so far",
+      "diagnose",
+      "unsafe",
+      "schema",
+      "event-id"
+    ],
+    "max_highlights": 5,
+    "allow_comparison": true
+  }
+}

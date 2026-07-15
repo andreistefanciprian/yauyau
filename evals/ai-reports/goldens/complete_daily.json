@@ -1,0 +1,132 @@
+{
+  "id": "complete_daily",
+  "description": "Complete one-day report with totals, analytics, baseline comparison, and no partial caveat.",
+  "input": {
+    "schema_version": "ai_report_input.v1",
+    "report_type": "daily",
+    "audience": "parent",
+    "locale": "en",
+    "report_data": {
+      "baby": {
+        "name": "YauYau",
+        "timezone": "Australia/Adelaide",
+        "age_days": 193
+      },
+      "range": {
+        "start_date": "2026-07-13",
+        "end_date": "2026-07-13",
+        "days_included": 1,
+        "includes_today": false,
+        "is_partial": false
+      },
+      "totals": {
+        "event_count": 23,
+        "feeds": {
+          "count": 7,
+          "expressed_ml": 480,
+          "formula_ml": 80,
+          "total_ml": 560
+        },
+        "nappies": {
+          "count": 8,
+          "wet_only_count": 2,
+          "poo_only_count": 1,
+          "mixed_count": 5
+        },
+        "sleeps": {
+          "count": 4,
+          "completed_count": 4,
+          "ongoing_count": 0,
+          "total_duration_minutes": 285
+        }
+      },
+      "analytics": {
+        "timeline": {
+          "first_event_at": "2026-07-13T06:42:00+09:30",
+          "last_event_at": "2026-07-13T21:18:00+09:30",
+          "span_minutes": 876
+        },
+        "chronology": {
+          "first_feed_at": "2026-07-13T06:50:00+09:30",
+          "last_feed_at": "2026-07-13T20:40:00+09:30",
+          "last_nappy_at": "2026-07-13T21:18:00+09:30",
+          "last_poo_at": "2026-07-13T18:20:00+09:30",
+          "last_sleep_start_at": "2026-07-13T19:15:00+09:30"
+        },
+        "intervals": {
+          "feeds": {
+            "average_gap_minutes": 139,
+            "median_gap_minutes": 135,
+            "longest_gap_minutes": 205,
+            "shortest_gap_minutes": 80,
+            "largest_feed_ml": 90,
+            "average_feed_ml": 80
+          },
+          "sleeps": {
+            "average_duration_minutes": 71,
+            "longest_duration_minutes": 120
+          }
+        },
+        "relationships": [
+          {
+            "key": "feed_then_nappy",
+            "from": "feed",
+            "to": "nappy",
+            "window_minutes": 30,
+            "count": 4
+          }
+        ],
+        "comparison": {
+          "selected_average_daily_feed_count": 7,
+          "baseline_average_daily_feed_count": 6.6,
+          "feed_count_delta_from_baseline_daily_average": 0.4,
+          "selected_average_daily_sleep_minutes": 285,
+          "baseline_average_daily_sleep_minutes": 270,
+          "sleep_minutes_delta_from_baseline_daily_average": 15
+        }
+      },
+      "days": [
+        {
+          "local_date": "2026-07-13",
+          "is_partial": false,
+          "events": []
+        }
+      ]
+    }
+  },
+  "golden_output": {
+    "schema_version": "ai_report_output.v1",
+    "title": "YauYau's day",
+    "summary": "YauYau had a complete logged day with regular feeds, several nappies, and four completed sleeps.",
+    "highlights": [
+      "7 feeds were logged, with 560 ml recorded across bottle feeds.",
+      "4 completed sleeps totalled 285 minutes.",
+      "The longest recorded sleep was 120 minutes."
+    ],
+    "patterns": [
+      "Several nappies were logged within 30 minutes after feeds."
+    ],
+    "comparison": [
+      "Feed count and sleep time were close to the recent daily average."
+    ],
+    "caveats": [],
+    "questions_for_parent": [
+      "Would you like to compare sleep timing with the rest of the week?"
+    ]
+  },
+  "checks": {
+    "required_substrings": [
+      "complete logged day",
+      "7 feeds"
+    ],
+    "forbidden_substrings": [
+      "so far",
+      "diagnose",
+      "unsafe",
+      "schema",
+      "event-id"
+    ],
+    "must_not_have_caveats": true,
+    "allow_comparison": true
+  }
+}

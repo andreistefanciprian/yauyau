@@ -1,0 +1,125 @@
+{
+  "id": "partial_today",
+  "description": "Today-so-far report must clearly say the range is partial and avoid final daily conclusions.",
+  "input": {
+    "schema_version": "ai_report_input.v1",
+    "report_type": "daily",
+    "audience": "parent",
+    "locale": "en",
+    "report_data": {
+      "baby": {
+        "name": "YauYau",
+        "timezone": "Australia/Adelaide",
+        "age_days": 194
+      },
+      "range": {
+        "start_date": "2026-07-14",
+        "end_date": "2026-07-14",
+        "days_included": 1,
+        "includes_today": true,
+        "is_partial": true
+      },
+      "totals": {
+        "event_count": 9,
+        "feeds": {
+          "count": 3,
+          "expressed_ml": 210,
+          "formula_ml": 0,
+          "total_ml": 210
+        },
+        "nappies": {
+          "count": 4,
+          "wet_only_count": 1,
+          "poo_only_count": 0,
+          "mixed_count": 3
+        },
+        "sleeps": {
+          "count": 2,
+          "completed_count": 1,
+          "ongoing_count": 1,
+          "total_duration_minutes": 75
+        }
+      },
+      "analytics": {
+        "timeline": {
+          "first_event_at": "2026-07-14T06:55:00+09:30",
+          "last_event_at": "2026-07-14T11:40:00+09:30",
+          "span_minutes": 285
+        },
+        "chronology": {
+          "first_feed_at": "2026-07-14T07:05:00+09:30",
+          "last_feed_at": "2026-07-14T10:35:00+09:30",
+          "last_nappy_at": "2026-07-14T11:20:00+09:30",
+          "last_poo_at": "2026-07-14T09:10:00+09:30",
+          "last_sleep_start_at": "2026-07-14T11:40:00+09:30"
+        },
+        "intervals": {
+          "feeds": {
+            "average_gap_minutes": 105,
+            "median_gap_minutes": 105,
+            "longest_gap_minutes": 130,
+            "shortest_gap_minutes": 80,
+            "largest_feed_ml": 80,
+            "average_feed_ml": 70
+          },
+          "sleeps": {
+            "average_duration_minutes": 75,
+            "longest_duration_minutes": 75
+          }
+        },
+        "relationships": [],
+        "comparison": {
+          "selected_average_daily_feed_count": 3,
+          "baseline_average_daily_feed_count": 6.8,
+          "feed_count_delta_from_baseline_daily_average": -3.8
+        }
+      },
+      "days": [
+        {
+          "local_date": "2026-07-14",
+          "is_partial": true,
+          "events": []
+        }
+      ]
+    }
+  },
+  "golden_output": {
+    "schema_version": "ai_report_output.v1",
+    "title": "YauYau's day so far",
+    "summary": "Based on the logs so far today, YauYau has had three feeds, four nappies, and one completed sleep, with another sleep currently ongoing.",
+    "highlights": [
+      "Three feeds have been logged so far today.",
+      "Four nappies have been logged, including three mixed nappies.",
+      "One completed sleep lasted 75 minutes."
+    ],
+    "patterns": [],
+    "comparison": [
+      "Today's feed count is still below the recent daily average, but the day is not complete yet."
+    ],
+    "caveats": [
+      "Today's timeline is partial, so the pattern may change as more events are logged.",
+      "One sleep is currently ongoing, so sleep totals may change."
+    ],
+    "questions_for_parent": [
+      "Would you like to check when the last feed was?"
+    ]
+  },
+  "checks": {
+    "required_substrings": [
+      "so far today",
+      "partial",
+      "ongoing"
+    ],
+    "forbidden_substrings": [
+      "finished the day",
+      "final",
+      "diagnose",
+      "unsafe",
+      "schema",
+      "event-id"
+    ],
+    "must_have_caveat": true,
+    "allow_comparison": true,
+    "comparison_must_be_partial": true
+  }
+}

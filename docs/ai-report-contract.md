@@ -683,10 +683,13 @@ add that cleanup job before cached AI reports are actually being generated.
 
 ## Evals
 
-Do not add an eval framework before the first AI behavior exists.
+Do not add a large eval framework before the first AI behavior exists.
 
-When the AI backend is implemented, add a small `evals/` directory with
-representative cases for:
+The first golden fixtures live in [evals/ai-reports](../evals/ai-reports).
+They document representative inputs, good `ai_report_output.v1` responses,
+and deterministic checks without calling OpenAI or running in CI yet.
+
+Representative cases should cover:
 
 * complete daily report;
 * today-so-far partial report;
