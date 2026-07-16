@@ -523,7 +523,7 @@ Suggested first output shape:
 {
   "schema_version": "ai_report_output.v1",
   "title": "YauYau's day so far",
-  "summary": "Today's logged timeline shows regular feeds, several nappies, and one longer sleep.",
+  "summary": "The strongest logged pattern today is a fairly feed-led rhythm, with nappies often appearing soon after feeds.",
   "highlights": [
     "Feeds were logged steadily through the morning.",
     "The longest recorded sleep was 2 hours 50 minutes."
@@ -547,8 +547,9 @@ Suggested first output shape:
 Field rules:
 
 * `title`: short, parent-facing title.
-* `summary`: one concise paragraph.
-* `highlights`: 0-5 items; the most useful concrete facts, not every total.
+* `summary`: 1-2 short sentences; the strongest supported takeaway, not a
+  catalogue of event types.
+* `highlights`: 0-4 items; the most useful concrete facts, not every total.
 * `patterns`: 0-3 items; cautious observations from backend analytics.
 * `comparison`: 0-3 items; use only when backend comparison data exists.
 * `caveats`: 0-2 items; required only when deterministic backend facts require
@@ -572,15 +573,24 @@ to stay short.
 
 AI should:
 
-* select the most useful facts;
+* curate the one or two strongest supported takeaways;
 * explain them naturally;
-* avoid repeating obvious totals;
+* omit low-value facts;
+* avoid repeating obvious totals or deterministic daily-summary wording;
+* use only totals needed to support useful observations;
+* restate supplied minute values as parent-friendly durations such as "about 2
+  hours 20 minutes", without deriving new durations;
+* prioritise the most meaningful comparison differences rather than listing
+  every baseline value;
 * mention uncertainty;
 * suggest useful follow-up questions.
 
 AI should not:
 
 * perform arithmetic;
+* catalogue every total;
+* use generic filler such as "feeding, nappy, and sleep activity was recorded
+  throughout the day";
 * infer causation from sequences;
 * provide medical advice;
 * imply missing logs mean missing care;
@@ -588,11 +598,18 @@ AI should not:
 
 Additional rules:
 
+* Baseline wording should be natural, for example "Seven feeds were logged,
+  compared with a recent daily average of 8.9." Avoid robotic phrasing such as
+  "versus a 8.9 average daily feeds".
 * If `range.is_partial` is true, use wording such as "so far today", "at this
   point in the day", or "based on the logs so far".
 * If `range.is_partial` is true, do not present comparison deltas as final
   daily differences.
 * If comparison data is absent, do not invent a comparison.
+* Keep unrelated comparisons in separate sentences.
+* Pumping is parent milk-expression activity, not baby feeding or baby rhythm.
+* Relationship analytics describe sequence only. Use wording such as "after" or
+  "followed by"; do not imply one event caused another.
 * If event notes are used, attribute them to the parent, for example "you
   noted" or "the notes mention".
 * Do not infer logging coverage quality unless backend report data provides a
@@ -626,7 +643,7 @@ Email output should be calm and compact:
 
 * one title;
 * one summary paragraph;
-* three to five highlights;
+* up to four highlights;
 * one caveat only when needed;
 * optional follow-up questions.
 
@@ -801,10 +818,24 @@ Representative cases should cover:
 The first eval suite should check:
 
 * output is valid `ai_report_output.v1` JSON;
+* `summary` does more than enumerate event types;
+* `summary` stays within 1-2 short sentences;
+* `highlights` do not duplicate all deterministic totals;
+* array limits are enforced (`highlights` max 4, `patterns` max 3,
+  `comparison` max 3, `caveats` max 2, `questions_for_parent` max 3);
+* durations are parent-friendly rather than raw minute recaps;
+* baseline comparison grammar is natural;
 * output does not contain facts absent from input;
 * output does not perform arithmetic not supplied by backend facts;
 * output does not diagnose or advise treatment;
+* output does not imply urgency, danger, or safety claims;
+* pumping is not described as baby feeding or baby activity;
+* relationship wording does not imply causation;
+* parent notes are attributed with wording such as "you noted";
 * partial ranges are described as partial;
+* partial report comparisons use "so far" wording and are not final daily
+  outcomes;
+* `comparison` is empty when backend comparison data is absent;
 * scheduled weekly output stays concise.
 * canonical input hashing is stable when only generated timestamps change.
 

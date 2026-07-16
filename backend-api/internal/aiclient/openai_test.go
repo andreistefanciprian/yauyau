@@ -66,6 +66,12 @@ func TestGenerateAIReportUsesResponsesStructuredOutput(t *testing.T) {
 	if format["type"] != "json_schema" || format["strict"] != true {
 		t.Fatalf("request text.format = %#v, want strict json_schema", format)
 	}
+	schema := format["schema"].(map[string]any)
+	properties := schema["properties"].(map[string]any)
+	highlights := properties["highlights"].(map[string]any)
+	if highlights["maxItems"] != float64(4) {
+		t.Fatalf("highlights maxItems = %#v, want 4", highlights["maxItems"])
+	}
 	if captured["store"] != false {
 		t.Fatalf("request store = %#v, want false", captured["store"])
 	}
@@ -75,7 +81,7 @@ func TestGenerateAIReportUsesResponsesStructuredOutput(t *testing.T) {
 		t.Fatalf("developer message role = %#v, want developer", developerMessage["role"])
 	}
 	developerContent := developerMessage["content"].(string)
-	if !strings.Contains(developerContent, "Prompt version: ai_report_prompt.v1.") {
+	if !strings.Contains(developerContent, "Prompt version: ai_report_prompt.v2.") {
 		t.Fatalf("developer prompt = %q, want prompt version", developerContent)
 	}
 	if !strings.Contains(developerContent, "Do not diagnose") {

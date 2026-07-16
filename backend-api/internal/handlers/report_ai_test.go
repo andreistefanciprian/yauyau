@@ -329,6 +329,23 @@ func TestCreateAIReportRejectsInvalidGeneratedOutput(t *testing.T) {
 	}
 }
 
+func TestValidateAIReportOutputRejectsTooManyHighlights(t *testing.T) {
+	raw := json.RawMessage(`{
+		"schema_version":"ai_report_output.v1",
+		"title":"Generated report",
+		"summary":"One useful takeaway.",
+		"highlights":["One","Two","Three","Four","Five"],
+		"patterns":[],
+		"comparison":[],
+		"caveats":[],
+		"questions_for_parent":[]
+	}`)
+
+	if _, err := validateAIReportOutput(raw); err == nil || !strings.Contains(err.Error(), "highlights exceeds max 4") {
+		t.Fatalf("validateAIReportOutput err = %v, want max highlights error", err)
+	}
+}
+
 func authenticatedAIReportRequest(t *testing.T, familyID uuid.UUID, body string) *http.Request {
 	t.Helper()
 

@@ -312,8 +312,8 @@ func validateAIReportOutput(raw json.RawMessage) (json.RawMessage, error) {
 	if output.Highlights == nil {
 		return nil, errors.New("highlights is required")
 	}
-	if len(output.Highlights) > 5 {
-		return nil, errors.New("highlights exceeds max 5")
+	if len(output.Highlights) > 4 {
+		return nil, errors.New("highlights exceeds max 4")
 	}
 	if output.Patterns == nil {
 		return nil, errors.New("patterns is required")

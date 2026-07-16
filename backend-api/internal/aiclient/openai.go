@@ -228,7 +228,7 @@ func aiReportOutputSchema() map[string]any {
 			"summary": map[string]any{
 				"type": "string",
 			},
-			"highlights":           stringArray(5),
+			"highlights":           stringArray(4),
 			"patterns":             stringArray(3),
 			"comparison":           stringArray(3),
 			"caveats":              stringArray(2),
