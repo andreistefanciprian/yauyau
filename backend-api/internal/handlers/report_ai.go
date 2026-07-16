@@ -123,18 +123,23 @@ func (h *Handlers) loadOrCreateAIReport(ctx context.Context, baby store.Baby, re
 		return aiReportResult{Window: window}, errInvalidAIReportRequest
 	}
 
-	canonicalReportData, err := canonicalAIReportData(reportData)
+	generationReportData, err := canonicalAIReportData(reportData)
 	if err != nil {
 		return aiReportResult{Window: window}, fmt.Errorf("canonicalizing AI report data: %w", err)
 	}
+	hashReportData, err := canonicalAIReportHashData(reportData, window)
+	if err != nil {
+		return aiReportResult{Window: window}, fmt.Errorf("canonicalizing AI report cache identity: %w", err)
+	}
 
-	inputHash, err := aiReportInputHash(req.ReportType, req.Locale, canonicalReportData)
+	inputHash, err := aiReportInputHash(req.ReportType, req.Locale, hashReportData)
 	if err != nil {
 		return aiReportResult{Window: window}, fmt.Errorf("hashing AI report input: %w", err)
 	}
 	result := aiReportResult{Window: window, InputHash: inputHash}
+	cacheRangeEnd := aiReportCacheRangeEnd(window)
 
-	cached, err := h.Store.GetAIReportCache(ctx, baby.FamilyID, baby.ID, req.ReportType, window.RangeStart, window.RangeEnd, inputHash)
+	cached, err := h.Store.GetAIReportCache(ctx, baby.FamilyID, baby.ID, req.ReportType, window.RangeStart, cacheRangeEnd, inputHash)
 	if err == nil {
 		result.Cache = cached
 		return result, nil
@@ -153,7 +158,7 @@ func (h *Handlers) loadOrCreateAIReport(ctx context.Context, baby store.Baby, re
 		PromptVersion:       aireport.PromptVersion,
 		ReportType:          req.ReportType,
 		Locale:              req.Locale,
-		ReportData:          canonicalReportData,
+		ReportData:          generationReportData,
 	})
 	if err != nil {
 		return result, fmt.Errorf("%w: %v", errAIReportGenerationFailed, err)
@@ -169,7 +174,7 @@ func (h *Handlers) loadOrCreateAIReport(ctx context.Context, baby store.Baby, re
 		BabyID:              baby.ID,
 		ReportType:          req.ReportType,
 		RangeStart:          window.RangeStart,
-		RangeEnd:            window.RangeEnd,
+		RangeEnd:            cacheRangeEnd,
 		InputHash:           inputHash,
 		PromptVersion:       aireport.PromptVersion,
 		InputSchemaVersion:  aireport.InputSchemaVersion,
@@ -241,6 +246,34 @@ func canonicalAIReportData(reportData reportDataResponse) (any, error) {
 	}
 	removeGeneratedAt(canonical)
 	return canonical, nil
+}
+
+// canonicalAIReportHashData keeps the cache identity stable for a partial
+// current-day report when only the wall clock advances. The model still sees
+// the actual cutoff from canonicalAIReportData; the hash uses the stable end
+// of the selected local calendar day and changes when semantic report data
+// (including events) changes.
+func canonicalAIReportHashData(reportData reportDataResponse, window reportDataWindow) (any, error) {
+	if window.IsPartial {
+		stableRangeEnd := aiReportCacheRangeEnd(window)
+		reportData.Range.RangeEnd = stableRangeEnd
+		reportData.Days = append([]reportDayResponse(nil), reportData.Days...)
+		for i := range reportData.Days {
+			if !reportData.Days[i].IsPartial {
+				continue
+			}
+			reportData.Days[i].RangeEnd = stableRangeEnd
+			reportData.Days[i].Report.RangeEnd = stableRangeEnd
+		}
+	}
+	return canonicalAIReportData(reportData)
+}
+
+func aiReportCacheRangeEnd(window reportDataWindow) time.Time {
+	if window.IsPartial {
+		return window.EndStart.AddDate(0, 0, 1)
+	}
+	return window.RangeEnd
 }
 
 // removeGeneratedAt recursively drops generated_at timestamps. Those values

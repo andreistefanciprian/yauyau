@@ -86,6 +86,79 @@ func TestAIReportInputHashIgnoresGeneratedAt(t *testing.T) {
 	}
 }
 
+func TestAIReportPartialCacheIdentityIgnoresMovingCutoff(t *testing.T) {
+	loc := mustLoadLocation(t, "Australia/Adelaide")
+	dayStart := time.Date(2026, 7, 13, 0, 0, 0, 0, loc)
+	firstCutoff := time.Date(2026, 7, 13, 9, 30, 0, 0, loc)
+	window := reportDataWindow{
+		EndStart:  dayStart,
+		RangeEnd:  firstCutoff,
+		IsPartial: true,
+	}
+	reportData := reportDataResponse{
+		Range: reportRangeResponse{
+			StartDate:    "2026-07-13",
+			EndDate:      "2026-07-13",
+			DaysIncluded: 1,
+			IsPartial:    true,
+			RangeStart:   dayStart,
+			RangeEnd:     firstCutoff,
+		},
+		Days: []reportDayResponse{{
+			LocalDate:  "2026-07-13",
+			RangeStart: dayStart,
+			RangeEnd:   firstCutoff,
+			IsPartial:  true,
+			Report: dailyReportResponse{
+				RangeStart: dayStart,
+				RangeEnd:   firstCutoff,
+			},
+		}},
+	}
+
+	firstData, err := canonicalAIReportHashData(reportData, window)
+	if err != nil {
+		t.Fatalf("canonicalize first partial report: %v", err)
+	}
+	firstHash, err := aiReportInputHash(aiReportTypeDaily, defaultAIReportLocale, firstData)
+	if err != nil {
+		t.Fatalf("hash first partial report: %v", err)
+	}
+
+	secondCutoff := firstCutoff.Add(2 * time.Hour)
+	window.RangeEnd = secondCutoff
+	reportData.Range.RangeEnd = secondCutoff
+	reportData.Days[0].RangeEnd = secondCutoff
+	reportData.Days[0].Report.RangeEnd = secondCutoff
+	secondData, err := canonicalAIReportHashData(reportData, window)
+	if err != nil {
+		t.Fatalf("canonicalize second partial report: %v", err)
+	}
+	secondHash, err := aiReportInputHash(aiReportTypeDaily, defaultAIReportLocale, secondData)
+	if err != nil {
+		t.Fatalf("hash second partial report: %v", err)
+	}
+	if secondHash != firstHash {
+		t.Fatalf("partial report hash changed with cutoff only: %s vs %s", secondHash, firstHash)
+	}
+	if got, want := aiReportCacheRangeEnd(window), dayStart.AddDate(0, 0, 1); !got.Equal(want) {
+		t.Fatalf("cache range end = %s, want stable day boundary %s", got, want)
+	}
+
+	reportData.Totals.EventCount = 1
+	changedData, err := canonicalAIReportHashData(reportData, window)
+	if err != nil {
+		t.Fatalf("canonicalize changed partial report: %v", err)
+	}
+	changedHash, err := aiReportInputHash(aiReportTypeDaily, defaultAIReportLocale, changedData)
+	if err != nil {
+		t.Fatalf("hash changed partial report: %v", err)
+	}
+	if changedHash == firstHash {
+		t.Fatal("partial report hash did not change with semantic report data")
+	}
+}
+
 func TestAIReportInputHashIncludesSemanticInputs(t *testing.T) {
 	reportData, err := canonicalAIReportData(reportDataResponse{})
 	if err != nil {
@@ -328,10 +401,6 @@ func (s *aiReportFakeStore) CreateEvent(context.Context, uuid.UUID, uuid.UUID, s
 	return store.Event{}, errors.New("not implemented")
 }
 
-func (s *aiReportFakeStore) GetEvent(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (store.Event, error) {
-	return store.Event{}, errors.New("not implemented")
-}
-
 func (s *aiReportFakeStore) UpdateEvent(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string, map[string]any, time.Time) (store.Event, error) {
 	return store.Event{}, errors.New("not implemented")
 }
@@ -346,10 +415,6 @@ func (s *aiReportFakeStore) DeleteEvent(context.Context, uuid.UUID, uuid.UUID, u
 
 func (s *aiReportFakeStore) GetBabyLatestGrowth(context.Context, uuid.UUID, uuid.UUID) (store.BabyLatestGrowth, error) {
 	return store.BabyLatestGrowth{}, store.ErrNotFound
-}
-
-func (s *aiReportFakeStore) RefreshBabyLatestGrowth(context.Context, uuid.UUID, uuid.UUID) (store.BabyLatestGrowth, error) {
-	return store.BabyLatestGrowth{}, errors.New("not implemented")
 }
 
 func (s *aiReportFakeStore) GetAIReportCache(_ context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash string) (store.AIReportCache, error) {

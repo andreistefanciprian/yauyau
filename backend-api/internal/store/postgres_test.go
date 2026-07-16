@@ -1376,7 +1376,7 @@ func TestUpdateEvent(t *testing.T) {
 	}
 }
 
-func TestBabyLatestGrowthProjectionRefreshesFromGrowthEvents(t *testing.T) {
+func TestBabyLatestGrowthProjectionStaysConsistentWithGrowthEvents(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()
 
@@ -1411,9 +1411,10 @@ func TestBabyLatestGrowthProjectionRefreshesFromGrowthEvents(t *testing.T) {
 		t.Fatalf("create first growth event: %v", err)
 	}
 	secondMeasuredAt := time.Date(2026, 7, 10, 9, 0, 0, 0, time.UTC)
-	if _, err := s.CreateEvent(ctx, familyID, baby.ID, "growth_measurement", map[string]any{
+	second, err := s.CreateEvent(ctx, familyID, baby.ID, "growth_measurement", map[string]any{
 		"weight_grams": 7400,
-	}, secondMeasuredAt); err != nil {
+	}, secondMeasuredAt)
+	if err != nil {
 		t.Fatalf("create second growth event: %v", err)
 	}
 	if _, err := s.CreateEvent(ctx, familyID, baby.ID, "nappy", map[string]any{"kind": "wet"}, secondMeasuredAt.Add(time.Hour)); err != nil {
@@ -1428,9 +1429,9 @@ func TestBabyLatestGrowthProjectionRefreshesFromGrowthEvents(t *testing.T) {
 		t.Fatalf("GetEvent EventType = %q, want growth_measurement", gotEvent.EventType)
 	}
 
-	growth, err := s.RefreshBabyLatestGrowth(ctx, familyID, baby.ID)
+	growth, err := s.GetBabyLatestGrowth(ctx, familyID, baby.ID)
 	if err != nil {
-		t.Fatalf("refresh latest growth: %v", err)
+		t.Fatalf("get latest growth after create: %v", err)
 	}
 	if growth.WeightGrams == nil || *growth.WeightGrams != 7400 || growth.WeightMeasuredAt == nil || !growth.WeightMeasuredAt.Equal(secondMeasuredAt) {
 		t.Fatalf("weight projection = %#v at %v, want 7400 at %v", growth.WeightGrams, growth.WeightMeasuredAt, secondMeasuredAt)
@@ -1442,20 +1443,26 @@ func TestBabyLatestGrowthProjectionRefreshesFromGrowthEvents(t *testing.T) {
 		t.Fatalf("head projection = %#v at %v, want 42.1 at %v", growth.HeadCircumferenceCM, growth.HeadCircumferenceMeasuredAt, firstMeasuredAt)
 	}
 
-	saved, err := s.GetBabyLatestGrowth(ctx, familyID, baby.ID)
-	if err != nil {
-		t.Fatalf("get latest growth: %v", err)
+	updatedMeasuredAt := secondMeasuredAt.Add(24 * time.Hour)
+	if _, err := s.UpdateEvent(ctx, familyID, baby.ID, second.ID, "growth_measurement", map[string]any{
+		"weight_grams": 7500,
+	}, updatedMeasuredAt); err != nil {
+		t.Fatalf("update second growth event: %v", err)
 	}
-	if saved.WeightGrams == nil || *saved.WeightGrams != 7400 {
-		t.Fatalf("saved latest growth = %#v, want weight 7400", saved)
+	updated, err := s.GetBabyLatestGrowth(ctx, familyID, baby.ID)
+	if err != nil {
+		t.Fatalf("get latest growth after update: %v", err)
+	}
+	if updated.WeightGrams == nil || *updated.WeightGrams != 7500 || updated.WeightMeasuredAt == nil || !updated.WeightMeasuredAt.Equal(updatedMeasuredAt) {
+		t.Fatalf("updated projection = %#v, want weight 7500 at %v", updated, updatedMeasuredAt)
 	}
 
 	if err := s.DeleteEvent(ctx, familyID, baby.ID, first.ID); err != nil {
 		t.Fatalf("delete first growth event: %v", err)
 	}
-	growth, err = s.RefreshBabyLatestGrowth(ctx, familyID, baby.ID)
+	growth, err = s.GetBabyLatestGrowth(ctx, familyID, baby.ID)
 	if err != nil {
-		t.Fatalf("refresh after delete: %v", err)
+		t.Fatalf("get latest growth after delete: %v", err)
 	}
 	if growth.LengthCM != nil || growth.HeadCircumferenceCM != nil {
 		t.Fatalf("length/head should clear after source delete, got %#v", growth)
@@ -1463,5 +1470,25 @@ func TestBabyLatestGrowthProjectionRefreshesFromGrowthEvents(t *testing.T) {
 
 	if err := s.DeleteEvent(ctx, familyID, baby.ID, gotEvent.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected second delete of same event to return ErrNotFound, got %v", err)
+	}
+	if err := s.DeleteEvent(ctx, familyID, baby.ID, second.ID); err != nil {
+		t.Fatalf("delete remaining growth event: %v", err)
+	}
+	if _, err := s.GetBabyLatestGrowth(ctx, familyID, baby.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected projection to be removed with final growth event, got %v", err)
+	}
+
+	invalidMeasuredAt := time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC)
+	if _, err := s.CreateEvent(ctx, familyID, baby.ID, "growth_measurement", map[string]any{
+		"weight_grams": "not-a-number",
+	}, invalidMeasuredAt); err == nil {
+		t.Fatal("expected invalid projection value to fail")
+	}
+	invalidEvents, err := s.ListAllEvents(ctx, familyID, baby.ID, invalidMeasuredAt.Add(-time.Minute), invalidMeasuredAt.Add(time.Minute), 10)
+	if err != nil {
+		t.Fatalf("list invalid growth event window: %v", err)
+	}
+	if len(invalidEvents) != 0 {
+		t.Fatalf("invalid growth event was committed despite projection failure: %#v", invalidEvents)
 	}
 }

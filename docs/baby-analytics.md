@@ -870,7 +870,9 @@ Instead, reports should receive optional baby context from a
 ```
 
 Growth measurement events remain the source of truth. The projection is updated
-when growth measurement events are created, edited, or deleted, so reports do
-not need to scan years of historical events just to provide the latest known
-weight or length. Each measurement carries its own timestamp because families
-may record weight, length, and head circumference on different dates.
+in the same database transaction when growth measurement events are created,
+edited, or deleted, so an event mutation cannot commit without its projection
+change. Reports therefore do not need to scan years of historical events just
+to provide the latest known weight or length. Each measurement carries its own
+timestamp because families may record weight, length, and head circumference on
+different dates.

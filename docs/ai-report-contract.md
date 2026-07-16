@@ -502,6 +502,12 @@ Examples:
 Do not remove event timestamps, selected range boundaries, or baby timezone.
 Those are factual input.
 
+For a partial current-day report, normalize the moving `range_end` cutoff to
+the end of the selected local calendar day for cache identity and cache lookup.
+The model input should still receive the real current cutoff. This lets a
+second request reuse the cached report when only the wall clock advanced,
+while a newly logged event still changes the deterministic input hash.
+
 Do not include the current generation timestamp in the input hash, otherwise
 the cache will miss every time. Do not include `delivery` in the semantic
 input hash unless delivery intentionally changes generated content.
