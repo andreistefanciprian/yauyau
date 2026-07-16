@@ -21,6 +21,8 @@ import (
 // rejecting a second active membership without depending on its error text.
 const uniqueViolation = "23505"
 
+const growthMeasurementEventType = "growth_measurement"
+
 // Connect opens a connection pool to PostgreSQL using the given DATABASE_URL.
 func Connect(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(ctx, databaseURL)
@@ -72,6 +74,11 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, migrationsDir string) erro
 // methods that internal/handlers.Store expects.
 type PostgresStore struct {
 	pool *pgxpool.Pool
+}
+
+type eventDB interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
@@ -241,7 +248,30 @@ func (s *PostgresStore) ArchiveBaby(ctx context.Context, familyID, babyID uuid.U
 	return nil
 }
 
+// CreateEvent stores one event. Growth measurements update the latest-growth
+// projection in the same transaction so callers never observe only one side.
 func (s *PostgresStore) CreateEvent(ctx context.Context, familyID, babyID uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error) {
+	if eventType != growthMeasurementEventType {
+		return createEvent(ctx, s.pool, familyID, babyID, eventType, attributes, occurredAt)
+	}
+
+	var event Event
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var err error
+		event, err = createEvent(ctx, tx, familyID, babyID, eventType, attributes, occurredAt)
+		if err != nil {
+			return err
+		}
+		_, err = refreshBabyLatestGrowth(ctx, tx, familyID, babyID)
+		return err
+	})
+	if err != nil {
+		return Event{}, fmt.Errorf("creating growth measurement event: %w", err)
+	}
+	return event, nil
+}
+
+func createEvent(ctx context.Context, db eventDB, familyID, babyID uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error) {
 	id := uuid.New()
 
 	const query = `
@@ -251,7 +281,7 @@ func (s *PostgresStore) CreateEvent(ctx context.Context, familyID, babyID uuid.U
 	`
 
 	var createdAt time.Time
-	err := s.pool.QueryRow(ctx, query, id, familyID, babyID, eventType, occurredAt, attributes).Scan(&createdAt)
+	err := db.QueryRow(ctx, query, id, familyID, babyID, eventType, occurredAt, attributes).Scan(&createdAt)
 	if err != nil {
 		return Event{}, fmt.Errorf("inserting %s event: %w", eventType, err)
 	}
@@ -266,8 +296,7 @@ func (s *PostgresStore) CreateEvent(ctx context.Context, familyID, babyID uuid.U
 	}, nil
 }
 
-// GetEvent returns one event for the current baby. Handlers use this when a
-// generic event route needs the event type before deciding follow-up work.
+// GetEvent returns one event for the current baby.
 func (s *PostgresStore) GetEvent(ctx context.Context, familyID, babyID, id uuid.UUID) (Event, error) {
 	const query = `
 		SELECT id, baby_id, event_type, attributes, occurred_at, created_at
@@ -297,8 +326,29 @@ func (s *PostgresStore) GetEvent(ctx context.Context, familyID, babyID, id uuid.
 // UpdateEvent replaces the editable fields of an existing event that belongs
 // to the current baby. eventType is part of the WHERE clause so callers
 // cannot accidentally transform a nappy into a feed by posting mismatched
-// form data.
+// form data. Growth projection changes commit atomically with the event edit.
 func (s *PostgresStore) UpdateEvent(ctx context.Context, familyID, babyID, id uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error) {
+	if eventType != growthMeasurementEventType {
+		return updateEvent(ctx, s.pool, familyID, babyID, id, eventType, attributes, occurredAt)
+	}
+
+	var event Event
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var err error
+		event, err = updateEvent(ctx, tx, familyID, babyID, id, eventType, attributes, occurredAt)
+		if err != nil {
+			return err
+		}
+		_, err = refreshBabyLatestGrowth(ctx, tx, familyID, babyID)
+		return err
+	})
+	if err != nil {
+		return Event{}, fmt.Errorf("updating growth measurement event: %w", err)
+	}
+	return event, nil
+}
+
+func updateEvent(ctx context.Context, db eventDB, familyID, babyID, id uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (Event, error) {
 	const query = `
 		UPDATE events
 		SET attributes = $1, occurred_at = $2
@@ -307,7 +357,7 @@ func (s *PostgresStore) UpdateEvent(ctx context.Context, familyID, babyID, id uu
 	`
 
 	var createdAt time.Time
-	err := s.pool.QueryRow(ctx, query, attributes, occurredAt, id, familyID, babyID, eventType).Scan(&createdAt)
+	err := db.QueryRow(ctx, query, attributes, occurredAt, id, familyID, babyID, eventType).Scan(&createdAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Event{}, ErrNotFound
 	}
@@ -328,18 +378,38 @@ func (s *PostgresStore) UpdateEvent(ctx context.Context, familyID, babyID, id uu
 // DeleteEvent removes a single event belonging to the current baby.
 // ErrNotFound is returned if no matching row exists (already deleted, wrong
 // id, or belongs to a different baby), so callers can tell that apart from a
-// real database error.
+// real database error. Deleting a growth measurement and refreshing its
+// projection happen in one transaction.
 func (s *PostgresStore) DeleteEvent(ctx context.Context, familyID, babyID, id uuid.UUID) error {
-	const query = `DELETE FROM events WHERE id = $1 AND family_id = $2 AND baby_id = $3`
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		const query = `
+			DELETE FROM events
+			WHERE id = $1 AND family_id = $2 AND baby_id = $3
+			RETURNING event_type
+		`
 
-	tag, err := s.pool.Exec(ctx, query, id, familyID, babyID)
+		var eventType string
+		if err := tx.QueryRow(ctx, query, id, familyID, babyID).Scan(&eventType); errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		} else if err != nil {
+			return err
+		}
+		if eventType != growthMeasurementEventType {
+			return nil
+		}
+
+		_, err := refreshBabyLatestGrowth(ctx, tx, familyID, babyID)
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		return err
+	})
+	if errors.Is(err, ErrNotFound) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return fmt.Errorf("deleting event: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
-	}
-
 	return nil
 }
 
@@ -409,11 +479,11 @@ func (s *PostgresStore) GetBabyLatestGrowth(ctx context.Context, familyID, babyI
 	return growth, nil
 }
 
-// RefreshBabyLatestGrowth rebuilds the latest-growth projection from
+// refreshBabyLatestGrowth rebuilds the latest-growth projection from
 // growth_measurement events after one of those events is created, edited, or
 // deleted. It keeps each measurement type independent because families often
 // record weight, length, and head circumference at different times.
-func (s *PostgresStore) RefreshBabyLatestGrowth(ctx context.Context, familyID, babyID uuid.UUID) (BabyLatestGrowth, error) {
+func refreshBabyLatestGrowth(ctx context.Context, db eventDB, familyID, babyID uuid.UUID) (BabyLatestGrowth, error) {
 	const query = `
 		WITH latest_weight AS (
 			SELECT (attributes->>'weight_grams')::integer AS weight_grams, occurred_at
@@ -494,9 +564,9 @@ func (s *PostgresStore) RefreshBabyLatestGrowth(ctx context.Context, familyID, b
 			updated_at
 	`
 
-	growth, err := scanBabyLatestGrowth(s.pool.QueryRow(ctx, query, familyID, babyID))
+	growth, err := scanBabyLatestGrowth(db.QueryRow(ctx, query, familyID, babyID))
 	if errors.Is(err, pgx.ErrNoRows) {
-		if _, deleteErr := s.pool.Exec(ctx, `DELETE FROM baby_latest_growth WHERE family_id = $1 AND baby_id = $2`, familyID, babyID); deleteErr != nil {
+		if _, deleteErr := db.Exec(ctx, `DELETE FROM baby_latest_growth WHERE family_id = $1 AND baby_id = $2`, familyID, babyID); deleteErr != nil {
 			return BabyLatestGrowth{}, fmt.Errorf("deleting empty baby latest growth projection: %w", deleteErr)
 		}
 		return BabyLatestGrowth{}, ErrNotFound

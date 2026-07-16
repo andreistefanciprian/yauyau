@@ -36,12 +36,10 @@ type Store interface {
 	UpdateBaby(ctx context.Context, familyID, babyID uuid.UUID, baby store.Baby) (store.Baby, error)
 	ArchiveBaby(ctx context.Context, familyID, babyID uuid.UUID) error
 	CreateEvent(ctx context.Context, familyID, babyID uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
-	GetEvent(ctx context.Context, familyID, babyID, id uuid.UUID) (store.Event, error)
 	UpdateEvent(ctx context.Context, familyID, babyID, id uuid.UUID, eventType string, attributes map[string]any, occurredAt time.Time) (store.Event, error)
 	ListAllEvents(ctx context.Context, familyID, babyID uuid.UUID, from, to time.Time, limit int) ([]store.Event, error)
 	DeleteEvent(ctx context.Context, familyID, babyID, id uuid.UUID) error
 	GetBabyLatestGrowth(ctx context.Context, familyID, babyID uuid.UUID) (store.BabyLatestGrowth, error)
-	RefreshBabyLatestGrowth(ctx context.Context, familyID, babyID uuid.UUID) (store.BabyLatestGrowth, error)
 	GetAIReportCache(ctx context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash string) (store.AIReportCache, error)
 	CreateAIReportCache(ctx context.Context, report store.AIReportCache) (store.AIReportCache, error)
 	ListDueDailyReportEmailJobs(ctx context.Context, now time.Time) ([]store.DailyReportEmailJob, error)
@@ -258,12 +256,6 @@ func (h *Handlers) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to update event")
 		return
 	}
-	if ev.EventType == eventTypeGrowthMeasurement {
-		if !h.refreshBabyLatestGrowth(w, r, baby) {
-			return
-		}
-	}
-
 	writeJSON(w, http.StatusOK, eventResponse{
 		ID:         ev.ID,
 		BabyID:     ev.BabyID,
@@ -287,17 +279,6 @@ func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ev, err := h.Store.GetEvent(r.Context(), baby.FamilyID, baby.ID, id)
-	if errors.Is(err, store.ErrNotFound) {
-		writeError(w, http.StatusNotFound, "event not found")
-		return
-	}
-	if err != nil {
-		log.Printf("get event before delete: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to load event")
-		return
-	}
-
 	if err := h.Store.DeleteEvent(r.Context(), baby.FamilyID, baby.ID, id); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "event not found")
@@ -307,12 +288,6 @@ func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to delete event")
 		return
 	}
-	if ev.EventType == eventTypeGrowthMeasurement {
-		if !h.refreshBabyLatestGrowth(w, r, baby) {
-			return
-		}
-	}
-
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -616,22 +591,7 @@ func createAndRespond[T any](w http.ResponseWriter, r *http.Request, h *Handlers
 		writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save %s event", eventType))
 		return
 	}
-	if eventType == eventTypeGrowthMeasurement {
-		if !h.refreshBabyLatestGrowth(w, r, baby) {
-			return
-		}
-	}
-
 	writeJSON(w, http.StatusCreated, fromEvent(ev))
-}
-
-func (h *Handlers) refreshBabyLatestGrowth(w http.ResponseWriter, r *http.Request, baby store.Baby) bool {
-	if _, err := h.Store.RefreshBabyLatestGrowth(r.Context(), baby.FamilyID, baby.ID); err != nil && !errors.Is(err, store.ErrNotFound) {
-		log.Printf("refresh latest growth projection: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to update latest growth")
-		return false
-	}
-	return true
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
