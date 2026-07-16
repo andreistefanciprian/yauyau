@@ -79,7 +79,7 @@ func TestNappyTimelineDetailIcons(t *testing.T) {
 	}
 }
 
-func TestNappyTimelineRendersKindIconOnlyInDetailRow(t *testing.T) {
+func TestNappyTimelineRendersSpecificLabelAndKindIconOnlyInDetailRow(t *testing.T) {
 	templates := parseFrontendTemplates(t)
 	data := handlers.TimelineViewData{
 		SelectedDate: "2026-07-15",
@@ -88,8 +88,7 @@ func TestNappyTimelineRendersKindIconOnlyInDetailRow(t *testing.T) {
 				ID:        "event-1",
 				EventType: "nappy",
 				CSSClass:  "nappy",
-				TypeLabel: "Nappy",
-				Kind:      "Wet",
+				TypeLabel: "Wee",
 				KindValue: "wet",
 				Time:      "10:15 AM",
 			},
@@ -105,8 +104,11 @@ func TestNappyTimelineRendersKindIconOnlyInDetailRow(t *testing.T) {
 	if strings.Contains(header, "nappy-detail-icons") {
 		t.Fatalf("event header contains nappy kind icons: %s", header)
 	}
-	if !strings.Contains(header, `<span class="event-kind">· Wet</span>`) {
-		t.Fatalf("event header does not contain the nappy kind text: %s", header)
+	if !strings.Contains(header, `<span class="event-type">Wee</span>`) {
+		t.Fatalf("event header does not contain the specific nappy label: %s", header)
+	}
+	if strings.Contains(header, `class="event-kind"`) {
+		t.Fatalf("event header contains redundant nappy kind text: %s", header)
 	}
 
 	detail := elementMarkup(t, html, `<div class="event-detail">`)

@@ -89,7 +89,7 @@ type TimelineEvent struct {
 	EventType           string
 	CSSClass            string // "nappy", "feed", "pump", "bath", "observation" — drives card colour
 	TypeLabel           string
-	Kind                string // nappy's kind / feed & bath's type / observation's category — shown as "(Kind)" next to TypeLabel
+	Kind                string // feed & bath's type / observation's category — shown next to TypeLabel
 	InlineDetail        string // short high-signal detail shown beside the event type, e.g. pump amount
 	Detail              string
 	StatusLabel         string
@@ -1044,14 +1044,26 @@ func nappyTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Tim
 
 	return TimelineEvent{
 		CSSClass:     "nappy",
-		TypeLabel:    "Nappy",
-		Kind:         titleCase(kind),
+		TypeLabel:    nappyTypeLabel(kind),
 		Detail:       strings.Join(detailParts, " · "),
 		Time:         formatEventTime(occurredAt, now),
 		KindValue:    kind,
 		PooSizeValue: pooSize,
 		LabelValues:  strings.Join(labels, ","),
 		Notes:        notes,
+	}
+}
+
+func nappyTypeLabel(kind string) string {
+	switch kind {
+	case "wet":
+		return "Wee"
+	case "both":
+		return "Wee Poo"
+	case "poo":
+		return "Poo"
+	default:
+		return "Nappy"
 	}
 }
 

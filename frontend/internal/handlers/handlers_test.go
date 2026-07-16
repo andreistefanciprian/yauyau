@@ -80,6 +80,40 @@ func TestNappyTimelineEventUsesPlainPooSizeLabel(t *testing.T) {
 	}
 }
 
+func TestNappyTimelineEventUsesKindAsLabel(t *testing.T) {
+	tests := []struct {
+		kind string
+		want string
+	}{
+		{kind: "wet", want: "Wee"},
+		{kind: "both", want: "Wee Poo"},
+		{kind: "poo", want: "Poo"},
+	}
+
+	loc := time.FixedZone("ACST", 9*60*60+30*60)
+	occurredAt := time.Date(2026, 7, 14, 9, 15, 0, 0, loc)
+	for _, test := range tests {
+		t.Run(test.kind, func(t *testing.T) {
+			ev := backendclient.Event{
+				EventType:  "nappy",
+				OccurredAt: occurredAt,
+				Attributes: map[string]any{"kind": test.kind},
+			}
+
+			timelineEvent := nappyTimelineEvent(ev, loc, occurredAt.Add(15*time.Minute))
+			if timelineEvent.TypeLabel != test.want {
+				t.Fatalf("TypeLabel = %q, want %q", timelineEvent.TypeLabel, test.want)
+			}
+			if timelineEvent.Kind != "" {
+				t.Fatalf("Kind = %q, want empty", timelineEvent.Kind)
+			}
+			if timelineEvent.KindValue != test.kind {
+				t.Fatalf("KindValue = %q, want %q", timelineEvent.KindValue, test.kind)
+			}
+		})
+	}
+}
+
 func TestSleepTimelineEventUsesSleepTypeAsLabel(t *testing.T) {
 	loc := time.FixedZone("ACST", 9*60*60+30*60)
 	occurredAt := time.Date(2026, 7, 14, 16, 30, 0, 0, loc)
