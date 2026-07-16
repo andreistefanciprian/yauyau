@@ -214,6 +214,148 @@ func TestAIReportCacheCreateAndGet(t *testing.T) {
 	}
 }
 
+func TestAIReportEmailDeliveryLifecycle(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	email := testEmail(t)
+
+	owner, err := s.UpsertUserByEmail(ctx, email)
+	if err != nil {
+		t.Fatalf("upsert owner: %v", err)
+	}
+	familyID, err := s.CreateFamilyWithOwner(ctx, owner.ID, "test family")
+	if err != nil {
+		t.Fatalf("create family: %v", err)
+	}
+	baby, err := s.CreateBaby(ctx, familyID, "YauYau", "Australia/Adelaide")
+	if err != nil {
+		t.Fatalf("create baby: %v", err)
+	}
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM ai_report_email_deliveries WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM ai_report_cache WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM babies WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE id = $1`, owner.ID)
+	})
+
+	rangeStart := time.Date(2026, 7, 13, 0, 0, 0, 0, time.UTC)
+	rangeEnd := time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC)
+	scheduledFor := time.Date(2026, 7, 14, 23, 30, 0, 0, time.UTC)
+	created, err := s.CreateAIReportEmailDelivery(ctx, AIReportEmailDelivery{
+		FamilyID:        familyID,
+		BabyID:          baby.ID,
+		RecipientUserID: owner.ID,
+		RecipientEmail:  owner.Email,
+		ReportType:      "daily",
+		RangeStart:      rangeStart,
+		RangeEnd:        rangeEnd,
+		ScheduledFor:    scheduledFor,
+	})
+	if err != nil {
+		t.Fatalf("create delivery: %v", err)
+	}
+	if created.ID == uuid.Nil {
+		t.Fatal("created delivery ID is nil")
+	}
+	if created.Status != AIReportEmailDeliveryStatusPending {
+		t.Fatalf("status = %q, want %q", created.Status, AIReportEmailDeliveryStatusPending)
+	}
+	if created.CreatedAt.IsZero() || created.UpdatedAt.IsZero() {
+		t.Fatalf("expected created/updated timestamps, got created=%v updated=%v", created.CreatedAt, created.UpdatedAt)
+	}
+
+	duplicate, err := s.CreateAIReportEmailDelivery(ctx, AIReportEmailDelivery{
+		FamilyID:        familyID,
+		BabyID:          baby.ID,
+		RecipientUserID: owner.ID,
+		RecipientEmail:  owner.Email,
+		ReportType:      "daily",
+		RangeStart:      rangeStart,
+		RangeEnd:        rangeEnd,
+		ScheduledFor:    scheduledFor,
+	})
+	if err != nil {
+		t.Fatalf("create duplicate delivery: %v", err)
+	}
+	if duplicate.ID != created.ID {
+		t.Fatalf("duplicate delivery ID = %v, want existing ID %v", duplicate.ID, created.ID)
+	}
+
+	cache, err := s.CreateAIReportCache(ctx, AIReportCache{
+		FamilyID:            familyID,
+		BabyID:              baby.ID,
+		ReportType:          "daily",
+		RangeStart:          rangeStart,
+		RangeEnd:            rangeEnd,
+		InputHash:           uuid.NewString(),
+		PromptVersion:       "ai_report_prompt.v1",
+		InputSchemaVersion:  "ai_report_input.v1",
+		OutputSchemaVersion: "ai_report_output.v1",
+		Model:               "test-model",
+		ContentJSON:         json.RawMessage(`{"schema_version":"ai_report_output.v1","title":"Cached report"}`),
+	})
+	if err != nil {
+		t.Fatalf("create cache: %v", err)
+	}
+
+	sentAt := scheduledFor.Add(2 * time.Minute)
+	sent, err := s.MarkAIReportEmailDeliverySent(ctx, created.ID, cache.ID, "provider-123", sentAt)
+	if err != nil {
+		t.Fatalf("mark sent: %v", err)
+	}
+	if sent.Status != AIReportEmailDeliveryStatusSent {
+		t.Fatalf("sent status = %q, want %q", sent.Status, AIReportEmailDeliveryStatusSent)
+	}
+	if sent.AIReportCacheID == nil || *sent.AIReportCacheID != cache.ID {
+		t.Fatalf("sent cache ID = %v, want %v", sent.AIReportCacheID, cache.ID)
+	}
+	if sent.ProviderMessageID != "provider-123" {
+		t.Fatalf("provider message ID = %q, want provider-123", sent.ProviderMessageID)
+	}
+	if sent.AttemptedAt == nil || !sent.AttemptedAt.Equal(sentAt) {
+		t.Fatalf("attempted_at = %v, want %v", sent.AttemptedAt, sentAt)
+	}
+	if sent.SentAt == nil || !sent.SentAt.Equal(sentAt) {
+		t.Fatalf("sent_at = %v, want %v", sent.SentAt, sentAt)
+	}
+	if sent.ErrorMessage != "" {
+		t.Fatalf("sent error message = %q, want empty", sent.ErrorMessage)
+	}
+
+	failedAt := sentAt.Add(3 * time.Minute)
+	failed, err := s.MarkAIReportEmailDeliveryFailed(ctx, created.ID, "mail provider unavailable", failedAt)
+	if err != nil {
+		t.Fatalf("mark failed: %v", err)
+	}
+	if failed.Status != AIReportEmailDeliveryStatusFailed {
+		t.Fatalf("failed status = %q, want %q", failed.Status, AIReportEmailDeliveryStatusFailed)
+	}
+	if failed.ErrorMessage != "mail provider unavailable" {
+		t.Fatalf("failed error message = %q, want mail provider unavailable", failed.ErrorMessage)
+	}
+	if failed.ProviderMessageID != "" {
+		t.Fatalf("failed provider message ID = %q, want empty", failed.ProviderMessageID)
+	}
+	if failed.AttemptedAt == nil || !failed.AttemptedAt.Equal(failedAt) {
+		t.Fatalf("failed attempted_at = %v, want %v", failed.AttemptedAt, failedAt)
+	}
+	if failed.SentAt != nil {
+		t.Fatalf("failed sent_at = %v, want nil", failed.SentAt)
+	}
+	if failed.AIReportCacheID == nil || *failed.AIReportCacheID != cache.ID {
+		t.Fatalf("failed cache ID = %v, want retained cache ID %v", failed.AIReportCacheID, cache.ID)
+	}
+
+	if _, err := s.MarkAIReportEmailDeliverySent(ctx, uuid.New(), cache.ID, "missing", sentAt); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing sent delivery error = %v, want ErrNotFound", err)
+	}
+	if _, err := s.MarkAIReportEmailDeliveryFailed(ctx, uuid.New(), "missing", failedAt); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing failed delivery error = %v, want ErrNotFound", err)
+	}
+}
+
 func TestDailyReportEmailJobForUsesBabyTimezoneAndYesterdayWindow(t *testing.T) {
 	loc := mustLoadLocation(t, "Australia/Adelaide")
 	familyID := uuid.New()

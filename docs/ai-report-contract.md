@@ -679,9 +679,28 @@ memberships with `daily_report_email_enabled = true`. A daily job becomes due
 once the baby's local time reaches 9:00 AM and uses the previous complete local
 calendar day as both `start_date` and `end_date`. The selector returns one job
 per opted-in owner recipient, but report generation remains baby/window scoped
-so those recipients can share the same cached AI report content. Until a
-delivery-attempt table exists, the due-job selector does not try to suppress
-repeat sends by itself.
+so those recipients can share the same cached AI report content.
+
+Scheduled email delivery state lives outside the AI report cache. Each
+recipient/window gets an `ai_report_email_deliveries` row with:
+
+* `family_id`, `baby_id`, and `recipient_user_id`;
+* snapshot `recipient_email`;
+* `report_type`, `range_start`, `range_end`, and `scheduled_for`;
+* `status` (`pending`, `sent`, or `failed`);
+* optional `ai_report_cache_id` once generation has produced or reused a
+  cached report;
+* provider and error metadata (`provider_message_id`, `error_message`,
+  `attempted_at`, `sent_at`);
+* `created_at` and `updated_at`.
+
+The delivery table is per recipient because retries, provider failures, and
+audit metadata are recipient-facing. The AI report cache remains per
+baby/window/input hash. This lets multiple opted-in recipients receive the
+same generated content without generating the same AI report more than once.
+The unique key on family, baby, recipient, report type, range, and scheduled
+time is the duplicate-send guard future scheduler loops should use before
+calling the email provider.
 
 ## Caching
 
@@ -714,8 +733,11 @@ repeatedly for each recipient.
 
 The first AI backend PR should add `created_at` so cache entries are ready for
 future retention cleanup. A later scheduler or maintenance job should delete
-old cache rows after the agreed retention window, for example 90 days. Do not
-add that cleanup job before cached AI reports are actually being generated.
+old cache rows after the agreed retention window, for example 90 days. Delivery
+rows should keep their audit state when cached report content is deleted; their
+`ai_report_cache_id` can be cleared by the foreign key. Delivery history can
+get its own retention policy later if needed. Do not add cleanup jobs before
+cached AI reports are actually being generated.
 
 ## Evals
 
@@ -810,6 +832,7 @@ Recommended sequence:
 
 8. **Scheduled report delivery**
    * Add daily and weekly scheduled report jobs.
+   * Add per-recipient delivery-attempt storage.
    * Use complete selected windows by default.
    * Render cached AI report JSON into email templates.
 

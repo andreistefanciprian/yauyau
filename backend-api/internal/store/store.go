@@ -78,6 +78,38 @@ type AIReportCache struct {
 	CreatedAt           time.Time       `json:"created_at"`
 }
 
+type AIReportEmailDeliveryStatus string
+
+const (
+	AIReportEmailDeliveryStatusPending AIReportEmailDeliveryStatus = "pending"
+	AIReportEmailDeliveryStatusSent    AIReportEmailDeliveryStatus = "sent"
+	AIReportEmailDeliveryStatusFailed  AIReportEmailDeliveryStatus = "failed"
+)
+
+// AIReportEmailDelivery tracks one recipient-facing scheduled report email
+// attempt. The generated AI report remains baby/window-scoped in
+// AIReportCache; delivery rows are per recipient so retries and failures do
+// not change cached report content.
+type AIReportEmailDelivery struct {
+	ID                uuid.UUID                   `json:"id"`
+	FamilyID          uuid.UUID                   `json:"family_id"`
+	BabyID            uuid.UUID                   `json:"baby_id"`
+	RecipientUserID   uuid.UUID                   `json:"recipient_user_id"`
+	RecipientEmail    string                      `json:"recipient_email"`
+	ReportType        string                      `json:"report_type"`
+	RangeStart        time.Time                   `json:"range_start"`
+	RangeEnd          time.Time                   `json:"range_end"`
+	ScheduledFor      time.Time                   `json:"scheduled_for"`
+	Status            AIReportEmailDeliveryStatus `json:"status"`
+	AIReportCacheID   *uuid.UUID                  `json:"ai_report_cache_id,omitempty"`
+	ProviderMessageID string                      `json:"provider_message_id,omitempty"`
+	ErrorMessage      string                      `json:"error_message,omitempty"`
+	AttemptedAt       *time.Time                  `json:"attempted_at,omitempty"`
+	SentAt            *time.Time                  `json:"sent_at,omitempty"`
+	CreatedAt         time.Time                   `json:"created_at"`
+	UpdatedAt         time.Time                   `json:"updated_at"`
+}
+
 // DailyReportEmailJob is the scheduler-ready description of one recipient's
 // daily report email. It is scoped to a recipient for delivery, but the
 // report window is baby-scoped so multiple owners for one baby can reuse the

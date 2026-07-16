@@ -629,9 +629,129 @@ func (s *PostgresStore) CreateAIReportCache(ctx context.Context, report AIReport
 	return saved, nil
 }
 
+// CreateAIReportEmailDelivery creates the per-recipient delivery row for a
+// scheduled report, or returns the existing row for the same recipient/window.
+// The unique key is the duplicate-send guard that later scheduler loops will
+// rely on.
+func (s *PostgresStore) CreateAIReportEmailDelivery(ctx context.Context, delivery AIReportEmailDelivery) (AIReportEmailDelivery, error) {
+	if delivery.ID == uuid.Nil {
+		delivery.ID = uuid.New()
+	}
+	if delivery.Status == "" {
+		delivery.Status = AIReportEmailDeliveryStatusPending
+	}
+
+	const query = `
+		INSERT INTO ai_report_email_deliveries (
+			id,
+			family_id,
+			baby_id,
+			recipient_user_id,
+			recipient_email,
+			report_type,
+			range_start,
+			range_end,
+			scheduled_for,
+			status,
+			ai_report_cache_id
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT (
+			family_id,
+			baby_id,
+			recipient_user_id,
+			report_type,
+			range_start,
+			range_end,
+			scheduled_for
+		)
+		DO UPDATE SET updated_at = ai_report_email_deliveries.updated_at
+		RETURNING ` + aiReportEmailDeliveryColumns + `
+	`
+
+	saved, err := scanAIReportEmailDelivery(s.pool.QueryRow(
+		ctx,
+		query,
+		delivery.ID,
+		delivery.FamilyID,
+		delivery.BabyID,
+		delivery.RecipientUserID,
+		delivery.RecipientEmail,
+		delivery.ReportType,
+		delivery.RangeStart,
+		delivery.RangeEnd,
+		delivery.ScheduledFor,
+		delivery.Status,
+		delivery.AIReportCacheID,
+	))
+	if err != nil {
+		return AIReportEmailDelivery{}, fmt.Errorf("creating AI report email delivery: %w", err)
+	}
+
+	return saved, nil
+}
+
+// MarkAIReportEmailDeliverySent records a successful provider send. The
+// cached report id is linked here so audits can trace exactly which generated
+// report was rendered for this recipient.
+func (s *PostgresStore) MarkAIReportEmailDeliverySent(ctx context.Context, id, aiReportCacheID uuid.UUID, providerMessageID string, sentAt time.Time) (AIReportEmailDelivery, error) {
+	const query = `
+		UPDATE ai_report_email_deliveries
+		SET
+			status = $1,
+			ai_report_cache_id = $2,
+			provider_message_id = NULLIF($3, ''),
+			error_message = NULL,
+			attempted_at = $4,
+			sent_at = $4,
+			updated_at = now()
+		WHERE id = $5
+		RETURNING ` + aiReportEmailDeliveryColumns + `
+	`
+
+	delivery, err := scanAIReportEmailDelivery(s.pool.QueryRow(ctx, query, AIReportEmailDeliveryStatusSent, aiReportCacheID, providerMessageID, sentAt, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return AIReportEmailDelivery{}, ErrNotFound
+	}
+	if err != nil {
+		return AIReportEmailDelivery{}, fmt.Errorf("marking AI report email delivery sent: %w", err)
+	}
+
+	return delivery, nil
+}
+
+// MarkAIReportEmailDeliveryFailed records a failed send/generation attempt
+// without touching AIReportCache. A later retry can reuse the same delivery
+// row and either mark it sent or failed again.
+func (s *PostgresStore) MarkAIReportEmailDeliveryFailed(ctx context.Context, id uuid.UUID, errorMessage string, attemptedAt time.Time) (AIReportEmailDelivery, error) {
+	const query = `
+		UPDATE ai_report_email_deliveries
+		SET
+			status = $1,
+			provider_message_id = NULL,
+			error_message = NULLIF($2, ''),
+			attempted_at = $3,
+			sent_at = NULL,
+			updated_at = now()
+		WHERE id = $4
+		RETURNING ` + aiReportEmailDeliveryColumns + `
+	`
+
+	delivery, err := scanAIReportEmailDelivery(s.pool.QueryRow(ctx, query, AIReportEmailDeliveryStatusFailed, errorMessage, attemptedAt, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return AIReportEmailDelivery{}, ErrNotFound
+	}
+	if err != nil {
+		return AIReportEmailDelivery{}, fmt.Errorf("marking AI report email delivery failed: %w", err)
+	}
+
+	return delivery, nil
+}
+
 // ListDueDailyReportEmailJobs returns owner-recipient jobs whose baby's local
 // 9 AM send time has arrived for today. It deliberately does not de-duplicate
-// already-sent work yet; the future delivery-attempt table will own that.
+// already-sent work; scheduler code should use ai_report_email_deliveries as
+// the duplicate-send guard.
 func (s *PostgresStore) ListDueDailyReportEmailJobs(ctx context.Context, now time.Time) ([]DailyReportEmailJob, error) {
 	const query = `
 		SELECT
@@ -721,6 +841,54 @@ func dailyReportEmailJobFor(candidate dailyReportEmailCandidate, now time.Time) 
 		RangeEnd:        reportEnd,
 		ScheduledFor:    scheduledFor,
 	}, true, nil
+}
+
+const aiReportEmailDeliveryColumns = `
+	id,
+	family_id,
+	baby_id,
+	recipient_user_id,
+	recipient_email,
+	report_type,
+	range_start,
+	range_end,
+	scheduled_for,
+	status,
+	ai_report_cache_id,
+	COALESCE(provider_message_id, ''),
+	COALESCE(error_message, ''),
+	attempted_at,
+	sent_at,
+	created_at,
+	updated_at
+`
+
+// scanAIReportEmailDelivery keeps delivery-row mapping in one place so the
+// insert and update paths return identical shapes.
+func scanAIReportEmailDelivery(row pgx.Row) (AIReportEmailDelivery, error) {
+	var delivery AIReportEmailDelivery
+	var status string
+	err := row.Scan(
+		&delivery.ID,
+		&delivery.FamilyID,
+		&delivery.BabyID,
+		&delivery.RecipientUserID,
+		&delivery.RecipientEmail,
+		&delivery.ReportType,
+		&delivery.RangeStart,
+		&delivery.RangeEnd,
+		&delivery.ScheduledFor,
+		&status,
+		&delivery.AIReportCacheID,
+		&delivery.ProviderMessageID,
+		&delivery.ErrorMessage,
+		&delivery.AttemptedAt,
+		&delivery.SentAt,
+		&delivery.CreatedAt,
+		&delivery.UpdatedAt,
+	)
+	delivery.Status = AIReportEmailDeliveryStatus(status)
+	return delivery, err
 }
 
 // scanAIReportCache centralizes row mapping so create and get keep the same
