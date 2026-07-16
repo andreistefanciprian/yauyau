@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/subtle"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -19,10 +20,67 @@ import (
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
+const sendDailyReportEmailsCommand = "send-daily-report-emails"
+
 func main() {
+	if len(os.Args) > 1 {
+		if err := runCommand(os.Args[1:]); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	if err := runHTTPServer(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func runCommand(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("missing command")
+	}
+	switch args[0] {
+	case sendDailyReportEmailsCommand:
+		return runSendDailyReportEmailsCommand()
+	default:
+		return fmt.Errorf("unknown command %q", args[0])
+	}
+}
+
+// runSendDailyReportEmailsCommand is intentionally one-shot: Railway or
+// another scheduler can invoke it repeatedly while delivery rows prevent
+// duplicate sends.
+func runSendDailyReportEmailsCommand() error {
+	ctx := context.Background()
+
+	appStore, closeStore, err := connectStore(ctx)
+	if err != nil {
+		return err
+	}
+	defer closeStore()
+
+	h := handlers.New(appStore, nil)
+	configureAI(h)
+	h.ReportEmailSender = configureReportEmailSender()
+
+	result, err := h.SendDueDailyReportEmails(ctx, time.Now())
+	if err != nil {
+		return fmt.Errorf("send due daily report emails: %w", err)
+	}
+	log.Printf(
+		"daily report email run complete: due=%d skipped=%d sent=%d failed=%d",
+		result.DueJobs,
+		result.Skipped,
+		result.Sent,
+		result.Failed,
+	)
+	return nil
+}
+
+func runHTTPServer() error {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		log.Fatal("DATABASE_URL is required")
+		return fmt.Errorf("DATABASE_URL is required")
 	}
 
 	port := os.Getenv("PORT")
@@ -32,41 +90,33 @@ func main() {
 
 	internalSecret := os.Getenv("INTERNAL_AUTH_SECRET")
 	if internalSecret == "" {
-		log.Fatal("INTERNAL_AUTH_SECRET is required")
+		return fmt.Errorf("INTERNAL_AUTH_SECRET is required")
 	}
 
 	jwtSecret := os.Getenv("JWT_SIGNING_SECRET")
 	if jwtSecret == "" {
-		log.Fatal("JWT_SIGNING_SECRET is required")
+		return fmt.Errorf("JWT_SIGNING_SECRET is required")
 	}
 
 	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 	if authServiceURL == "" {
-		log.Fatal("AUTH_SERVICE_URL is required")
+		return fmt.Errorf("AUTH_SERVICE_URL is required")
 	}
 
 	frontendAuthSecret := os.Getenv("FRONTEND_AUTH_SECRET")
 	if frontendAuthSecret == "" {
-		log.Fatal("FRONTEND_AUTH_SECRET is required")
+		return fmt.Errorf("FRONTEND_AUTH_SECRET is required")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	pool, err := store.Connect(ctx, databaseURL)
+	ctx := context.Background()
+	appStore, closeStore, err := connectStore(ctx)
 	if err != nil {
-		log.Fatalf("connect to database: %v", err)
+		return err
 	}
-	defer pool.Close()
+	defer closeStore()
 
-	if err := store.Migrate(ctx, pool, "migrations"); err != nil {
-		log.Fatalf("run migrations: %v", err)
-	}
-
-	h := handlers.New(store.NewPostgresStore(pool), authclient.New(authServiceURL, frontendAuthSecret))
-	if openAIAPIKey := os.Getenv("OPENAI_API_KEY"); openAIAPIKey != "" {
-		h.AI = aiclient.New(openAIAPIKey, os.Getenv("OPENAI_MODEL"))
-	}
+	h := handlers.New(appStore, authclient.New(authServiceURL, frontendAuthSecret))
+	configureAI(h)
 	h.ReportEmailSender = configureReportEmailSender()
 
 	r := chi.NewRouter()
@@ -141,7 +191,36 @@ func main() {
 
 	log.Printf("backend-api listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
-		log.Fatalf("server error: %v", err)
+		return fmt.Errorf("server error: %w", err)
+	}
+	return nil
+}
+
+func connectStore(ctx context.Context) (*store.PostgresStore, func(), error) {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		return nil, nil, fmt.Errorf("DATABASE_URL is required")
+	}
+
+	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	pool, err := store.Connect(connectCtx, databaseURL)
+	if err != nil {
+		return nil, nil, fmt.Errorf("connect to database: %w", err)
+	}
+
+	if err := store.Migrate(ctx, pool, "migrations"); err != nil {
+		pool.Close()
+		return nil, nil, fmt.Errorf("run migrations: %w", err)
+	}
+
+	return store.NewPostgresStore(pool), pool.Close, nil
+}
+
+func configureAI(h *handlers.Handlers) {
+	if openAIAPIKey := os.Getenv("OPENAI_API_KEY"); openAIAPIKey != "" {
+		h.AI = aiclient.New(openAIAPIKey, os.Getenv("OPENAI_MODEL"))
 	}
 }
 

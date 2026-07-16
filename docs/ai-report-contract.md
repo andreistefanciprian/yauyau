@@ -750,6 +750,16 @@ email sender, and mark the delivery `sent` or `failed`. Fresh `sending` rows
 must not be sent by another runner; stale `sending` rows may be reclaimed so a
 process crash does not permanently strand a delivery attempt.
 
+The first trigger surface is a one-shot backend command:
+
+```bash
+./backend-api send-daily-report-emails
+```
+
+It should run the due daily delivery orchestration once and exit. Railway can
+schedule this command repeatedly for testing without adding an HTTP route or a
+background loop inside the API server.
+
 The first AI backend PR should add `created_at` so cache entries are ready for
 future retention cleanup. A later scheduler or maintenance job should delete
 old cache rows after the agreed retention window, for example 90 days. Delivery
