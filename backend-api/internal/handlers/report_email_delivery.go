@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -147,6 +148,10 @@ func (h *Handlers) dailyReportEmailContent(ctx context.Context, job store.DailyR
 // markDailyReportEmailFailed records recoverable per-recipient failures so a
 // later scheduler run can retry the same delivery row.
 func (h *Handlers) markDailyReportEmailFailed(ctx context.Context, deliveryID uuid.UUID, cause error, attemptedAt time.Time) (dailyReportEmailOutcome, error) {
+	slog.Error("daily report email delivery failed",
+		"delivery_id", deliveryID,
+		"error", cause,
+	)
 	if _, err := h.Store.MarkAIReportEmailDeliveryFailed(ctx, deliveryID, deliveryErrorMessage(cause), attemptedAt); err != nil {
 		return "", fmt.Errorf("marking AI report email delivery failed: %w", err)
 	}
