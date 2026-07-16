@@ -13,8 +13,10 @@ import (
 )
 
 type settingsPageData struct {
-	Baby            backendclient.Baby
-	Account         accountViewData
+	Baby    backendclient.Baby
+	Account accountViewData
+	// ReportEmails is separated from Account because the checkbox is about
+	// this user's membership in the current family, not their global account.
 	ReportEmails    reportEmailSettings
 	SexOptions      []babySexOption
 	Members         []backendclient.TimelineMember
@@ -32,6 +34,8 @@ type settingsPageData struct {
 }
 
 type reportEmailSettings struct {
+	// CanManage controls whether the section renders. Backend-api still
+	// enforces owner-only updates; this only keeps non-owner settings tidy.
 	CanManage          bool
 	DailyReportEnabled bool
 	Notice             string
@@ -68,6 +72,9 @@ func (h *Handlers) UpdateAccountSettings(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// UpdateReportEmailSettings saves the owner's opt-in for future scheduled
+// daily emails. The scheduler/delivery work is intentionally separate; this
+// handler only records whether this owner wants the email when that exists.
 func (h *Handlers) UpdateReportEmailSettings(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form", http.StatusBadRequest)

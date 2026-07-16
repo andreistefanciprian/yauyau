@@ -13,11 +13,14 @@ import (
 )
 
 type currentUserResponse struct {
-	ID                        string `json:"id"`
-	Email                     string `json:"email"`
-	DisplayName               string `json:"display_name,omitempty"`
-	CanManageDailyReportEmail bool   `json:"can_manage_daily_report_email"`
-	DailyReportEmailEnabled   bool   `json:"daily_report_email_enabled"`
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name,omitempty"`
+	// CanManageDailyReportEmail tells the frontend whether to show the
+	// checkbox at all. The preference is currently owner-only, so non-owners
+	// get false even if a future DB value exists for them.
+	CanManageDailyReportEmail bool `json:"can_manage_daily_report_email"`
+	DailyReportEmailEnabled   bool `json:"daily_report_email_enabled"`
 }
 
 type updateCurrentUserRequest struct {
@@ -60,6 +63,10 @@ func (h *Handlers) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, currentUserToResponse(user, membership))
 }
 
+// currentUserToResponse combines account identity with membership-scoped
+// settings. Daily report email is intentionally derived through membership
+// because delivery eligibility depends on the user's role in this family, not
+// on the global user account.
 func currentUserToResponse(user store.User, membership store.FamilyMembership) currentUserResponse {
 	canManageDailyReportEmail := membership.Found &&
 		membership.Role == store.MembershipRoleOwner &&
