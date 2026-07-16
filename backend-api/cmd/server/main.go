@@ -15,6 +15,7 @@ import (
 	"github.com/andreistefanciprian/yauli/backend-api/internal/authclient"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/authctx"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/handlers"
+	"github.com/andreistefanciprian/yauli/backend-api/internal/reportemail"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
@@ -66,6 +67,7 @@ func main() {
 	if openAIAPIKey := os.Getenv("OPENAI_API_KEY"); openAIAPIKey != "" {
 		h.AI = aiclient.New(openAIAPIKey, os.Getenv("OPENAI_MODEL"))
 	}
+	h.ReportEmailSender = configureReportEmailSender()
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -141,6 +143,24 @@ func main() {
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
+}
+
+func configureReportEmailSender() reportemail.Sender {
+	if os.Getenv("ENV") != "production" {
+		log.Print("backend-api report email sender: stdout")
+		return reportemail.Stdout{}
+	}
+
+	apiKey := os.Getenv("MAILGUN_API_KEY")
+	domain := os.Getenv("MAILGUN_DOMAIN")
+	from := os.Getenv("MAILGUN_FROM")
+	if apiKey == "" || domain == "" || from == "" {
+		log.Print("backend-api report email sender: disabled (missing Mailgun configuration)")
+		return reportemail.Disabled{}
+	}
+
+	log.Print("backend-api report email sender: mailgun")
+	return reportemail.NewMailgun(apiKey, domain, from, os.Getenv("MAILGUN_BASE_URL"))
 }
 
 // requireInternalSecret gates the internal (auth-service-facing) API behind

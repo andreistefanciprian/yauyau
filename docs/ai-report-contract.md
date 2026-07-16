@@ -731,6 +731,16 @@ Scheduled email jobs should reuse cached channel-neutral reports when the
 deterministic input hash matches. They should not regenerate the same report
 repeatedly for each recipient.
 
+Report email delivery is backend-api owned. It may reuse the same Mailgun
+configuration style as auth-service (`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`,
+`MAILGUN_FROM`, and optional `MAILGUN_BASE_URL`), but backend-api sends report
+emails directly instead of asking auth-service to act as a generic mailer.
+Local development can use a stdout sender so scheduler paths can be exercised
+without sending real email. In production, missing Mailgun configuration should
+disable report email delivery rather than prevent backend-api from starting;
+the scheduler should record a failed delivery attempt if it tries to send while
+delivery is not configured.
+
 The first AI backend PR should add `created_at` so cache entries are ready for
 future retention cleanup. A later scheduler or maintenance job should delete
 old cache rows after the agreed retention window, for example 90 days. Delivery

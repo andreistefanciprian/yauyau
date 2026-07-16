@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/andreistefanciprian/yauli/backend-api/internal/aireport"
+	"github.com/andreistefanciprian/yauli/backend-api/internal/reportemail"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
@@ -75,6 +76,12 @@ type AuthClient interface {
 // data into validated ai_report_output JSON.
 type AIReportGenerator interface {
 	GenerateAIReport(ctx context.Context, input aireport.GenerationInput) (aireport.GenerationResult, error)
+}
+
+// ReportEmailSender is the delivery boundary for scheduled AI report emails.
+// Handlers own report orchestration; the sender owns only email transport.
+type ReportEmailSender interface {
+	SendReportEmail(ctx context.Context, report reportemail.Report) (string, error)
 }
 
 // allEventsLimit caps the combined /events endpoint. It's set higher than
@@ -305,10 +312,11 @@ func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 }
 
 type Handlers struct {
-	Store       Store
-	FamilyStore FamilyStore
-	Auth        AuthClient
-	AI          AIReportGenerator
+	Store             Store
+	FamilyStore       FamilyStore
+	Auth              AuthClient
+	AI                AIReportGenerator
+	ReportEmailSender ReportEmailSender
 }
 
 // New wires up Handlers from a single concrete store that satisfies both
