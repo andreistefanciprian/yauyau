@@ -283,6 +283,32 @@ func TestAIReportEmailDeliveryLifecycle(t *testing.T) {
 		t.Fatalf("duplicate delivery ID = %v, want existing ID %v", duplicate.ID, created.ID)
 	}
 
+	claimedAt := scheduledFor.Add(time.Minute)
+	claimed, err := s.ClaimAIReportEmailDelivery(ctx, created.ID, claimedAt)
+	if err != nil {
+		t.Fatalf("claim delivery: %v", err)
+	}
+	if claimed.Status != AIReportEmailDeliveryStatusSending {
+		t.Fatalf("claimed status = %q, want %q", claimed.Status, AIReportEmailDeliveryStatusSending)
+	}
+	if claimed.AttemptedAt == nil || !claimed.AttemptedAt.Equal(claimedAt) {
+		t.Fatalf("claimed attempted_at = %v, want %v", claimed.AttemptedAt, claimedAt)
+	}
+	if _, err := s.ClaimAIReportEmailDelivery(ctx, created.ID, claimedAt.Add(time.Second)); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("second claim error = %v, want ErrNotFound", err)
+	}
+	staleClaimedAt := claimedAt.Add(aiReportEmailDeliveryClaimTimeout + time.Minute)
+	staleClaimed, err := s.ClaimAIReportEmailDelivery(ctx, created.ID, staleClaimedAt)
+	if err != nil {
+		t.Fatalf("stale claim delivery: %v", err)
+	}
+	if staleClaimed.Status != AIReportEmailDeliveryStatusSending {
+		t.Fatalf("stale claimed status = %q, want %q", staleClaimed.Status, AIReportEmailDeliveryStatusSending)
+	}
+	if staleClaimed.AttemptedAt == nil || !staleClaimed.AttemptedAt.Equal(staleClaimedAt) {
+		t.Fatalf("stale claimed attempted_at = %v, want %v", staleClaimed.AttemptedAt, staleClaimedAt)
+	}
+
 	cache, err := s.CreateAIReportCache(ctx, AIReportCache{
 		FamilyID:            familyID,
 		BabyID:              baby.ID,

@@ -687,7 +687,7 @@ recipient/window gets an `ai_report_email_deliveries` row with:
 * `family_id`, `baby_id`, and `recipient_user_id`;
 * snapshot `recipient_email`;
 * `report_type`, `range_start`, `range_end`, and `scheduled_for`;
-* `status` (`pending`, `sent`, or `failed`);
+* `status` (`pending`, `sending`, `sent`, or `failed`);
 * optional `ai_report_cache_id` once generation has produced or reused a
   cached report;
 * provider and error metadata (`provider_message_id`, `error_message`,
@@ -740,6 +740,15 @@ without sending real email. In production, missing Mailgun configuration should
 disable report email delivery rather than prevent backend-api from starting;
 the scheduler should record a failed delivery attempt if it tries to send while
 delivery is not configured.
+
+Daily delivery orchestration should exist as backend code before it is exposed
+through an HTTP route, worker command, or Railway scheduled trigger. The
+orchestration should list due jobs, create or reuse the delivery row, skip
+already-sent rows, atomically claim pending/failed rows by moving them to
+`sending`, generate or reuse the cached AI report, send through the report
+email sender, and mark the delivery `sent` or `failed`. Fresh `sending` rows
+must not be sent by another runner; stale `sending` rows may be reclaimed so a
+process crash does not permanently strand a delivery attempt.
 
 The first AI backend PR should add `created_at` so cache entries are ready for
 future retention cleanup. A later scheduler or maintenance job should delete
@@ -843,6 +852,7 @@ Recommended sequence:
 8. **Scheduled report delivery**
    * Add daily and weekly scheduled report jobs.
    * Add per-recipient delivery-attempt storage.
+   * Add daily delivery orchestration without exposing an HTTP trigger yet.
    * Use complete selected windows by default.
    * Render cached AI report JSON into email templates.
 

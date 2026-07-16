@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -288,11 +289,15 @@ func authenticatedAIReportRequest(t *testing.T, familyID uuid.UUID, body string)
 }
 
 type aiReportFakeStore struct {
-	baby           store.Baby
-	cachedContent  json.RawMessage
-	cacheErr       error
-	cacheInputHash string
-	created        store.AIReportCache
+	baby                 store.Baby
+	cachedContent        json.RawMessage
+	cacheErr             error
+	cacheInputHash       string
+	created              store.AIReportCache
+	dailyReportEmailJobs []store.DailyReportEmailJob
+	deliveries           map[string]store.AIReportEmailDelivery
+	sentDeliveries       []store.AIReportEmailDelivery
+	failedDeliveries     []store.AIReportEmailDelivery
 }
 
 func (s *aiReportFakeStore) GetBaby(context.Context, uuid.UUID) (store.Baby, error) {
@@ -370,6 +375,90 @@ func (s *aiReportFakeStore) CreateAIReportCache(_ context.Context, report store.
 		s.created.ID = uuid.New()
 	}
 	return s.created, nil
+}
+
+func (s *aiReportFakeStore) ListDueDailyReportEmailJobs(context.Context, time.Time) ([]store.DailyReportEmailJob, error) {
+	return s.dailyReportEmailJobs, nil
+}
+
+func (s *aiReportFakeStore) CreateAIReportEmailDelivery(_ context.Context, delivery store.AIReportEmailDelivery) (store.AIReportEmailDelivery, error) {
+	if s.deliveries == nil {
+		s.deliveries = map[string]store.AIReportEmailDelivery{}
+	}
+	key := fakeDeliveryKey(delivery.FamilyID, delivery.BabyID, delivery.RecipientUserID, delivery.ReportType, delivery.RangeStart, delivery.RangeEnd, delivery.ScheduledFor)
+	if existing, ok := s.deliveries[key]; ok {
+		return existing, nil
+	}
+	if delivery.ID == uuid.Nil {
+		delivery.ID = uuid.New()
+	}
+	if delivery.Status == "" {
+		delivery.Status = store.AIReportEmailDeliveryStatusPending
+	}
+	s.deliveries[key] = delivery
+	return delivery, nil
+}
+
+func (s *aiReportFakeStore) MarkAIReportEmailDeliverySent(_ context.Context, id, aiReportCacheID uuid.UUID, providerMessageID string, sentAt time.Time) (store.AIReportEmailDelivery, error) {
+	delivery, key, ok := s.fakeDeliveryByID(id)
+	if !ok {
+		return store.AIReportEmailDelivery{}, store.ErrNotFound
+	}
+	delivery.Status = store.AIReportEmailDeliveryStatusSent
+	delivery.AIReportCacheID = &aiReportCacheID
+	delivery.ProviderMessageID = providerMessageID
+	delivery.AttemptedAt = &sentAt
+	delivery.SentAt = &sentAt
+	s.deliveries[key] = delivery
+	s.sentDeliveries = append(s.sentDeliveries, delivery)
+	return delivery, nil
+}
+
+func (s *aiReportFakeStore) ClaimAIReportEmailDelivery(_ context.Context, id uuid.UUID, claimedAt time.Time) (store.AIReportEmailDelivery, error) {
+	delivery, key, ok := s.fakeDeliveryByID(id)
+	if !ok {
+		return store.AIReportEmailDelivery{}, store.ErrNotFound
+	}
+	if delivery.Status == store.AIReportEmailDeliveryStatusSending {
+		if delivery.AttemptedAt == nil || !delivery.AttemptedAt.Before(claimedAt.Add(-time.Hour)) {
+			return store.AIReportEmailDelivery{}, store.ErrNotFound
+		}
+	} else if delivery.Status != store.AIReportEmailDeliveryStatusPending && delivery.Status != store.AIReportEmailDeliveryStatusFailed {
+		return store.AIReportEmailDelivery{}, store.ErrNotFound
+	}
+	delivery.Status = store.AIReportEmailDeliveryStatusSending
+	delivery.ErrorMessage = ""
+	delivery.AttemptedAt = &claimedAt
+	delivery.SentAt = nil
+	s.deliveries[key] = delivery
+	return delivery, nil
+}
+
+func (s *aiReportFakeStore) MarkAIReportEmailDeliveryFailed(_ context.Context, id uuid.UUID, errorMessage string, attemptedAt time.Time) (store.AIReportEmailDelivery, error) {
+	delivery, key, ok := s.fakeDeliveryByID(id)
+	if !ok {
+		return store.AIReportEmailDelivery{}, store.ErrNotFound
+	}
+	delivery.Status = store.AIReportEmailDeliveryStatusFailed
+	delivery.ErrorMessage = errorMessage
+	delivery.AttemptedAt = &attemptedAt
+	delivery.SentAt = nil
+	s.deliveries[key] = delivery
+	s.failedDeliveries = append(s.failedDeliveries, delivery)
+	return delivery, nil
+}
+
+func (s *aiReportFakeStore) fakeDeliveryByID(id uuid.UUID) (store.AIReportEmailDelivery, string, bool) {
+	for key, delivery := range s.deliveries {
+		if delivery.ID == id {
+			return delivery, key, true
+		}
+	}
+	return store.AIReportEmailDelivery{}, "", false
+}
+
+func fakeDeliveryKey(familyID, babyID, recipientUserID uuid.UUID, reportType string, rangeStart, rangeEnd, scheduledFor time.Time) string {
+	return fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s", familyID, babyID, recipientUserID, reportType, rangeStart.Format(time.RFC3339Nano), rangeEnd.Format(time.RFC3339Nano), scheduledFor.Format(time.RFC3339Nano))
 }
 
 type fakeAIReportGenerator struct {

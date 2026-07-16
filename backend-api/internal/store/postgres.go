@@ -92,6 +92,9 @@ const babyColumns = `
 const (
 	dailyReportEmailReportType = "daily"
 	dailyReportEmailSendHour   = 9
+	// If a process dies after claiming a delivery but before marking it sent
+	// or failed, a later run can reclaim the row after this window.
+	aiReportEmailDeliveryClaimTimeout = time.Hour
 )
 
 func scanBaby(row pgx.Row) (Baby, error) {
@@ -689,6 +692,48 @@ func (s *PostgresStore) CreateAIReportEmailDelivery(ctx context.Context, deliver
 	}
 
 	return saved, nil
+}
+
+// ClaimAIReportEmailDelivery atomically moves one pending/failed delivery into
+// sending state. Fresh sending/sent rows are not claimable. Stale sending rows
+// can be reclaimed in case a previous process died mid-send.
+func (s *PostgresStore) ClaimAIReportEmailDelivery(ctx context.Context, id uuid.UUID, claimedAt time.Time) (AIReportEmailDelivery, error) {
+	const query = `
+		UPDATE ai_report_email_deliveries
+		SET
+			status = $1,
+			error_message = NULL,
+			attempted_at = $2,
+			sent_at = NULL,
+			updated_at = now()
+		WHERE id = $3
+			AND (
+				status IN ($4, $5)
+				OR (status = $6 AND attempted_at < $7)
+			)
+		RETURNING ` + aiReportEmailDeliveryColumns + `
+	`
+	staleBefore := claimedAt.Add(-aiReportEmailDeliveryClaimTimeout)
+
+	delivery, err := scanAIReportEmailDelivery(s.pool.QueryRow(
+		ctx,
+		query,
+		AIReportEmailDeliveryStatusSending,
+		claimedAt,
+		id,
+		AIReportEmailDeliveryStatusPending,
+		AIReportEmailDeliveryStatusFailed,
+		AIReportEmailDeliveryStatusSending,
+		staleBefore,
+	))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return AIReportEmailDelivery{}, ErrNotFound
+	}
+	if err != nil {
+		return AIReportEmailDelivery{}, fmt.Errorf("claiming AI report email delivery: %w", err)
+	}
+
+	return delivery, nil
 }
 
 // MarkAIReportEmailDeliverySent records a successful provider send. The

@@ -82,6 +82,7 @@ type AIReportEmailDeliveryStatus string
 
 const (
 	AIReportEmailDeliveryStatusPending AIReportEmailDeliveryStatus = "pending"
+	AIReportEmailDeliveryStatusSending AIReportEmailDeliveryStatus = "sending"
 	AIReportEmailDeliveryStatusSent    AIReportEmailDeliveryStatus = "sent"
 	AIReportEmailDeliveryStatusFailed  AIReportEmailDeliveryStatus = "failed"
 )
