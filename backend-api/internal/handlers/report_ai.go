@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -22,6 +23,13 @@ const (
 	aiReportTypeWeekly = "weekly"
 )
 
+var (
+	errInvalidAIReportRequest         = errors.New("invalid AI report request")
+	errAIReportGenerationUnconfigured = errors.New("AI report generation is not configured")
+	errAIReportGenerationFailed       = errors.New("AI report generation failed")
+	errAIReportOutputInvalid          = errors.New("AI report output invalid")
+)
+
 type aiReportRequest struct {
 	ReportType string `json:"report_type"`
 	StartDate  string `json:"start_date"`
@@ -36,6 +44,12 @@ type aiReportCacheMissResponse struct {
 	StartDate  string `json:"start_date"`
 	EndDate    string `json:"end_date"`
 	InputHash  string `json:"input_hash"`
+}
+
+type aiReportResult struct {
+	Cache     store.AIReportCache
+	Window    reportDataWindow
+	InputHash string
 }
 
 // aiReportHashEnvelope is the stable cache identity payload. Delivery is not
@@ -68,86 +82,89 @@ func (h *Handlers) CreateAIReport(w http.ResponseWriter, r *http.Request) {
 	req.EndDate = strings.TrimSpace(req.EndDate)
 	req.Locale = normalizeAIReportLocale(req.Locale)
 
-	reportData, window, err := h.buildReportDataForBaby(r.Context(), baby, req.StartDate, req.EndDate, time.Now())
-	if err != nil {
-		if errors.Is(err, errInvalidReportDataRange) {
-			writeError(w, http.StatusBadRequest, "invalid report date range")
-			return
-		}
-		log.Printf("build AI report data: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to load report data")
-		return
-	}
-	if !validAIReportRequest(req.ReportType, window.DaysIncluded) {
+	result, err := h.loadOrCreateAIReport(r.Context(), baby, req, time.Now())
+	if errors.Is(err, errInvalidReportDataRange) || errors.Is(err, errInvalidAIReportRequest) {
 		writeError(w, http.StatusBadRequest, "invalid report type or date range")
 		return
 	}
-
-	canonicalReportData, err := canonicalAIReportData(reportData)
-	if err != nil {
-		log.Printf("canonicalize AI report data: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to prepare AI report")
+	if errors.Is(err, errAIReportGenerationUnconfigured) {
+		writeJSON(w, http.StatusNotImplemented, aiReportCacheMissResponse{
+			Error:      "AI report generation is not configured",
+			ReportType: req.ReportType,
+			StartDate:  result.Window.StartDate,
+			EndDate:    result.Window.EndDate,
+			InputHash:  result.InputHash,
+		})
 		return
 	}
-
-	inputHash, err := aiReportInputHash(req.ReportType, req.Locale, canonicalReportData)
-	if err != nil {
-		log.Printf("hash AI report input: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to prepare AI report")
-		return
-	}
-
-	cached, err := h.Store.GetAIReportCache(r.Context(), baby.FamilyID, baby.ID, req.ReportType, window.RangeStart, window.RangeEnd, inputHash)
-	if errors.Is(err, store.ErrNotFound) {
-		h.generateAndCacheAIReport(w, r, baby, req, window, canonicalReportData, inputHash)
+	if errors.Is(err, errAIReportGenerationFailed) || errors.Is(err, errAIReportOutputInvalid) {
+		log.Printf("generate AI report: %v", err)
+		writeError(w, http.StatusBadGateway, "failed to generate AI report")
 		return
 	}
 	if err != nil {
-		log.Printf("get AI report cache: %v", err)
+		log.Printf("load or create AI report: %v", err)
 		writeError(w, http.StatusInternalServerError, "failed to load AI report")
 		return
 	}
 
-	writeRawJSON(w, http.StatusOK, cached.ContentJSON)
+	writeRawJSON(w, http.StatusOK, result.Cache.ContentJSON)
 }
 
-// generateAndCacheAIReport is the cache-miss path. It keeps model I/O,
-// output validation, and cache persistence together so invalid model output
-// can never be stored.
-func (h *Handlers) generateAndCacheAIReport(w http.ResponseWriter, r *http.Request, baby store.Baby, req aiReportRequest, window reportDataWindow, reportData any, inputHash string) {
-	if h.AI == nil {
-		writeJSON(w, http.StatusNotImplemented, aiReportCacheMissResponse{
-			Error:      "AI report generation is not configured",
-			ReportType: req.ReportType,
-			StartDate:  window.StartDate,
-			EndDate:    window.EndDate,
-			InputHash:  inputHash,
-		})
-		return
+// loadOrCreateAIReport is shared by the HTTP endpoint and scheduled email
+// delivery so both paths use the same report-data, hash, generation, and
+// validation rules.
+func (h *Handlers) loadOrCreateAIReport(ctx context.Context, baby store.Baby, req aiReportRequest, now time.Time) (aiReportResult, error) {
+	reportData, window, err := h.buildReportDataForBaby(ctx, baby, req.StartDate, req.EndDate, now)
+	if err != nil {
+		return aiReportResult{}, err
+	}
+	if !validAIReportRequest(req.ReportType, window.DaysIncluded) {
+		return aiReportResult{Window: window}, errInvalidAIReportRequest
 	}
 
-	result, err := h.AI.GenerateAIReport(r.Context(), aireport.GenerationInput{
+	canonicalReportData, err := canonicalAIReportData(reportData)
+	if err != nil {
+		return aiReportResult{Window: window}, fmt.Errorf("canonicalizing AI report data: %w", err)
+	}
+
+	inputHash, err := aiReportInputHash(req.ReportType, req.Locale, canonicalReportData)
+	if err != nil {
+		return aiReportResult{Window: window}, fmt.Errorf("hashing AI report input: %w", err)
+	}
+	result := aiReportResult{Window: window, InputHash: inputHash}
+
+	cached, err := h.Store.GetAIReportCache(ctx, baby.FamilyID, baby.ID, req.ReportType, window.RangeStart, window.RangeEnd, inputHash)
+	if err == nil {
+		result.Cache = cached
+		return result, nil
+	}
+	if !errors.Is(err, store.ErrNotFound) {
+		return result, fmt.Errorf("getting AI report cache: %w", err)
+	}
+
+	if h.AI == nil {
+		return result, errAIReportGenerationUnconfigured
+	}
+
+	generated, err := h.AI.GenerateAIReport(ctx, aireport.GenerationInput{
 		InputSchemaVersion:  aireport.InputSchemaVersion,
 		OutputSchemaVersion: aireport.OutputSchemaVersion,
 		PromptVersion:       aireport.PromptVersion,
 		ReportType:          req.ReportType,
 		Locale:              req.Locale,
-		ReportData:          reportData,
+		ReportData:          canonicalReportData,
 	})
 	if err != nil {
-		log.Printf("generate AI report: %v", err)
-		writeError(w, http.StatusBadGateway, "failed to generate AI report")
-		return
+		return result, fmt.Errorf("%w: %v", errAIReportGenerationFailed, err)
 	}
 
-	contentJSON, err := validateAIReportOutput(result.ContentJSON)
+	contentJSON, err := validateAIReportOutput(generated.ContentJSON)
 	if err != nil {
-		log.Printf("validate AI report output: %v", err)
-		writeError(w, http.StatusBadGateway, "AI report output was invalid")
-		return
+		return result, fmt.Errorf("%w: %v", errAIReportOutputInvalid, err)
 	}
 
-	cached, err := h.Store.CreateAIReportCache(r.Context(), store.AIReportCache{
+	cached, err = h.Store.CreateAIReportCache(ctx, store.AIReportCache{
 		FamilyID:            baby.FamilyID,
 		BabyID:              baby.ID,
 		ReportType:          req.ReportType,
@@ -157,16 +174,15 @@ func (h *Handlers) generateAndCacheAIReport(w http.ResponseWriter, r *http.Reque
 		PromptVersion:       aireport.PromptVersion,
 		InputSchemaVersion:  aireport.InputSchemaVersion,
 		OutputSchemaVersion: aireport.OutputSchemaVersion,
-		Model:               result.Model,
+		Model:               generated.Model,
 		ContentJSON:         contentJSON,
 	})
 	if err != nil {
-		log.Printf("cache AI report: %v", err)
-		writeError(w, http.StatusInternalServerError, "failed to cache AI report")
-		return
+		return result, fmt.Errorf("caching AI report: %w", err)
 	}
 
-	writeRawJSON(w, http.StatusOK, cached.ContentJSON)
+	result.Cache = cached
+	return result, nil
 }
 
 // validAIReportRequest ties report_type to the supported date-window sizes

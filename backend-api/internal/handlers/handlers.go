@@ -44,6 +44,11 @@ type Store interface {
 	RefreshBabyLatestGrowth(ctx context.Context, familyID, babyID uuid.UUID) (store.BabyLatestGrowth, error)
 	GetAIReportCache(ctx context.Context, familyID, babyID uuid.UUID, reportType string, rangeStart, rangeEnd time.Time, inputHash string) (store.AIReportCache, error)
 	CreateAIReportCache(ctx context.Context, report store.AIReportCache) (store.AIReportCache, error)
+	ListDueDailyReportEmailJobs(ctx context.Context, now time.Time) ([]store.DailyReportEmailJob, error)
+	CreateAIReportEmailDelivery(ctx context.Context, delivery store.AIReportEmailDelivery) (store.AIReportEmailDelivery, error)
+	ClaimAIReportEmailDelivery(ctx context.Context, id uuid.UUID, claimedAt time.Time) (store.AIReportEmailDelivery, error)
+	MarkAIReportEmailDeliverySent(ctx context.Context, id, aiReportCacheID uuid.UUID, providerMessageID string, sentAt time.Time) (store.AIReportEmailDelivery, error)
+	MarkAIReportEmailDeliveryFailed(ctx context.Context, id uuid.UUID, errorMessage string, attemptedAt time.Time) (store.AIReportEmailDelivery, error)
 }
 
 // FamilyStore is the persistence boundary the internal, auth-service-facing
