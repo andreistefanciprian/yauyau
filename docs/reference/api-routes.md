@@ -162,9 +162,10 @@ type) fed by a single "Add Event" dialog (not one form per event type).
 * Every event type is flattened into one presentation shape,
   `TimelineEvent` (`CSSClass`, `TypeLabel`, `Kind`, `Detail`, `Time`). Event
   icons are shared inline SVG templates selected by `EventType` in the
-  frontend templates. `Kind` is the per-type discriminator (nappy's kind,
-  feed/bath's type, observation's category; pump intentionally leaves it
-  empty), rendered as "(Kind)" next to `TypeLabel`.
+  frontend templates. Nappy and sleep discriminators are rendered directly
+  as specific `TypeLabel` values (for example `Wee Poo` and `Nap`). `Kind` is
+  used for feed/bath's type and observation's category; pump intentionally
+  leaves it empty. It is rendered next to `TypeLabel`.
   A `<x>TimelineEvent(ev, loc, now)` function builds one from a generic
   `backendclient.Event`, reading its `Attributes` map — this is where
   per-type display text (e.g. feed's "70 ml · 10 min") is decided.
