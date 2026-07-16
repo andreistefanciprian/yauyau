@@ -78,6 +78,25 @@ type AIReportCache struct {
 	CreatedAt           time.Time       `json:"created_at"`
 }
 
+// DailyReportEmailJob is the scheduler-ready description of one recipient's
+// daily report email. It is scoped to a recipient for delivery, but the
+// report window is baby-scoped so multiple owners for one baby can reuse the
+// same cached AI report content later.
+type DailyReportEmailJob struct {
+	FamilyID        uuid.UUID `json:"family_id"`
+	BabyID          uuid.UUID `json:"baby_id"`
+	BabyName        string    `json:"baby_name"`
+	BabyTimezone    string    `json:"baby_timezone"`
+	RecipientUserID uuid.UUID `json:"recipient_user_id"`
+	RecipientEmail  string    `json:"recipient_email"`
+	ReportType      string    `json:"report_type"`
+	StartDate       string    `json:"start_date"`
+	EndDate         string    `json:"end_date"`
+	RangeStart      time.Time `json:"range_start"`
+	RangeEnd        time.Time `json:"range_end"`
+	ScheduledFor    time.Time `json:"scheduled_for"`
+}
+
 // User is a person who can log in via magic link.
 type User struct {
 	ID          uuid.UUID `json:"id"`

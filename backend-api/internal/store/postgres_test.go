@@ -61,6 +61,15 @@ func execCleanup(t *testing.T, s *PostgresStore, query string, args ...any) {
 	}
 }
 
+func mustLoadLocation(t *testing.T, name string) *time.Location {
+	t.Helper()
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		t.Fatalf("load location %q: %v", name, err)
+	}
+	return loc
+}
+
 func TestUpsertUserByEmail_Idempotent(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()
@@ -203,6 +212,132 @@ func TestAIReportCacheCreateAndGet(t *testing.T) {
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing cache error = %v, want ErrNotFound", err)
 	}
+}
+
+func TestDailyReportEmailJobForUsesBabyTimezoneAndYesterdayWindow(t *testing.T) {
+	loc := mustLoadLocation(t, "Australia/Adelaide")
+	familyID := uuid.New()
+	babyID := uuid.New()
+	recipientID := uuid.New()
+	candidate := dailyReportEmailCandidate{
+		FamilyID:        familyID,
+		BabyID:          babyID,
+		BabyName:        "YauYau",
+		BabyTimezone:    "Australia/Adelaide",
+		RecipientUserID: recipientID,
+		RecipientEmail:  "owner@example.com",
+	}
+
+	beforeSend := time.Date(2026, 7, 16, 8, 59, 0, 0, loc)
+	if _, due, err := dailyReportEmailJobFor(candidate, beforeSend); err != nil || due {
+		t.Fatalf("before 9am due=%v err=%v, want due=false nil err", due, err)
+	}
+
+	afterSend := time.Date(2026, 7, 16, 9, 1, 0, 0, loc)
+	job, due, err := dailyReportEmailJobFor(candidate, afterSend)
+	if err != nil {
+		t.Fatalf("build job: %v", err)
+	}
+	if !due {
+		t.Fatal("expected job to be due after 9am local time")
+	}
+	if job.FamilyID != familyID || job.BabyID != babyID || job.RecipientUserID != recipientID {
+		t.Fatalf("job ids = %+v, want candidate ids", job)
+	}
+	if job.ReportType != "daily" {
+		t.Fatalf("ReportType = %q, want daily", job.ReportType)
+	}
+	if job.StartDate != "2026-07-15" || job.EndDate != "2026-07-15" {
+		t.Fatalf("dates = %s to %s, want yesterday 2026-07-15", job.StartDate, job.EndDate)
+	}
+	wantScheduledFor := time.Date(2026, 7, 16, 9, 0, 0, 0, loc)
+	if !job.ScheduledFor.Equal(wantScheduledFor) {
+		t.Fatalf("ScheduledFor = %s, want %s", job.ScheduledFor, wantScheduledFor)
+	}
+	if !job.RangeStart.Equal(time.Date(2026, 7, 15, 0, 0, 0, 0, loc)) || !job.RangeEnd.Equal(time.Date(2026, 7, 16, 0, 0, 0, 0, loc)) {
+		t.Fatalf("range = %s to %s, want full previous local day", job.RangeStart, job.RangeEnd)
+	}
+}
+
+func TestListDueDailyReportEmailJobs(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+
+	owner, err := s.UpsertUserByEmail(ctx, testEmail(t))
+	if err != nil {
+		t.Fatalf("upsert owner: %v", err)
+	}
+	familyID, err := s.CreateFamilyWithOwner(ctx, owner.ID, "test family")
+	if err != nil {
+		t.Fatalf("create family: %v", err)
+	}
+	t.Cleanup(func() {
+		execCleanup(t, s, `DELETE FROM babies WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM family_members WHERE family_id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM families WHERE id = $1`, familyID)
+		execCleanup(t, s, `DELETE FROM users WHERE id = $1`, owner.ID)
+	})
+
+	firstBaby, err := s.CreateBaby(ctx, familyID, "First", "Australia/Adelaide")
+	if err != nil {
+		t.Fatalf("create first baby: %v", err)
+	}
+	if _, err := s.CreateBaby(ctx, familyID, "Second", "Australia/Adelaide"); err != nil {
+		t.Fatalf("create second baby: %v", err)
+	}
+
+	beforeNine := time.Date(2026, 7, 15, 23, 0, 0, 0, time.UTC) // 08:30 on 2026-07-16 in Adelaide.
+	jobs, err := s.ListDueDailyReportEmailJobs(ctx, beforeNine)
+	if err != nil {
+		t.Fatalf("list before 9am: %v", err)
+	}
+	if matchingDailyReportEmailJobs(jobs, familyID) != 0 {
+		t.Fatalf("before 9am jobs = %+v, want none for test family", jobs)
+	}
+
+	afterNine := time.Date(2026, 7, 15, 23, 45, 0, 0, time.UTC) // 09:15 on 2026-07-16 in Adelaide.
+	jobs, err = s.ListDueDailyReportEmailJobs(ctx, afterNine)
+	if err != nil {
+		t.Fatalf("list after 9am: %v", err)
+	}
+	testJobs := dailyReportEmailJobsForFamily(jobs, familyID)
+	if len(testJobs) != 1 {
+		t.Fatalf("len(testJobs) = %d, want 1: %+v", len(testJobs), jobs)
+	}
+	if testJobs[0].BabyID != firstBaby.ID || testJobs[0].BabyName != "First" {
+		t.Fatalf("job baby = %s %q, want first-created baby %s", testJobs[0].BabyID, testJobs[0].BabyName, firstBaby.ID)
+	}
+	if testJobs[0].RecipientUserID != owner.ID || testJobs[0].RecipientEmail != owner.Email {
+		t.Fatalf("job recipient = %s %q, want owner %s %q", testJobs[0].RecipientUserID, testJobs[0].RecipientEmail, owner.ID, owner.Email)
+	}
+	if testJobs[0].StartDate != "2026-07-15" || testJobs[0].EndDate != "2026-07-15" {
+		t.Fatalf("job dates = %s to %s, want 2026-07-15", testJobs[0].StartDate, testJobs[0].EndDate)
+	}
+
+	if _, err := s.UpdateDailyReportEmailPreference(ctx, familyID, owner.ID, false); err != nil {
+		t.Fatalf("disable daily report email: %v", err)
+	}
+	jobs, err = s.ListDueDailyReportEmailJobs(ctx, afterNine)
+	if err != nil {
+		t.Fatalf("list after opt-out: %v", err)
+	}
+	if matchingDailyReportEmailJobs(jobs, familyID) != 0 {
+		t.Fatalf("opted-out jobs = %+v, want none for test family", jobs)
+	}
+}
+
+func dailyReportEmailJobsForFamily(jobs []DailyReportEmailJob, familyID uuid.UUID) []DailyReportEmailJob {
+	var matched []DailyReportEmailJob
+	for _, job := range jobs {
+		if job.FamilyID == familyID {
+			matched = append(matched, job)
+		}
+	}
+	return matched
+}
+
+func matchingDailyReportEmailJobs(jobs []DailyReportEmailJob, familyID uuid.UUID) int {
+	return len(dailyReportEmailJobsForFamily(jobs, familyID))
 }
 
 func TestGetFamilyMembership_NotFound(t *testing.T) {

@@ -89,6 +89,11 @@ const babyColumns = `
 	COALESCE(sex, '')
 `
 
+const (
+	dailyReportEmailReportType = "daily"
+	dailyReportEmailSendHour   = 9
+)
+
 func scanBaby(row pgx.Row) (Baby, error) {
 	var baby Baby
 	err := row.Scan(
@@ -102,6 +107,15 @@ func scanBaby(row pgx.Row) (Baby, error) {
 		&baby.Sex,
 	)
 	return baby, err
+}
+
+type dailyReportEmailCandidate struct {
+	FamilyID        uuid.UUID
+	BabyID          uuid.UUID
+	BabyName        string
+	BabyTimezone    string
+	RecipientUserID uuid.UUID
+	RecipientEmail  string
 }
 
 // GetBaby returns the baby with id, regardless of which family it belongs to.
@@ -613,6 +627,100 @@ func (s *PostgresStore) CreateAIReportCache(ctx context.Context, report AIReport
 	}
 
 	return saved, nil
+}
+
+// ListDueDailyReportEmailJobs returns owner-recipient jobs whose baby's local
+// 9 AM send time has arrived for today. It deliberately does not de-duplicate
+// already-sent work yet; the future delivery-attempt table will own that.
+func (s *PostgresStore) ListDueDailyReportEmailJobs(ctx context.Context, now time.Time) ([]DailyReportEmailJob, error) {
+	const query = `
+		SELECT
+			fm.family_id,
+			b.id,
+			b.name,
+			b.timezone,
+			u.id,
+			u.email
+		FROM family_members fm
+		JOIN users u ON u.id = fm.user_id
+		JOIN LATERAL (
+			SELECT id, name, timezone
+			FROM babies
+			WHERE family_id = fm.family_id
+				AND archived_at IS NULL
+			ORDER BY created_at ASC
+			LIMIT 1
+		) b ON true
+		WHERE fm.role = $1
+			AND fm.status = $2
+			AND fm.daily_report_email_enabled = true
+		ORDER BY fm.family_id, b.id, fm.created_at, u.email
+	`
+
+	rows, err := s.pool.Query(ctx, query, MembershipRoleOwner, MembershipStatusActive)
+	if err != nil {
+		return nil, fmt.Errorf("querying due daily report email jobs: %w", err)
+	}
+	defer rows.Close()
+
+	var jobs []DailyReportEmailJob
+	for rows.Next() {
+		var candidate dailyReportEmailCandidate
+		if err := rows.Scan(
+			&candidate.FamilyID,
+			&candidate.BabyID,
+			&candidate.BabyName,
+			&candidate.BabyTimezone,
+			&candidate.RecipientUserID,
+			&candidate.RecipientEmail,
+		); err != nil {
+			return nil, fmt.Errorf("scanning daily report email candidate: %w", err)
+		}
+
+		job, due, err := dailyReportEmailJobFor(candidate, now)
+		if err != nil {
+			return nil, err
+		}
+		if due {
+			jobs = append(jobs, job)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating daily report email candidates: %w", err)
+	}
+
+	return jobs, nil
+}
+
+func dailyReportEmailJobFor(candidate dailyReportEmailCandidate, now time.Time) (DailyReportEmailJob, bool, error) {
+	loc, err := time.LoadLocation(candidate.BabyTimezone)
+	if err != nil {
+		return DailyReportEmailJob{}, false, fmt.Errorf("load baby timezone %q for daily report email job: %w", candidate.BabyTimezone, err)
+	}
+
+	localNow := now.In(loc)
+	scheduledFor := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), dailyReportEmailSendHour, 0, 0, 0, loc)
+	if localNow.Before(scheduledFor) {
+		return DailyReportEmailJob{}, false, nil
+	}
+
+	reportStart := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, loc).AddDate(0, 0, -1)
+	reportEnd := reportStart.AddDate(0, 0, 1)
+
+	return DailyReportEmailJob{
+		FamilyID:        candidate.FamilyID,
+		BabyID:          candidate.BabyID,
+		BabyName:        candidate.BabyName,
+		BabyTimezone:    candidate.BabyTimezone,
+		RecipientUserID: candidate.RecipientUserID,
+		RecipientEmail:  candidate.RecipientEmail,
+		ReportType:      dailyReportEmailReportType,
+		StartDate:       reportStart.Format(time.DateOnly),
+		EndDate:         reportStart.Format(time.DateOnly),
+		RangeStart:      reportStart,
+		RangeEnd:        reportEnd,
+		ScheduledFor:    scheduledFor,
+	}, true, nil
 }
 
 // scanAIReportCache centralizes row mapping so create and get keep the same
