@@ -57,8 +57,14 @@ func TestMailgunSendReportEmail(t *testing.T) {
 	if !strings.Contains(gotForm.Get("text"), "Feeds were steady") {
 		t.Fatalf("text body did not contain report summary: %q", gotForm.Get("text"))
 	}
+	if !strings.Contains(gotForm.Get("text"), reportEncouragement) {
+		t.Fatalf("text body did not contain encouragement: %q", gotForm.Get("text"))
+	}
 	if !strings.Contains(gotForm.Get("html"), "Feeds were steady") {
 		t.Fatalf("html body did not contain report summary: %q", gotForm.Get("html"))
+	}
+	if !strings.Contains(gotForm.Get("html"), "You&#39;re doing great. You&#39;ve got this.") {
+		t.Fatalf("html body did not contain encouragement: %q", gotForm.Get("html"))
 	}
 	if !strings.Contains(gotForm.Get("html"), "parent@example.com") {
 		t.Fatalf("html body did not contain recipient email: %q", gotForm.Get("html"))

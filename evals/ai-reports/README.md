@@ -11,7 +11,8 @@ runner.
 
 The report should read like curated parent-facing insight, not a statistical
 recap. A good output identifies the one or two strongest supported takeaways,
-uses only the totals needed to support them, and omits low-value facts.
+uses only the totals needed to support them, and omits low-value facts. Empty
+arrays are acceptable when a section has nothing useful to add.
 
 ## What These Goldens Cover
 
@@ -36,6 +37,11 @@ A future eval runner should:
   types;
 * verify highlights do not duplicate every deterministic total or simply repeat
   the daily summary;
+* verify outputs do not fill every section to its maximum length by default;
+* verify the same insight is not repeated across summary, highlights, patterns,
+  and comparison unless the repeated section adds new parent-facing value;
+* verify nappy subtype breakdowns are omitted unless unusual or relevant to a
+  parent-facing takeaway;
 * verify durations are parent-friendly, such as "about 2 hours 20 minutes",
   rather than raw minute recaps;
 * verify baseline grammar is natural, for example "Seven feeds were logged,
@@ -49,6 +55,8 @@ A future eval runner should:
 * verify parent notes are attributed as notes;
 * verify pumping is not described as baby feeding or baby activity;
 * verify relationship wording describes sequence only, not causation;
+* verify rendered reports end with a short, supportive, non-medical
+  encouragement for the parent;
 * avoid invented facts, medical advice, diagnosis, treatment advice, urgency,
   or safety claims.
 

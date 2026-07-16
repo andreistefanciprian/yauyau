@@ -4,6 +4,8 @@ import (
 	"strings"
 )
 
+const reportEncouragement = "You're doing great. You've got this."
+
 func textBody(report Report) string {
 	var b strings.Builder
 	b.WriteString(report.Output.Title)
@@ -15,6 +17,10 @@ func textBody(report Report) string {
 	writeTextList(&b, "Patterns", report.Output.Patterns)
 	writeTextList(&b, "Comparison", report.Output.Comparison)
 	writeTextList(&b, "Caveats", report.Output.Caveats)
+
+	b.WriteString("\n")
+	b.WriteString(reportEncouragement)
+	b.WriteString("\n")
 
 	b.WriteString("\nReport window: ")
 	b.WriteString(report.StartDate)
@@ -84,6 +90,9 @@ func htmlBody(report Report) string {
 	writeHTMLList(&b, "Caveats", report.Output.Caveats)
 
 	b.WriteString(`
+              <p style="margin:24px 0 0;font-size:0.96rem;line-height:1.6;color:#475569;font-weight:700;">`)
+	b.WriteString(htmlEscape(reportEncouragement))
+	b.WriteString(`</p>
               <p style="margin:26px 0 0;padding-top:18px;border-top:1px solid #E6EEF0;font-size:0.8rem;line-height:1.6;color:#94A3B8;">
                 Report window: `)
 	b.WriteString(htmlEscape(report.StartDate))

@@ -567,7 +567,9 @@ independently judging the timeline. Required caveat triggers include:
   sparse.
 
 Scheduled email rendering may omit `questions_for_parent` if the email needs
-to stay short.
+to stay short. Renderers should append a short, warm, non-medical
+encouragement at the end of the parent-facing report, such as "You're doing
+great. You've got this."
 
 ## AI Interpretation Rules
 
@@ -576,7 +578,13 @@ AI should:
 * curate the one or two strongest supported takeaways;
 * explain them naturally;
 * omit low-value facts;
+* leave arrays empty when there is nothing useful to say;
+* prefer fewer, stronger items over maximum-length arrays;
+* for a daily report, usually choose 1 summary insight, 2-3 highlights, 0-2
+  patterns, and 1-2 comparisons;
 * avoid repeating obvious totals or deterministic daily-summary wording;
+* avoid repeating the same insight across summary, highlights, patterns, and
+  comparison unless the later section adds new parent-facing value;
 * use only totals needed to support useful observations;
 * restate supplied minute values as parent-friendly durations such as "about 2
   hours 20 minutes", without deriving new durations;
@@ -607,9 +615,13 @@ Additional rules:
   daily differences.
 * If comparison data is absent, do not invent a comparison.
 * Keep unrelated comparisons in separate sentences.
+* Do not repeat a comparison already used as the main summary insight unless it
+  is the single most important comparison.
 * Pumping is parent milk-expression activity, not baby feeding or baby rhythm.
 * Relationship analytics describe sequence only. Use wording such as "after" or
   "followed by"; do not imply one event caused another.
+* Include nappy subtype breakdowns only if they are unusual or clearly relevant
+  to a parent-facing takeaway.
 * If event notes are used, attribute them to the parent, for example "you
   noted" or "the notes mention".
 * Do not infer logging coverage quality unless backend report data provides a
@@ -618,6 +630,9 @@ Additional rules:
   parent-facing output.
 * Do not produce diagnosis, treatment advice, urgency assessments, or safety
   claims.
+* Rendered reports should end with a short encouragement for the parent. Keep
+  it supportive and non-medical, for example "You're doing great. You've got
+  this."
 
 ## Scheduled Email Reports
 
