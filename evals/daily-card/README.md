@@ -10,7 +10,7 @@ before generated card prose is cached or returned to the frontend.
 ## Coverage
 
 * a busy partial day with nappies, pumping, a bath, and a temperature check;
-* a current-day growth measurement that must be included in the story;
+* every supplied current-day growth value must be included accurately in a warm, encouraging story;
 * a sparse early day with no secondary-event story;
 * one baby-name mention;
 * relationship-aware encouragement;

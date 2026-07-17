@@ -8,7 +8,7 @@ import "encoding/json"
 const (
 	InputSchemaVersion  = "daily_card_input.v1"
 	OutputSchemaVersion = "daily_card_output.v1"
-	PromptVersion       = "daily_card_prompt.v1"
+	PromptVersion       = "daily_card_prompt.v2"
 )
 
 // GenerationResult is the structured model response plus cache metadata.

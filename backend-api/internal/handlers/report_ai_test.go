@@ -614,6 +614,59 @@ func TestValidateDailyCardOutputProductRules(t *testing.T) {
 	}
 }
 
+func TestValidateDailyCardOutputGrowthValues(t *testing.T) {
+	weightGrams := 6800
+	lengthCM := 66.5
+	headCircumferenceCM := 42.2
+	data := reportDataResponse{
+		Baby:  reportBabyResponse{Name: "YauYau"},
+		Range: reportRangeResponse{IsPartial: true},
+		Totals: reportTotalsResponse{
+			Growth: reportGrowthTotals{
+				Count:                     1,
+				LatestWeightGrams:         &weightGrams,
+				LatestLengthCM:            &lengthCM,
+				LatestHeadCircumferenceCM: &headCircumferenceCM,
+			},
+		},
+	}
+	baseCard := dailycard.Output{
+		SchemaVersion: dailycard.OutputSchemaVersion,
+		Opening:       "YauYau's day is taking shape.",
+		Story:         "A new growth measurement of 6.8 kg, with a length of 66.5 cm and head circumference of 42.2 cm, adds a proud moment to the story.",
+		Observation:   "The day is still unfolding.",
+		Encouragement: "Thanks for keeping today's story up to date, Mum.",
+	}
+
+	tests := []struct {
+		name      string
+		story     string
+		wantError string
+	}{
+		{name: "exact kilograms", story: baseCard.Story},
+		{name: "exact grams", story: "A new growth measurement of 6800 g, with a length of 66.5 cm and head circumference of 42.2 cm, adds a proud moment to the story."},
+		{name: "missing weight", story: "A new growth measurement, with a length of 66.5 cm and head circumference of 42.2 cm, adds a proud moment to the story.", wantError: "growth weight must be mentioned"},
+		{name: "wrong weight", story: "A new growth measurement of 6.9 kg, with a length of 66.5 cm and head circumference of 42.2 cm, adds a proud moment to the story.", wantError: "growth weight does not match"},
+		{name: "missing length", story: "A new growth measurement of 6.8 kg, with head circumference of 42.2 cm, adds a proud moment to the story.", wantError: "growth length must be mentioned"},
+		{name: "wrong centimetres", story: "A new growth measurement of 6.8 kg, with a length of 67 cm and head circumference of 42.2 cm, adds a proud moment to the story.", wantError: "centimetres does not match"},
+		{name: "unsupported growth claim", story: "A new growth measurement of 6.8 kg shows the baby is growing fast, with a length of 66.5 cm and head circumference of 42.2 cm.", wantError: "medical or evaluative"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			card := baseCard
+			card.Story = tt.story
+			_, err := validateDailyCardOutput(mustMarshalDailyCardOutput(t, card), data, "Mum")
+			if tt.wantError == "" && err != nil {
+				t.Fatalf("validateDailyCardOutput returned error: %v", err)
+			}
+			if tt.wantError != "" && (err == nil || !strings.Contains(err.Error(), tt.wantError)) {
+				t.Fatalf("validateDailyCardOutput error = %v, want %q", err, tt.wantError)
+			}
+		})
+	}
+}
+
 func mustMarshalDailyCardOutput(t *testing.T, card dailycard.Output) json.RawMessage {
 	t.Helper()
 	raw, err := json.Marshal(card)

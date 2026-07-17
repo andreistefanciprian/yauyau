@@ -644,8 +644,9 @@ Daily-card rules:
 * `opening` uses the baby name exactly once, or `your little one` when the name
   is unavailable;
 * `story` describes secondary events naturally, uses general nappy wording,
-  preserves supplied pump facts, and must mention a growth measurement only
-  when one was recorded today;
+  preserves supplied pump facts, and includes every supplied value from a
+  growth measurement recorded today as a warm milestone without inferring a
+  growth rate or medical conclusion;
 * `observation` may conservatively describe supplied analytics, baseline
   comparisons, sequence relationships, and current time-of-day context;
 * `encouragement` celebrates the viewer's effort and uses the configured
@@ -1006,7 +1007,8 @@ Daily-card evals additionally check:
 * feed and sleep KPI facts are not repeated;
 * nappies are described without counts or subtype details;
 * pumping volume is not described as consumed milk;
-* a growth measurement is mentioned when recorded today;
+* every supplied value from a growth measurement recorded today is mentioned
+  accurately in the story;
 * generated prose contains no unsupported event categories, medical
   interpretation, Markdown, category icons, or prohibited dash punctuation;
 * at most one emoji appears, only in observation or encouragement;

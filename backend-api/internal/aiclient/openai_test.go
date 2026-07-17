@@ -180,6 +180,7 @@ func TestGenerateDailyCardUsesSeparateSystemPromptAndSchema(t *testing.T) {
 		"at most one emoji",
 		"baby name exactly once",
 		"complete current day output from buildReportDataForBaby",
+		"mention every supplied current-day value",
 	} {
 		if !strings.Contains(systemPrompt, required) {
 			t.Fatalf("system prompt missing %q", required)

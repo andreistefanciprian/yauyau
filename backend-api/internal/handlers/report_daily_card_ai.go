@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -285,7 +286,7 @@ func validateDailyCardSafety(all string) error {
 	lower := strings.ToLower(all)
 	for _, phrase := range []string{
 		"abnormal", "concerning", "dehydrat", "diagnos", "getting enough", "healthy",
-		"insufficient", "normal", "nothing to worry", "on track", "reassuring", "safe",
+		"growing fast", "growing quickly", "insufficient", "normal", "nothing to worry", "on track", "reassuring", "safe",
 		"sufficient", "thriving", "too high", "too low", "treatment", "unhealthy", "unsafe", "unwell",
 	} {
 		if strings.Contains(lower, phrase) {
@@ -340,6 +341,9 @@ func validateDailyCardStory(story string, totals reportTotalsResponse) error {
 	if totals.Growth.Count > 0 && !strings.Contains(lower, "growth") {
 		return errors.New("growth measurement must be mentioned")
 	}
+	if err := validateDailyCardGrowthValues(story, totals.Growth); err != nil {
+		return err
+	}
 
 	pumpingCount := regexp.MustCompile(`(?i)\b(` + dailyCardCountPattern + `)\s+(?:pumping\s+sessions?|pumps?)\b`)
 	for _, match := range pumpingCount.FindAllStringSubmatch(story, -1) {
@@ -357,6 +361,70 @@ func validateDailyCardStory(story string, totals reportTotalsResponse) error {
 			return errors.New("recorded ml in story does not match pumping total")
 		}
 	}
+	return nil
+}
+
+func validateDailyCardGrowthValues(story string, growth reportGrowthTotals) error {
+	weightMatches := regexp.MustCompile(`(?i)\b(\d+(?:\.\d+)?)\s*(kg|kilograms?|g|grams?)\b`).FindAllStringSubmatch(story, -1)
+	if growth.LatestWeightGrams == nil && len(weightMatches) > 0 {
+		return errors.New("story includes a growth weight that was not recorded")
+	}
+	if growth.LatestWeightGrams != nil {
+		if len(weightMatches) == 0 {
+			return errors.New("recorded growth weight must be mentioned")
+		}
+		for _, match := range weightMatches {
+			value, _ := strconv.ParseFloat(match[1], 64)
+			unit := strings.ToLower(match[2])
+			if unit == "kg" || strings.HasPrefix(unit, "kilogram") {
+				value *= 1000
+			}
+			if math.Abs(value-float64(*growth.LatestWeightGrams)) > 0.001 {
+				return errors.New("growth weight does not match report data")
+			}
+		}
+	}
+
+	type expectedCentimetres struct {
+		name  string
+		value float64
+	}
+	expected := make([]expectedCentimetres, 0, 2)
+	if growth.LatestLengthCM != nil {
+		expected = append(expected, expectedCentimetres{name: "length", value: *growth.LatestLengthCM})
+	}
+	if growth.LatestHeadCircumferenceCM != nil {
+		expected = append(expected, expectedCentimetres{name: "head circumference", value: *growth.LatestHeadCircumferenceCM})
+	}
+
+	centimetreMatches := regexp.MustCompile(`(?i)\b(\d+(?:\.\d+)?)\s*(?:cm|centimetres?|centimeters?)\b`).FindAllStringSubmatch(story, -1)
+	for _, match := range centimetreMatches {
+		value, _ := strconv.ParseFloat(match[1], 64)
+		matchesRecordedValue := false
+		for _, measurement := range expected {
+			if math.Abs(value-measurement.value) <= 0.001 {
+				matchesRecordedValue = true
+				break
+			}
+		}
+		if !matchesRecordedValue {
+			return errors.New("growth measurement in centimetres does not match report data")
+		}
+	}
+	for _, measurement := range expected {
+		found := false
+		for _, match := range centimetreMatches {
+			value, _ := strconv.ParseFloat(match[1], 64)
+			if math.Abs(value-measurement.value) <= 0.001 {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("recorded growth %s must be mentioned", measurement.name)
+		}
+	}
+
 	return nil
 }
 
