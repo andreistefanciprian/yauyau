@@ -639,6 +639,12 @@ The output is:
 The UI renders the title and deterministic feed and sleep lines separately.
 The model must not repeat those facts.
 
+Completed timeline days keep the deterministic card layout. Their story
+includes the latest recorded weight, length, and head circumference values
+when available. Historical cards omit the today-oriented observation and
+relationship encouragement; a completed day with no events shows its factual
+empty-day message in the story instead.
+
 Daily-card rules:
 
 * `opening` uses the baby name exactly once, or `your little one` when the name

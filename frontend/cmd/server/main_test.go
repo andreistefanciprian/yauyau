@@ -122,6 +122,29 @@ func TestDailyReportEscapesGeneratedCopyAndStopsReloadingAfterAI(t *testing.T) {
 	}
 }
 
+func TestHistoricalDailyReportOmitsEmptyObservationAndEncouragement(t *testing.T) {
+	templates := parseFrontendTemplates(t)
+	report := backendclient.DailyReport{
+		Title: "Tuesday summary",
+		Card: &backendclient.DailyReportCard{
+			Intro: "Here's how Yau Yau's day took shape.",
+			Story: "A new growth check recorded 3.5 kg, a lovely milestone to remember.",
+		},
+	}
+
+	var rendered bytes.Buffer
+	if err := templates.ExecuteTemplate(&rendered, "daily-report", report); err != nil {
+		t.Fatalf("render historical daily report: %v", err)
+	}
+	html := rendered.String()
+	if strings.Contains(html, "<p></p>") {
+		t.Fatalf("historical daily report renders empty prose: %s", html)
+	}
+	if got := strings.Count(html, "<p>"); got != 2 {
+		t.Fatalf("historical daily report contains %d paragraphs, want intro and story: %s", got, html)
+	}
+}
+
 func TestNappyTimelineDetailIcons(t *testing.T) {
 	templates := parseFrontendTemplates(t)
 

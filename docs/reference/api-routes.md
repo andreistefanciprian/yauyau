@@ -75,8 +75,10 @@ signature/expiry and decodes the caller's identity into context — see
   `range_end`). `card.primary_metrics` contains separately renderable feed and
   sleep values so clients can emphasize exact backend facts without parsing
   prose. The card also contains warm deterministic fallback copy, including
-  the baby name, general nappy wording, any recorded growth measurement, and
-  relationship-aware encouragement for the authenticated viewer.
+  the baby name, general nappy wording, and the latest values from any recorded
+  growth measurements. Today's deterministic fallback includes
+  relationship-aware encouragement and an observation; completed days omit
+  both rather than displaying generic filler copy.
 * `GET /api/v1/babies/current/reports/data` → `GetReportData`, the canonical
   factual report-data payload for one to 31 local calendar days. Supports
   inclusive `?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`; omitting both

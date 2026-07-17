@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,8 +28,8 @@ type dailyReportCardResponse struct {
 	Intro          string                     `json:"intro"`
 	PrimaryMetrics []dailyReportPrimaryMetric `json:"primary_metrics"`
 	Story          string                     `json:"story,omitempty"`
-	Observation    string                     `json:"observation"`
-	Encouragement  string                     `json:"encouragement"`
+	Observation    string                     `json:"observation,omitempty"`
+	Encouragement  string                     `json:"encouragement,omitempty"`
 }
 
 type dailyReportPrimaryMetric struct {
@@ -38,21 +39,27 @@ type dailyReportPrimaryMetric struct {
 }
 
 type dailyReportStats struct {
-	FeedCount        int
-	MilkMl           int
-	BreastFeeds      int
-	NappyCount       int
-	WetOnlyNappies   int
-	PooOnlyNappies   int
-	MixedNappies     int
-	SleepCount       int
-	SleepMinutes     int
-	PumpCount        int
-	PumpMl           int
-	BathCount        int
-	ObservationCount int
-	TemperatureCount int
-	GrowthCount      int
+	FeedCount                       int
+	MilkMl                          int
+	BreastFeeds                     int
+	NappyCount                      int
+	WetOnlyNappies                  int
+	PooOnlyNappies                  int
+	MixedNappies                    int
+	SleepCount                      int
+	SleepMinutes                    int
+	PumpCount                       int
+	PumpMl                          int
+	BathCount                       int
+	ObservationCount                int
+	TemperatureCount                int
+	GrowthCount                     int
+	LatestGrowthWeightGrams         *int
+	LatestGrowthWeightAt            time.Time
+	LatestGrowthLengthCM            *float64
+	LatestGrowthLengthAt            time.Time
+	LatestGrowthHeadCircumferenceCM *float64
+	LatestGrowthHeadCircumferenceAt time.Time
 }
 
 type dailyReportPeriod struct {
@@ -92,10 +99,13 @@ func (h *Handlers) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	relationship, err := h.currentViewerRelationship(r.Context(), baby.FamilyID)
-	if err != nil {
-		log.Printf("load daily report viewer relationship: %v", err)
-		relationship = ""
+	relationship := ""
+	if period.InProgress {
+		relationship, err = h.currentViewerRelationship(r.Context(), baby.FamilyID)
+		if err != nil {
+			log.Printf("load daily report viewer relationship: %v", err)
+			relationship = ""
+		}
 	}
 
 	report := buildDailyReport(events, window, generatedAt, period)
@@ -190,12 +200,18 @@ func buildDailyReportCard(events []store.Event, period dailyReportPeriod, babyNa
 		Intro:          intro,
 		PrimaryMetrics: dailyReportPrimaryMetrics(stats),
 		Story:          dailyReportStory(stats),
-		Observation:    "The day's everyday moments are captured here.",
-		Encouragement:  dailyReportEncouragement(relationship),
 	}
+	if !period.InProgress {
+		if stats.totalEvents() == 0 {
+			card.Story = period.EmptySummary
+		}
+		return card
+	}
+
+	card.Encouragement = dailyReportEncouragement(relationship)
 	if stats.totalEvents() == 0 {
 		card.Observation = period.EmptySummary
-	} else if period.InProgress {
+	} else {
 		card.Observation = "Today's everyday moments are taking shape."
 	}
 	return card
@@ -223,7 +239,7 @@ func dailyReportPrimaryMetrics(stats dailyReportStats) []dailyReportPrimaryMetri
 }
 
 func dailyReportStory(stats dailyReportStats) string {
-	parts := make([]string, 0, 6)
+	parts := make([]string, 0, 5)
 	if stats.NappyCount > 0 {
 		nappies := "nappy changes"
 		if stats.NappyCount >= 3 {
@@ -247,13 +263,48 @@ func dailyReportStory(stats dailyReportStats) string {
 	if stats.ObservationCount > 0 {
 		parts = append(parts, "an observation")
 	}
+	story := ""
+	if len(parts) > 0 {
+		story = "The day also included " + joinNatural(parts) + "."
+	}
 	if stats.GrowthCount > 0 {
-		parts = append(parts, "a new growth measurement")
+		if story != "" {
+			story += " "
+		}
+		story += dailyReportGrowthStory(stats)
 	}
-	if len(parts) == 0 {
-		return ""
+	return story
+}
+
+func dailyReportGrowthStory(stats dailyReportStats) string {
+	measurements := make([]string, 0, 3)
+	if stats.LatestGrowthWeightGrams != nil {
+		measurements = append(measurements, formatGrowthWeight(*stats.LatestGrowthWeightGrams))
 	}
-	return "The day also included " + joinNatural(parts) + "."
+	if stats.LatestGrowthLengthCM != nil {
+		measurements = append(measurements, fmt.Sprintf("a length of %s cm", formatGrowthCentimetres(*stats.LatestGrowthLengthCM)))
+	}
+	if stats.LatestGrowthHeadCircumferenceCM != nil {
+		measurements = append(measurements, fmt.Sprintf("a head circumference of %s cm", formatGrowthCentimetres(*stats.LatestGrowthHeadCircumferenceCM)))
+	}
+	if len(measurements) == 0 {
+		return "A new growth measurement added another moment to the day's story."
+	}
+	return "A new growth check recorded " + joinNatural(measurements) + ", a lovely milestone to remember."
+}
+
+func formatGrowthWeight(grams int) string {
+	wholeKG := grams / 1000
+	fraction := grams % 1000
+	if fraction == 0 {
+		return fmt.Sprintf("%d kg", wholeKG)
+	}
+	decimal := strings.TrimRight(fmt.Sprintf("%03d", fraction), "0")
+	return fmt.Sprintf("%d.%s kg", wholeKG, decimal)
+}
+
+func formatGrowthCentimetres(value float64) string {
+	return strconv.FormatFloat(value, 'f', -1, 64)
 }
 
 func dailyReportEncouragement(relationship string) string {
@@ -343,7 +394,26 @@ func (s *dailyReportStats) add(ev store.Event) {
 	case eventTypeTemperature:
 		s.TemperatureCount++
 	case eventTypeGrowthMeasurement:
-		s.GrowthCount++
+		s.addGrowthMeasurement(ev)
+	}
+}
+
+func (s *dailyReportStats) addGrowthMeasurement(ev store.Event) {
+	s.GrowthCount++
+	if weightGrams, ok := attributeOptionalInt(ev.Attributes, "weight_grams"); ok && (s.LatestGrowthWeightGrams == nil || ev.OccurredAt.After(s.LatestGrowthWeightAt)) {
+		value := weightGrams
+		s.LatestGrowthWeightGrams = &value
+		s.LatestGrowthWeightAt = ev.OccurredAt
+	}
+	if lengthCM, ok := attributeFloat(ev.Attributes, "length_cm"); ok && (s.LatestGrowthLengthCM == nil || ev.OccurredAt.After(s.LatestGrowthLengthAt)) {
+		value := lengthCM
+		s.LatestGrowthLengthCM = &value
+		s.LatestGrowthLengthAt = ev.OccurredAt
+	}
+	if headCircumferenceCM, ok := attributeFloat(ev.Attributes, "head_circumference_cm"); ok && (s.LatestGrowthHeadCircumferenceCM == nil || ev.OccurredAt.After(s.LatestGrowthHeadCircumferenceAt)) {
+		value := headCircumferenceCM
+		s.LatestGrowthHeadCircumferenceCM = &value
+		s.LatestGrowthHeadCircumferenceAt = ev.OccurredAt
 	}
 }
 
