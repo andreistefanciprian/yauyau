@@ -6,6 +6,9 @@
     "report_type": "daily",
     "audience": "parent",
     "locale": "en",
+    "viewer": {
+      "relationship": "Mum"
+    },
     "report_data": {
       "baby": {
         "name": "YauYau",
@@ -123,7 +126,7 @@
     }
   },
   "golden_output": {
-    "schema_version": "ai_report_output.v1",
+    "schema_version": "ai_report_output.v2",
     "title": "YauYau's noted day",
     "summary": "YauYau's logged day included four feeds, four nappies, and two completed sleeps, with several parent notes adding useful context.",
     "highlights": [
@@ -140,7 +143,13 @@
     ],
     "questions_for_parent": [
       "Would you like to look at days with similar notes after bath time?"
-    ]
+    ],
+    "daily_card": {
+      "intro": "Here's how YauYau's day took shape.",
+      "story": "The day also included plenty of nappy changes and several notes that add context.",
+      "observation": "The day's everyday moments are captured here.",
+      "encouragement": "Thanks for keeping the story up to date. You've got this, Mum."
+    }
   },
   "checks": {
     "required_substrings": [

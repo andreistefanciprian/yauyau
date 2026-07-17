@@ -71,10 +71,38 @@ type Event struct {
 }
 
 type DailyReport struct {
-	Title       string    `json:"title"`
-	Summary     string    `json:"summary"`
-	Highlights  []string  `json:"highlights"`
-	GeneratedAt time.Time `json:"generated_at"`
-	RangeStart  time.Time `json:"range_start"`
-	RangeEnd    time.Time `json:"range_end"`
+	Title        string           `json:"title"`
+	Summary      string           `json:"summary"`
+	Highlights   []string         `json:"highlights"`
+	Card         *DailyReportCard `json:"card,omitempty"`
+	GeneratedAt  time.Time        `json:"generated_at"`
+	RangeStart   time.Time        `json:"range_start"`
+	RangeEnd     time.Time        `json:"range_end"`
+	SelectedDate string           `json:"-"`
+	LoadAI       bool             `json:"-"`
+}
+
+type DailyReportCard struct {
+	Intro          string                     `json:"intro"`
+	PrimaryMetrics []DailyReportPrimaryMetric `json:"primary_metrics"`
+	Story          string                     `json:"story,omitempty"`
+	Observation    string                     `json:"observation"`
+	Encouragement  string                     `json:"encouragement"`
+}
+
+type DailyReportPrimaryMetric struct {
+	Count     string `json:"count"`
+	Total     string `json:"total,omitempty"`
+	Qualifier string `json:"qualifier,omitempty"`
+}
+
+type AIReport struct {
+	DailyCard AIDailyReportCard `json:"daily_card"`
+}
+
+type AIDailyReportCard struct {
+	Intro         string `json:"intro"`
+	Story         string `json:"story"`
+	Observation   string `json:"observation"`
+	Encouragement string `json:"encouragement"`
 }

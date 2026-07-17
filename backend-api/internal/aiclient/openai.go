@@ -52,17 +52,20 @@ func New(apiKey, model string) *Client {
 }
 
 // GenerateAIReport sends the already-calculated report-data envelope to the
-// Responses API and asks for strict JSON matching ai_report_output.v1.
+// Responses API and asks for strict JSON matching the current output schema.
 func (c *Client) GenerateAIReport(ctx context.Context, input aireport.GenerationInput) (aireport.GenerationResult, error) {
 	if strings.TrimSpace(c.apiKey) == "" {
 		return aireport.GenerationResult{}, errors.New("OpenAI API key is not configured")
 	}
 
 	inputJSON, err := json.Marshal(map[string]any{
-		"schema_version":        input.InputSchemaVersion,
-		"report_type":           input.ReportType,
-		"audience":              "parent",
-		"locale":                input.Locale,
+		"schema_version": input.InputSchemaVersion,
+		"report_type":    input.ReportType,
+		"audience":       "parent",
+		"locale":         input.Locale,
+		"viewer": map[string]string{
+			"relationship": input.ViewerRelationship,
+		},
 		"report_data":           input.ReportData,
 		"output_schema_version": input.OutputSchemaVersion,
 	})
@@ -233,6 +236,17 @@ func aiReportOutputSchema() map[string]any {
 			"comparison":           stringArray(3),
 			"caveats":              stringArray(2),
 			"questions_for_parent": stringArray(3),
+			"daily_card": map[string]any{
+				"type":                 "object",
+				"additionalProperties": false,
+				"properties": map[string]any{
+					"intro":         map[string]any{"type": "string", "maxLength": 240},
+					"story":         map[string]any{"type": "string", "maxLength": 400},
+					"observation":   map[string]any{"type": "string", "maxLength": 240},
+					"encouragement": map[string]any{"type": "string", "maxLength": 240},
+				},
+				"required": []string{"intro", "story", "observation", "encouragement"},
+			},
 		},
 		"required": []string{
 			"schema_version",
@@ -243,6 +257,7 @@ func aiReportOutputSchema() map[string]any {
 			"comparison",
 			"caveats",
 			"questions_for_parent",
+			"daily_card",
 		},
 	}
 }

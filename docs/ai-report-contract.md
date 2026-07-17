@@ -1,6 +1,6 @@
 # AI Report Contract
 
-Status: **planning**.
+Status: **implemented incrementally**.
 
 This document defines how Yauli should evolve from deterministic report data
 into AI-assisted reports for on-demand product views and scheduled email
@@ -39,7 +39,6 @@ AI must not:
 * imply something is unsafe;
 * invent missing events;
 * calculate averages, medians, durations, gaps, percentages, or comparisons;
-* run automatically every time events change;
 * block normal event creation, editing, or timeline loading.
 
 All calculations belong in backend-api. AI only interprets backend-derived
@@ -60,18 +59,22 @@ That means:
 
 ## Data Flow
 
-```text
-events
-  -> deterministic daily report
-  -> report data
-  -> baby analytics
-  -> recent baseline
-  -> AI input
-  -> cached AI insight output
-  -> web app / scheduled email / MCP
+```mermaid
+flowchart LR
+    A["Backend report facts"] --> B["Deterministic card"]
+    A --> C["Cached AI summary lookup"]
+    C --> D{"Valid cached result?"}
+    D -->|"Yes"| E["Replace card copy"]
+    D -->|"No"| F["Generate and validate"]
+    F -->|"Valid"| E
+    F -->|"Invalid or unavailable"| B
 ```
 
-The normal daily report and timeline must remain fast without calling OpenAI.
+The normal daily report and timeline remain fast without waiting for OpenAI.
+The web app renders the deterministic card first, then uses an HTMX request to
+load cached or newly generated prose. A provider failure leaves the fallback
+card in place. A changed event changes the semantic input hash, while unchanged
+data reuses the cached AI output.
 
 ## Report Types
 
@@ -104,10 +107,12 @@ Yauli should keep two separate concepts.
 
 ### Daily Report
 
-The daily report is the compact deterministic summary shown in the UI today.
-It answers "what was logged?" in a short, scannable way.
+The daily report is the compact backend-owned card shown in the UI. It answers
+"what was logged?" in a short, scannable way and includes deterministic
+fallback prose so AI availability never controls whether the card renders.
 
-Current shape:
+Current shape, with legacy `summary` and `highlights` retained for report-data
+and existing consumers:
 
 ```json
 {
@@ -118,6 +123,24 @@ Current shape:
     "11 nappy changes: 9 mixed, 1 wet only, 1 poo only.",
     "3 sleeps totalling 4 hours 20 minutes."
   ],
+  "card": {
+    "intro": "Here's how YauYau's day is taking shape.",
+    "primary_metrics": [
+      {
+        "count": "4 feeds",
+        "total": "320 ml",
+        "qualifier": "recorded"
+      },
+      {
+        "count": "4 sleep periods",
+        "total": "9 hr 39 min",
+        "qualifier": "total"
+      }
+    ],
+    "story": "The day also included plenty of nappy changes, two pumping sessions totalling 325 ml, a bath, a temperature check, and a new growth measurement.",
+    "observation": "Today's everyday moments are taking shape.",
+    "encouragement": "Thanks for keeping the story up to date. You've got this, Dad."
+  },
   "generated_at": "2026-07-13T09:30:00+09:30",
   "range_start": "2026-07-13T00:00:00+09:30",
   "range_end": "2026-07-13T09:30:00+09:30"
@@ -417,24 +440,26 @@ The AI input should be a structured envelope around `/reports/data`. The AI
 must receive already-calculated facts; it must not calculate totals, averages,
 durations, gaps, or comparisons from raw events.
 
-Recommended envelope:
+Current envelope:
 
 ```json
 {
   "schema_version": "ai_report_input.v1",
   "report_type": "daily",
   "audience": "parent",
-  "delivery": "on_demand",
   "locale": "en",
+  "viewer": {
+    "relationship": "Dad"
+  },
   "report_data": {}
 }
 ```
 
-`delivery` describes the intended renderer or scheduler context. In v1 it
-should not change the generated report content. The same channel-neutral AI
-report JSON should be renderable in the web app, email, and later MCP. If a
-future version intentionally changes tone or length by delivery channel, that
-style profile must be explicit and included in the cache identity.
+`viewer.relationship` is the current authenticated family member's configured
+relationship label. It is the only family-member profile context sent to the
+model. Empty means the model must use neutral encouragement. Email generation
+currently uses an empty relationship, so it has a distinct cache identity from
+a personalised web report.
 
 `report_data` should be the canonical response from:
 
@@ -459,7 +484,7 @@ It should include:
 It should not include:
 
 * secrets;
-* family member data;
+* family member data other than the current viewer's relationship label;
 * auth/session data;
 * unrelated historical raw events outside the baseline calculation.
 
@@ -487,6 +512,7 @@ input:
 * selected report data, including baseline, after canonicalization;
 * `report_type`;
 * `locale`;
+* current viewer relationship, when supplied;
 * prompt version;
 * input schema version;
 * output schema version.
@@ -517,11 +543,11 @@ input hash unless delivery intentionally changes generated content.
 AI output should be structured JSON. The backend can render that JSON into the
 web app or an email template. The model should not return HTML.
 
-Suggested first output shape:
+Current output shape:
 
 ```json
 {
-  "schema_version": "ai_report_output.v1",
+  "schema_version": "ai_report_output.v2",
   "title": "YauYau's day so far",
   "summary": "The strongest logged pattern today is a fairly feed-led rhythm, with nappies often appearing soon after feeds.",
   "highlights": [
@@ -540,7 +566,13 @@ Suggested first output shape:
   "questions_for_parent": [
     "How does today's sleep compare with the last week?",
     "What usually happens after the evening bath?"
-  ]
+  ],
+  "daily_card": {
+    "intro": "Here's how YauYau's day is taking shape.",
+    "story": "The day also included plenty of nappy changes, two pumping sessions totalling 325 ml, a bath, and a temperature check.",
+    "observation": "The day is still unfolding.",
+    "encouragement": "Thanks for keeping the story up to date. You've got this, Dad. 💛"
+  }
 }
 ```
 
@@ -555,8 +587,29 @@ Field rules:
 * `caveats`: 0-2 items; required only when deterministic backend facts require
   them.
 * `questions_for_parent`: 0-3 items; optional, practical follow-up questions.
+* `daily_card`: structured plain text for the web card. Daily reports populate
+  its four fields; weekly reports return four empty strings. It never contains
+  the deterministic feed and sleep KPI lines.
 
-Caveats in v1 should be triggered by backend-owned facts, not by the model
+Daily card rules:
+
+* `intro` uses the baby name exactly once, or `your little one` when the name
+  is unavailable;
+* `story` describes secondary events naturally, uses general nappy wording,
+  preserves supplied pump facts, and must mention any recorded growth
+  measurement;
+* `observation` is descriptive and never medical or developmental;
+* `encouragement` celebrates the viewer's effort and uses the configured
+  relationship exactly once when available;
+* generated prose does not use hyphens, en dashes, or em dashes as punctuation;
+  punctuation inside a supplied name or relationship is preserved;
+* at most one emoji may appear, only in `observation` or `encouragement`;
+* daily card prose contains no Markdown, headings, bullet points, HTML, or
+  icons;
+* the complete rendered card targets roughly 50 to 90 words;
+* application validation rejects invalid output before it is cached.
+
+Caveats should be triggered by backend-owned facts, not by the model
 independently judging the timeline. Required caveat triggers include:
 
 * `range.is_partial` is true;
@@ -695,8 +748,8 @@ Generates or returns cached AI insights for the selected range.
 
 Rules:
 
-* called only when the user asks for AI;
-* never called automatically after event changes;
+* called asynchronously by the web daily card after deterministic content is
+  visible;
 * uses deterministic report data and baseline as input;
 * returns cached output if the input hash matches;
 * regenerates only when input changes or cache policy says to refresh.
@@ -813,8 +866,8 @@ cached AI reports are actually being generated.
 Do not add a large eval framework before the first AI behavior exists.
 
 The first golden fixtures live in [evals/ai-reports](../evals/ai-reports).
-They document representative inputs, good `ai_report_output.v1` responses,
-and deterministic checks without calling OpenAI or running in CI yet.
+They document representative inputs, good `ai_report_output.v2` responses,
+and deterministic checks without calling OpenAI.
 
 Representative cases should cover:
 
@@ -832,7 +885,7 @@ Representative cases should cover:
 
 The first eval suite should check:
 
-* output is valid `ai_report_output.v1` JSON;
+* output is valid `ai_report_output.v2` JSON;
 * `summary` does more than enumerate event types;
 * `summary` stays within 1-2 short sentences;
 * `highlights` do not duplicate all deterministic totals;
@@ -858,15 +911,18 @@ Document the eval command in the eval README when the suite is added.
 
 ## Frontend Plan
 
-The normal day summary stays visible and fast.
+Status: **implemented for the daily report card**.
 
-AI insights should be:
+The normal day summary stays visible and fast. The UI:
 
-* hidden by default;
-* generated only after an explicit click;
-* displayed via a separate AI report section or filter;
-* removable from view by clicking the AI control again;
-* refreshed only by asking again after underlying data changes.
+* renders backend-owned fallback prose and deterministic KPI fields first;
+* requests AI prose through an HTMX `load` request after the card is visible;
+* swaps only escaped text fields into the existing card;
+* never renders raw model Markdown or HTML;
+* applies bold emphasis only to feed count, recorded feed volume, sleep count,
+  and total sleep duration;
+* contains no feed, sleep, nappy, pump, bottle, or moon icons;
+* keeps fallback content when the AI request fails or returns invalid output.
 
 The UI should not block event saves while AI is generating.
 
@@ -909,7 +965,7 @@ Recommended sequence:
 
 7. **AI generation**
    * Add OpenAI client.
-   * Generate `ai_report_output.v1` JSON on cache misses.
+   * Generate `ai_report_output.v2` JSON on cache misses.
    * Validate model output before caching it.
    * Configure generation with `OPENAI_API_KEY` and optional `OPENAI_MODEL`.
 
@@ -921,10 +977,11 @@ Recommended sequence:
    * Render cached AI report JSON into email templates.
 
 9. **Frontend AI interaction**
-   * Add explicit AI button/toggle.
-   * Show loading/error states.
-   * Keep AI hidden by default.
-   * Do not call AI during normal timeline refresh.
+   * Status: implemented as asynchronous enhancement of the daily card.
+   * Render deterministic fallback copy before the AI request.
+   * Replace only escaped daily card prose when valid AI output arrives.
+   * Keep deterministic copy visible on timeout, provider error, or invalid
+     output.
 
 10. **MCP exposure**
    * Expose deterministic report data first.

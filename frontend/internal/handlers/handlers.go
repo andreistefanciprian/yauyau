@@ -47,6 +47,7 @@ type Backend interface {
 	ArchiveCurrentBaby(ctx context.Context, confirmName string) error
 	ListEvents(ctx context.Context, resource, date string, out any) error
 	GetDailyReport(ctx context.Context, date string) (backendclient.DailyReport, error)
+	CreateDailyAIReport(ctx context.Context, date string) (backendclient.AIReport, error)
 	CreateEvent(ctx context.Context, resource string, payload map[string]any) error
 	UpdateEvent(ctx context.Context, id string, payload map[string]any) error
 	DeleteEvent(ctx context.Context, id string) error
@@ -774,7 +775,44 @@ func (h *Handlers) loadDailyReport(ctx context.Context, date string) *backendcli
 		log.Printf("load daily report: %v", err)
 		return nil
 	}
+	report.SelectedDate = date
+	report.LoadAI = true
 	return &report
+}
+
+// DailyReportAI replaces the deterministic daily card copy after the page is
+// already usable. Provider errors leave the fresh deterministic fallback in
+// place, so event logging and timeline rendering never depend on AI.
+func (h *Handlers) DailyReportAI(w http.ResponseWriter, r *http.Request) {
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("load baby for AI daily report: %v", err)
+		http.Error(w, "failed to load daily report", http.StatusBadGateway)
+		return
+	}
+
+	date := selectedTimelineDate(r, loc)
+	report := h.loadDailyReport(r.Context(), date)
+	if report == nil {
+		http.Error(w, "failed to load daily report", http.StatusBadGateway)
+		return
+	}
+	report.LoadAI = false
+
+	generated, err := h.Backend.CreateDailyAIReport(r.Context(), date)
+	if err != nil {
+		log.Printf("load AI daily report: %v", err)
+	} else if report.Card != nil {
+		report.Card.Intro = generated.DailyCard.Intro
+		report.Card.Story = generated.DailyCard.Story
+		report.Card.Observation = generated.DailyCard.Observation
+		report.Card.Encouragement = generated.DailyCard.Encouragement
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.Templates.ExecuteTemplate(w, "daily-report", report); err != nil {
+		log.Printf("render AI daily report: %v", err)
+	}
 }
 
 // FinishSleepNow completes an ongoing sleep from its existing start time to

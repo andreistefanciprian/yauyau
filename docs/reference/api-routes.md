@@ -70,10 +70,13 @@ signature/expiry and decodes the caller's identity into context — see
   full local calendar day, while today's report runs from midnight to now in
   the baby's timezone. The first version lives in
   `backend-api/internal/handlers/report.go` and summarizes the merged event
-  stream into a structured response (`title`, `summary`, `highlights`,
-  `generated_at`, `range_start`, `range_end`). This is the backend-owned
-  foundation for later AI enrichment; frontend and MCP clients should consume
-  the report rather than recalculate its business meaning.
+  stream into a structured response (`title`, legacy `summary` and
+  `highlights`, deterministic `card`, `generated_at`, `range_start`, and
+  `range_end`). `card.primary_metrics` contains separately renderable feed and
+  sleep values so clients can emphasize exact backend facts without parsing
+  prose. The card also contains warm deterministic fallback copy, including
+  the baby name, general nappy wording, any recorded growth measurement, and
+  relationship-aware encouragement for the authenticated viewer.
 * `GET /api/v1/babies/current/reports/data` → `GetReportData`, the canonical
   factual report-data payload for one to 31 local calendar days. Supports
   inclusive `?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`; omitting both
@@ -84,6 +87,14 @@ signature/expiry and decodes the caller's identity into context — see
   analytics, and normalized oldest-first events per day. It also includes
   previous-7-day baseline range metadata, totals, and baby analytics. It
   intentionally does not include AI output yet.
+* `POST /api/v1/babies/current/reports/ai` → `CreateAIReport`, the shared
+  cached AI generation path for daily and weekly reports. It uses backend
+  report data, strict `ai_report_output.v2` JSON Schema, application-level
+  validation, and the existing `internal/aiclient` Responses API client. For
+  daily reports, `daily_card` contains escaped plain-text fields that replace
+  only the deterministic card prose; feed and sleep KPI values remain owned by
+  `GET /reports/daily`. The semantic cache identity includes the current
+  viewer relationship so personalised closings cannot leak across members.
 * `PATCH /api/v1/babies/current/events/{id}` → `UpdateEvent`, type-checked
   generic edit for an existing current-baby event.
 * `DELETE /api/v1/babies/current/events/{id}` → `DeleteEvent`, removes one
@@ -185,6 +196,12 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   renders `templates/timeline.html`'s `timeline-workspace` partial. That
   workspace contains both the daily report card and `#timeline`, so HTMX
   event mutations can refresh both together and avoid stale report counts.
+* The deterministic card includes an HTMX `load` request to the frontend-only
+  `GET /daily-report/ai` route. That route requests the shared backend AI
+  report, merges only `daily_card` prose into the fresh deterministic card,
+  and returns the card partial without another load trigger. Provider,
+  timeout, or validation failures render the deterministic fallback instead,
+  so AI never delays timeline rendering or event persistence.
 * The frontend-only `GET /timeline/events` route renders the event-list
   section for HTMX refreshes. Today's timeline polls that route every 30
   seconds, while older timeline dates stay static. Passive polling does not

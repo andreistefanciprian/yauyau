@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/andreistefanciprian/yauli/frontend/internal/backendclient"
 	"github.com/andreistefanciprian/yauli/frontend/internal/handlers"
 )
 
@@ -47,6 +48,77 @@ func TestIconTemplatesRenderSVG(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestDailyReportRendersStructuredCopyAndDeterministicMetrics(t *testing.T) {
+	templates := parseFrontendTemplates(t)
+	report := backendclient.DailyReport{
+		Title:        "Today so far",
+		SelectedDate: "2026-07-17",
+		LoadAI:       true,
+		Card: &backendclient.DailyReportCard{
+			Intro: "Here's how YauYau's day is taking shape.",
+			PrimaryMetrics: []backendclient.DailyReportPrimaryMetric{
+				{Count: "4 feeds", Total: "320 ml", Qualifier: "recorded"},
+				{Count: "4 sleep periods", Total: "9 hr 39 min", Qualifier: "total"},
+			},
+			Story:         "There were plenty of nappy changes and a growth measurement.",
+			Observation:   "The day is still unfolding.",
+			Encouragement: "You've got this, Dad. 💛",
+		},
+	}
+
+	var rendered bytes.Buffer
+	if err := templates.ExecuteTemplate(&rendered, "daily-report", report); err != nil {
+		t.Fatalf("render daily report: %v", err)
+	}
+	html := rendered.String()
+	for _, want := range []string{
+		`hx-get="/daily-report/ai?date=2026-07-17"`,
+		`<strong>4 feeds</strong>`,
+		`<strong>320 ml</strong>`,
+		`<strong>4 sleep periods</strong>`,
+		`<strong>9 hr 39 min</strong>`,
+		`a growth measurement`,
+		`You&#39;ve got this, Dad. 💛`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("daily report HTML does not contain %q: %s", want, html)
+		}
+	}
+	if strings.Contains(html, "<svg") {
+		t.Fatalf("daily report contains an icon: %s", html)
+	}
+	if got := strings.Count(html, "<strong>"); got != 4 {
+		t.Fatalf("daily report contains %d strong elements, want primary metrics only: %s", got, html)
+	}
+}
+
+func TestDailyReportEscapesGeneratedCopyAndStopsReloadingAfterAI(t *testing.T) {
+	templates := parseFrontendTemplates(t)
+	report := backendclient.DailyReport{
+		Title: "Today so far",
+		Card: &backendclient.DailyReportCard{
+			Intro:         `<script>alert("no")</script>`,
+			Observation:   "The day is captured here.",
+			Encouragement: "You've got this.",
+		},
+	}
+
+	var rendered bytes.Buffer
+	if err := templates.ExecuteTemplate(&rendered, "daily-report", report); err != nil {
+		t.Fatalf("render daily report: %v", err)
+	}
+	html := rendered.String()
+	if strings.Contains(html, "<script>") {
+		t.Fatalf("daily report rendered model HTML: %s", html)
+	}
+	if !strings.Contains(html, `&lt;script&gt;alert`) {
+		t.Fatalf("daily report did not escape model HTML: %s", html)
+	}
+	if strings.Contains(html, "hx-get=") {
+		t.Fatalf("AI daily report would reload itself: %s", html)
 	}
 }
 

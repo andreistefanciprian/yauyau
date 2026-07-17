@@ -6,6 +6,9 @@
     "report_type": "daily",
     "audience": "parent",
     "locale": "en",
+    "viewer": {
+      "relationship": "Dad"
+    },
     "report_data": {
       "baby": {
         "name": "YauYau",
@@ -84,7 +87,7 @@
     }
   },
   "golden_output": {
-    "schema_version": "ai_report_output.v1",
+    "schema_version": "ai_report_output.v2",
     "title": "YauYau's day so far",
     "summary": "Based on the logs so far today, YauYau has had three feeds, four nappies, and one completed sleep, with another sleep currently ongoing.",
     "highlights": [
@@ -102,7 +105,13 @@
     ],
     "questions_for_parent": [
       "Would you like to check when the last feed was?"
-    ]
+    ],
+    "daily_card": {
+      "intro": "Here's how YauYau's day is taking shape.",
+      "story": "The day also included plenty of nappy changes.",
+      "observation": "The day is still unfolding.",
+      "encouragement": "Thanks for keeping the story up to date. You've got this, Dad. 💛"
+    }
   },
   "checks": {
     "required_substrings": [

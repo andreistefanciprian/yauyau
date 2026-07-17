@@ -1094,7 +1094,7 @@ func (s *PostgresStore) UpdateUserDisplayName(ctx context.Context, id uuid.UUID,
 // over an arbitrary pending invite.
 func (s *PostgresStore) GetFamilyMembership(ctx context.Context, userID uuid.UUID) (FamilyMembership, error) {
 	const query = `
-		SELECT family_id, role, status, daily_report_email_enabled
+		SELECT family_id, role, status, COALESCE(relationship, ''), daily_report_email_enabled
 		FROM family_members
 		WHERE user_id = $1
 		ORDER BY (status = 'active') DESC, created_at ASC
@@ -1104,7 +1104,7 @@ func (s *PostgresStore) GetFamilyMembership(ctx context.Context, userID uuid.UUI
 	var m FamilyMembership
 	var familyID uuid.UUID
 	var role, status string
-	err := s.pool.QueryRow(ctx, query, userID).Scan(&familyID, &role, &status, &m.DailyReportEmailEnabled)
+	err := s.pool.QueryRow(ctx, query, userID).Scan(&familyID, &role, &status, &m.Relationship, &m.DailyReportEmailEnabled)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return FamilyMembership{Found: false}, nil
 	}
@@ -1125,14 +1125,15 @@ func (s *PostgresStore) GetFamilyMembership(ctx context.Context, userID uuid.UUI
 // authorizing against.
 func (s *PostgresStore) GetFamilyMembershipForFamily(ctx context.Context, userID, familyID uuid.UUID) (FamilyMembership, error) {
 	const query = `
-		SELECT role, status, daily_report_email_enabled
+		SELECT role, status, COALESCE(relationship, ''), daily_report_email_enabled
 		FROM family_members
 		WHERE user_id = $1 AND family_id = $2
 	`
 
 	var role, status string
+	var relationship string
 	var dailyReportEmailEnabled bool
-	err := s.pool.QueryRow(ctx, query, userID, familyID).Scan(&role, &status, &dailyReportEmailEnabled)
+	err := s.pool.QueryRow(ctx, query, userID, familyID).Scan(&role, &status, &relationship, &dailyReportEmailEnabled)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return FamilyMembership{Found: false}, nil
 	}
@@ -1145,6 +1146,7 @@ func (s *PostgresStore) GetFamilyMembershipForFamily(ctx context.Context, userID
 		FamilyID:                &familyID,
 		Role:                    MembershipRole(role),
 		Status:                  MembershipStatus(status),
+		Relationship:            relationship,
 		DailyReportEmailEnabled: dailyReportEmailEnabled,
 	}, nil
 }

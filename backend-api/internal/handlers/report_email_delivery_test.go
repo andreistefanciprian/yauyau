@@ -223,6 +223,11 @@ func testAIReportOutputJSON(t *testing.T, title string) json.RawMessage {
 		Comparison:         []string{},
 		Caveats:            []string{},
 		QuestionsForParent: []string{},
+		DailyCard: aireport.DailyCard{
+			Intro:         "Here's how YauYau's day took shape.",
+			Observation:   "The day is captured here.",
+			Encouragement: "You've got this.",
+		},
 	})
 	if err != nil {
 		t.Fatalf("marshal AI report output: %v", err)

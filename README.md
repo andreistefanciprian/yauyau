@@ -60,6 +60,7 @@ The website is a beautiful dashboard and timeline for reviewing your baby's hist
 * 🔐 Magic-link sign in with durable sessions and short-lived backend API JWTs
 * 👥 Timeline access management, invites and relationship labels
 * 👶 Baby profile settings, including birth date, birth weight, birth length and sex
+* ✨ Cached AI daily report copy with deterministic fallback metrics
 * 🗑 Owner-controlled timeline archive/delete flow
 
 **Planned**
@@ -69,7 +70,7 @@ The website is a beautiful dashboard and timeline for reviewing your baby's hist
 * 💊 Medication
 * 💉 Vaccinations
 * ⭐ Milestones
-* 📊 Daily and weekly summaries
+* 📊 Weekly summaries
 * 📄 Pediatrician reports
 * 🤖 ChatGPT integration via MCP
 * 🔐 OAuth 2.1 + PKCE for MCP/ChatGPT

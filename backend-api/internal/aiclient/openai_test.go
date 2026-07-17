@@ -25,7 +25,7 @@ func TestGenerateAIReportUsesResponsesStructuredOutput(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{
 			"model": "test-model",
-			"output_text": "{\"schema_version\":\"ai_report_output.v1\",\"title\":\"Generated\",\"summary\":\"Generated summary.\",\"highlights\":[],\"patterns\":[],\"comparison\":[],\"caveats\":[],\"questions_for_parent\":[]}"
+			"output_text": "{\"schema_version\":\"ai_report_output.v2\",\"title\":\"Generated\",\"summary\":\"Generated summary.\",\"highlights\":[],\"patterns\":[],\"comparison\":[],\"caveats\":[],\"questions_for_parent\":[],\"daily_card\":{\"intro\":\"Generated intro.\",\"story\":\"\",\"observation\":\"Generated observation.\",\"encouragement\":\"Generated encouragement.\"}}"
 		}`))
 	}))
 	t.Cleanup(server.Close)
@@ -40,6 +40,7 @@ func TestGenerateAIReportUsesResponsesStructuredOutput(t *testing.T) {
 		PromptVersion:       aireport.PromptVersion,
 		ReportType:          "daily",
 		Locale:              "en",
+		ViewerRelationship:  "Dad",
 		ReportData:          map[string]any{"range": map[string]any{"start_date": "2026-07-13"}},
 	})
 	if err != nil {
@@ -81,11 +82,17 @@ func TestGenerateAIReportUsesResponsesStructuredOutput(t *testing.T) {
 		t.Fatalf("developer message role = %#v, want developer", developerMessage["role"])
 	}
 	developerContent := developerMessage["content"].(string)
-	if !strings.Contains(developerContent, "Prompt version: ai_report_prompt.v2.") {
+	if !strings.Contains(developerContent, "Prompt version: ai_report_prompt.v3.") {
 		t.Fatalf("developer prompt = %q, want prompt version", developerContent)
 	}
 	if !strings.Contains(developerContent, "Do not diagnose") {
 		t.Fatalf("developer prompt = %q, want embedded product rules", developerContent)
+	}
+	if !strings.Contains(developerContent, "Do not use hyphens, en dashes, or em dashes") {
+		t.Fatalf("developer prompt = %q, want punctuation rule", developerContent)
+	}
+	if !strings.Contains(developerContent, "at most one emoji") {
+		t.Fatalf("developer prompt = %q, want emoji rule", developerContent)
 	}
 	userMessage := input[1].(map[string]any)
 	var modelInput map[string]any
@@ -94,6 +101,10 @@ func TestGenerateAIReportUsesResponsesStructuredOutput(t *testing.T) {
 	}
 	if _, ok := modelInput["delivery"]; ok {
 		t.Fatalf("model input should not include delivery: %#v", modelInput)
+	}
+	viewer := modelInput["viewer"].(map[string]any)
+	if viewer["relationship"] != "Dad" {
+		t.Fatalf("viewer relationship = %#v, want Dad", viewer["relationship"])
 	}
 }
 
@@ -106,7 +117,7 @@ func TestGenerateAIReportFallsBackToOutputContent(t *testing.T) {
 				"type": "message",
 				"content": [{
 					"type": "output_text",
-					"text": "{\"schema_version\":\"ai_report_output.v1\",\"title\":\"Nested\",\"summary\":\"Nested summary.\",\"highlights\":[],\"patterns\":[],\"comparison\":[],\"caveats\":[],\"questions_for_parent\":[]}"
+					"text": "{\"schema_version\":\"ai_report_output.v2\",\"title\":\"Nested\",\"summary\":\"Nested summary.\",\"highlights\":[],\"patterns\":[],\"comparison\":[],\"caveats\":[],\"questions_for_parent\":[],\"daily_card\":{\"intro\":\"Nested intro.\",\"story\":\"\",\"observation\":\"Nested observation.\",\"encouragement\":\"Nested encouragement.\"}}"
 				}]
 			}]
 		}`))

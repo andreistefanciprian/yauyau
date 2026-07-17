@@ -168,6 +168,7 @@ type FamilyMembership struct {
 	FamilyID                *uuid.UUID       `json:"family_id,omitempty"`
 	Role                    MembershipRole   `json:"role,omitempty"`
 	Status                  MembershipStatus `json:"status,omitempty"`
+	Relationship            string           `json:"relationship,omitempty"`
 	DailyReportEmailEnabled bool             `json:"daily_report_email_enabled"`
 }
 

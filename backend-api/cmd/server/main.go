@@ -159,7 +159,7 @@ func runHTTPServer() error {
 			})
 			r.Route("/reports", func(r chi.Router) {
 				// Canonical report-data source for frontend, email, MCP tools,
-				// and later AI report generation.
+				// and AI report generation.
 				r.Get("/data", h.GetReportData)
 				r.Get("/daily", h.GetDailyReport)
 				r.Post("/ai", h.CreateAIReport)

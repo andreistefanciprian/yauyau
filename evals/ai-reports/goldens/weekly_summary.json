@@ -6,6 +6,9 @@
     "report_type": "weekly",
     "audience": "parent",
     "locale": "en",
+    "viewer": {
+      "relationship": ""
+    },
     "report_data": {
       "baby": {
         "name": "YauYau",
@@ -88,7 +91,7 @@
     }
   },
   "golden_output": {
-    "schema_version": "ai_report_output.v1",
+    "schema_version": "ai_report_output.v2",
     "title": "YauYau's week",
     "summary": "Across the week, YauYau's logged feeds, nappies, and sleep stayed close to the recent baseline, with sleep time slightly higher on average.",
     "highlights": [
@@ -107,7 +110,13 @@
     "caveats": [],
     "questions_for_parent": [
       "Would you like a day-by-day breakdown of sleep?"
-    ]
+    ],
+    "daily_card": {
+      "intro": "",
+      "story": "",
+      "observation": "",
+      "encouragement": ""
+    }
   },
   "checks": {
     "required_substrings": [

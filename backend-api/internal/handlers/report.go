@@ -8,18 +8,34 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andreistefanciprian/yauli/backend-api/internal/authctx"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
 const reportEventsLimit = 500
 
 type dailyReportResponse struct {
-	Title       string    `json:"title"`
-	Summary     string    `json:"summary"`
-	Highlights  []string  `json:"highlights"`
-	GeneratedAt time.Time `json:"generated_at"`
-	RangeStart  time.Time `json:"range_start"`
-	RangeEnd    time.Time `json:"range_end"`
+	Title       string                   `json:"title"`
+	Summary     string                   `json:"summary"`
+	Highlights  []string                 `json:"highlights"`
+	Card        *dailyReportCardResponse `json:"card,omitempty"`
+	GeneratedAt time.Time                `json:"generated_at"`
+	RangeStart  time.Time                `json:"range_start"`
+	RangeEnd    time.Time                `json:"range_end"`
+}
+
+type dailyReportCardResponse struct {
+	Intro          string                     `json:"intro"`
+	PrimaryMetrics []dailyReportPrimaryMetric `json:"primary_metrics"`
+	Story          string                     `json:"story,omitempty"`
+	Observation    string                     `json:"observation"`
+	Encouragement  string                     `json:"encouragement"`
+}
+
+type dailyReportPrimaryMetric struct {
+	Count     string `json:"count"`
+	Total     string `json:"total,omitempty"`
+	Qualifier string `json:"qualifier,omitempty"`
 }
 
 type dailyReportStats struct {
@@ -50,9 +66,9 @@ type dailyReportPeriod struct {
 }
 
 // GetDailyReport returns a calendar-day report for the current baby in the
-// baby's timezone. This first version is deterministic and backend-owned; an
-// AI client can later enrich the same response shape without moving report
-// logic into thin clients.
+// baby's timezone. The card facts and fallback prose are deterministic and
+// backend-owned; the frontend may later replace only the prose through the
+// separate cached AI report endpoint.
 func (h *Handlers) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 	baby, ok := h.currentBabyForRequest(w, r)
 	if !ok {
@@ -77,7 +93,19 @@ func (h *Handlers) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, buildDailyReport(events, window, generatedAt, period))
+	relationship := ""
+	if claims, ok := authctx.FromContext(r.Context()); ok && h.FamilyStore != nil {
+		membership, err := h.FamilyStore.GetFamilyMembershipForFamily(r.Context(), claims.UserID, baby.FamilyID)
+		if err != nil {
+			log.Printf("load daily report viewer relationship: %v", err)
+		} else if membership.Found && membership.Status == store.MembershipStatusActive {
+			relationship = membership.Relationship
+		}
+	}
+
+	report := buildDailyReport(events, window, generatedAt, period)
+	report.Card = buildDailyReportCard(events, period, baby.Name, relationship)
+	writeJSON(w, http.StatusOK, report)
 }
 
 func dailyReportWindow(rawDate, timezone string) (timelineDayWindow, time.Time, dailyReportPeriod, error) {
@@ -144,6 +172,140 @@ func buildDailyReport(events []store.Event, window timelineDayWindow, generatedA
 		GeneratedAt: generatedAt,
 		RangeStart:  window.From,
 		RangeEnd:    window.To,
+	}
+}
+
+func buildDailyReportCard(events []store.Event, period dailyReportPeriod, babyName, relationship string) *dailyReportCardResponse {
+	stats := dailyReportStats{}
+	for _, ev := range events {
+		stats.add(ev)
+	}
+
+	name := strings.TrimSpace(babyName)
+	subject := "your little one"
+	if name != "" {
+		subject = name
+	}
+	intro := fmt.Sprintf("Here's how %s's day took shape.", subject)
+	if period.InProgress {
+		intro = fmt.Sprintf("Here's how %s's day is taking shape.", subject)
+	}
+
+	card := &dailyReportCardResponse{
+		Intro:          intro,
+		PrimaryMetrics: dailyReportPrimaryMetrics(stats),
+		Story:          dailyReportStory(stats),
+		Observation:    "The day's everyday moments are captured here.",
+		Encouragement:  dailyReportEncouragement(relationship),
+	}
+	if stats.totalEvents() == 0 {
+		card.Observation = period.EmptySummary
+	} else if period.InProgress {
+		card.Observation = "Today's everyday moments are taking shape."
+	}
+	return card
+}
+
+func dailyReportPrimaryMetrics(stats dailyReportStats) []dailyReportPrimaryMetric {
+	metrics := make([]dailyReportPrimaryMetric, 0, 2)
+	if stats.FeedCount > 0 {
+		metric := dailyReportPrimaryMetric{Count: pluralize(stats.FeedCount, "feed", "feeds")}
+		if stats.MilkMl > 0 {
+			metric.Total = fmt.Sprintf("%d ml", stats.MilkMl)
+			metric.Qualifier = "recorded"
+		}
+		metrics = append(metrics, metric)
+	}
+	if stats.SleepCount > 0 {
+		metric := dailyReportPrimaryMetric{Count: pluralize(stats.SleepCount, "sleep period", "sleep periods")}
+		if stats.SleepMinutes > 0 {
+			metric.Total = formatCompactDurationMinutes(stats.SleepMinutes)
+			metric.Qualifier = "total"
+		}
+		metrics = append(metrics, metric)
+	}
+	return metrics
+}
+
+func dailyReportStory(stats dailyReportStats) string {
+	parts := make([]string, 0, 6)
+	if stats.NappyCount > 0 {
+		nappies := "nappy changes"
+		if stats.NappyCount >= 3 {
+			nappies = "plenty of nappy changes"
+		}
+		parts = append(parts, nappies)
+	}
+	if stats.PumpCount > 0 {
+		pump := fmt.Sprintf("%s pumping %s", countWord(stats.PumpCount), singularOrPlural(stats.PumpCount, "session", "sessions"))
+		if stats.PumpMl > 0 {
+			pump += fmt.Sprintf(" totalling %d ml", stats.PumpMl)
+		}
+		parts = append(parts, pump)
+	}
+	if stats.BathCount > 0 {
+		parts = append(parts, "a bath")
+	}
+	if stats.TemperatureCount > 0 {
+		parts = append(parts, "a temperature check")
+	}
+	if stats.ObservationCount > 0 {
+		parts = append(parts, "an observation")
+	}
+	if stats.GrowthCount > 0 {
+		parts = append(parts, "a new growth measurement")
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "The day also included " + joinNatural(parts) + "."
+}
+
+func dailyReportEncouragement(relationship string) string {
+	relationship = strings.TrimSpace(relationship)
+	if relationship == "" {
+		return "Thanks for keeping the story up to date. You've got this."
+	}
+	return fmt.Sprintf("Thanks for keeping the story up to date. You've got this, %s.", relationship)
+}
+
+func formatCompactDurationMinutes(minutes int) string {
+	hours := minutes / 60
+	remainingMinutes := minutes % 60
+	if hours == 0 {
+		return fmt.Sprintf("%d min", remainingMinutes)
+	}
+	if remainingMinutes == 0 {
+		return fmt.Sprintf("%d hr", hours)
+	}
+	return fmt.Sprintf("%d hr %d min", hours, remainingMinutes)
+}
+
+func countWord(count int) string {
+	words := []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+	if count >= 0 && count < len(words) {
+		return words[count]
+	}
+	return fmt.Sprintf("%d", count)
+}
+
+func singularOrPlural(count int, singular, plural string) string {
+	if count == 1 {
+		return singular
+	}
+	return plural
+}
+
+func joinNatural(parts []string) string {
+	switch len(parts) {
+	case 0:
+		return ""
+	case 1:
+		return parts[0]
+	case 2:
+		return parts[0] + " and " + parts[1]
+	default:
+		return strings.Join(parts[:len(parts)-1], ", ") + ", and " + parts[len(parts)-1]
 	}
 }
 

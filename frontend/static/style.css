@@ -804,20 +804,7 @@ h2 {
 }
 
 .daily-report-header {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.7rem;
-  align-items: start;
-}
-
-.daily-report-icon {
-  display: inline-grid;
-  width: 2rem;
-  height: 2rem;
-  place-items: center;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--color-teal) 22%, var(--color-surface));
-  line-height: 1;
+  display: block;
 }
 
 .daily-report h2 {
@@ -831,7 +818,8 @@ h2 {
   line-height: 1.45;
 }
 
-.daily-report-highlights {
+.daily-report-highlights,
+.daily-report-metrics {
   display: grid;
   gap: 0.45rem;
   margin: 0;
@@ -839,7 +827,8 @@ h2 {
   list-style: none;
 }
 
-.daily-report-highlights li {
+.daily-report-highlights li,
+.daily-report-metrics li {
   position: relative;
   padding-left: 1rem;
   color: var(--color-text-primary);
@@ -847,7 +836,8 @@ h2 {
   line-height: 1.45;
 }
 
-.daily-report-highlights li::before {
+.daily-report-highlights li::before,
+.daily-report-metrics li::before {
   position: absolute;
   top: 0.62em;
   left: 0.2rem;
@@ -856,6 +846,10 @@ h2 {
   border-radius: 50%;
   background: var(--color-teal);
   content: "";
+}
+
+.daily-report-metrics strong {
+  font-weight: 700;
 }
 
 .member-list {

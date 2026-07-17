@@ -8,19 +8,30 @@
 
 {{define "daily-report"}}
 {{with .}}
-<section class="daily-report" aria-labelledby="daily-report-title">
+<section id="daily-report" class="daily-report" aria-labelledby="daily-report-title"{{if .LoadAI}} hx-get="/daily-report/ai?date={{.SelectedDate}}" hx-trigger="load" hx-target="this" hx-swap="outerHTML"{{end}}>
   <div class="daily-report-header">
-    <span class="daily-report-icon" aria-hidden="true">{{template "report-icon"}}</span>
-    <div>
-      <h2 id="daily-report-title">{{.Title}}</h2>
-    </div>
+    <h2 id="daily-report-title">{{.Title}}</h2>
   </div>
-  {{if .Highlights}}
-  <ul class="daily-report-highlights">
-    {{range .Highlights}}
-    <li>{{.}}</li>
+  {{with .Card}}
+  <p>{{.Intro}}</p>
+  {{if .PrimaryMetrics}}
+  <ul class="daily-report-metrics">
+    {{range .PrimaryMetrics}}
+    <li><strong>{{.Count}}</strong>{{if .Total}} <span aria-hidden="true">·</span> <strong>{{.Total}}</strong>{{end}}{{if .Qualifier}} {{.Qualifier}}{{end}}</li>
     {{end}}
   </ul>
+  {{end}}
+  {{if .Story}}<p>{{.Story}}</p>{{end}}
+  <p>{{.Observation}}</p>
+  <p>{{.Encouragement}}</p>
+  {{else}}
+    {{if .Highlights}}
+    <ul class="daily-report-highlights">
+      {{range .Highlights}}
+      <li>{{.}}</li>
+      {{end}}
+    </ul>
+    {{end}}
   {{end}}
 </section>
 {{end}}

@@ -244,6 +244,18 @@ If everything is orange, nothing stands out.
 * teal connector
 * event-specific colored icons
 
+**Daily Report Card**
+
+* keep the existing report title outside generated copy
+* show deterministic feed and sleep metrics near the top
+* bold only feed count, recorded feed volume, sleep count, and total sleep
+  duration
+* use short plain-text paragraphs for story, observation, and encouragement
+* do not add feed, sleep, nappy, pump, bottle, moon, or similar icons
+* keep generated copy escaped; do not render model HTML or Markdown
+* target a complete card that parents can scan in 5 to 10 seconds
+* use no more than one emoji, and only in observation or encouragement
+
 ---
 
 ## Design Principles

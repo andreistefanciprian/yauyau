@@ -6,6 +6,9 @@
     "report_type": "daily",
     "audience": "parent",
     "locale": "en",
+    "viewer": {
+      "relationship": "Dad"
+    },
     "report_data": {
       "baby": {
         "name": "YauYau",
@@ -20,7 +23,7 @@
         "is_partial": false
       },
       "totals": {
-        "event_count": 23,
+        "event_count": 24,
         "feeds": {
           "count": 7,
           "expressed_ml": 480,
@@ -38,6 +41,10 @@
           "completed_count": 4,
           "ongoing_count": 0,
           "total_duration_minutes": 285
+        },
+        "growth": {
+          "count": 1,
+          "latest_weight_grams": 7200
         }
       },
       "analytics": {
@@ -95,7 +102,7 @@
     }
   },
   "golden_output": {
-    "schema_version": "ai_report_output.v1",
+    "schema_version": "ai_report_output.v2",
     "title": "YauYau's day",
     "summary": "YauYau had a complete logged day with regular feeds, several nappies, and four completed sleeps.",
     "highlights": [
@@ -112,7 +119,13 @@
     "caveats": [],
     "questions_for_parent": [
       "Would you like to compare sleep timing with the rest of the week?"
-    ]
+    ],
+    "daily_card": {
+      "intro": "Here's how YauYau's day took shape.",
+      "story": "The day also included plenty of nappy changes and a new growth measurement.",
+      "observation": "The day's everyday moments are captured here.",
+      "encouragement": "Thanks for keeping the story up to date. You've got this, Dad. 💛"
+    }
   },
   "checks": {
     "required_substrings": [
