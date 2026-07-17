@@ -11,6 +11,14 @@ import (
 	"github.com/andreistefanciprian/yauli/backend-api/internal/dailycard"
 )
 
+func TestNewUsesGPT5MiniByDefault(t *testing.T) {
+	client := New("test-key", "")
+
+	if client.model != "gpt-5-mini" {
+		t.Fatalf("model = %q, want gpt-5-mini", client.model)
+	}
+}
+
 func TestGenerateAIReportUsesResponsesStructuredOutput(t *testing.T) {
 	var captured map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
