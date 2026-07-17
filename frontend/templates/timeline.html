@@ -22,8 +22,8 @@
   </ul>
   {{end}}
   {{if .Story}}<p>{{.Story}}</p>{{end}}
-  <p>{{.Observation}}</p>
-  <p>{{.Encouragement}}</p>
+  {{if .Observation}}<p>{{.Observation}}</p>{{end}}
+  {{if .Encouragement}}<p>{{.Encouragement}}</p>{{end}}
   {{else}}
     {{if .Highlights}}
     <ul class="daily-report-highlights">

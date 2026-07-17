@@ -86,8 +86,8 @@ type DailyReportCard struct {
 	Intro          string                     `json:"intro"`
 	PrimaryMetrics []DailyReportPrimaryMetric `json:"primary_metrics"`
 	Story          string                     `json:"story,omitempty"`
-	Observation    string                     `json:"observation"`
-	Encouragement  string                     `json:"encouragement"`
+	Observation    string                     `json:"observation,omitempty"`
+	Encouragement  string                     `json:"encouragement,omitempty"`
 }
 
 type DailyReportPrimaryMetric struct {
