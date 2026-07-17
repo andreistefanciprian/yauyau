@@ -18,7 +18,7 @@ import (
 
 const (
 	defaultBaseURL = "https://api.openai.com/v1"
-	defaultModel   = "gpt-5-mini"
+	defaultModel   = "gpt-5.6-terra"
 )
 
 // aiReportDeveloperPromptTemplate is embedded so prompt wording can be
