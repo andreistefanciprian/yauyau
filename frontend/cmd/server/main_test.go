@@ -95,6 +95,64 @@ func TestDailyReportRendersStructuredCopyAndDeterministicMetrics(t *testing.T) {
 	}
 }
 
+func TestIndexRendersDailyReportVisibilityPreference(t *testing.T) {
+	templates := parseFrontendTemplates(t)
+
+	for _, tt := range []struct {
+		name    string
+		visible bool
+		checked bool
+	}{
+		{name: "shown", visible: true, checked: true},
+		{name: "hidden", visible: false, checked: false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			data := map[string]any{
+				"Baby":            backendclient.Baby{Name: "YauYau"},
+				"Account":         map[string]string{"Label": "Parent", "Email": "parent@example.com"},
+				"Timeline":        handlers.TimelineViewData{SelectedDate: "2026-07-18"},
+				"DailyReport":     (*backendclient.DailyReport)(nil),
+				"ShowDailyReport": tt.visible,
+				"NowDate":         "2026-07-18",
+				"NowTime":         "09:30",
+			}
+
+			var rendered bytes.Buffer
+			if err := templates.ExecuteTemplate(&rendered, "index", data); err != nil {
+				t.Fatalf("render index: %v", err)
+			}
+			html := rendered.String()
+			start := strings.Index(html, `id="show-daily-report"`)
+			if start == -1 {
+				t.Fatalf("daily report toggle missing: %s", html)
+			}
+			end := strings.Index(html[start:], ">")
+			if end == -1 {
+				t.Fatalf("daily report toggle is not closed: %s", html[start:])
+			}
+			input := html[start : start+end]
+			if got := strings.Contains(input, " checked"); got != tt.checked {
+				t.Fatalf("toggle checked = %v, want %v: %s", got, tt.checked, input)
+			}
+			if !strings.Contains(html, `hx-post="/timeline/preferences/daily-report"`) {
+				t.Fatalf("daily report preference endpoint missing: %s", html)
+			}
+			if !strings.Contains(html, `class="timeline-display-chip range-pill">Daily Report</span>`) {
+				t.Fatalf("daily report filter pill missing: %s", html)
+			}
+			typeFilterStart := strings.Index(html, `id="type-filter"`)
+			if typeFilterStart == -1 {
+				t.Fatalf("event type filter missing: %s", html)
+			}
+			typeFilterEnd := typeFilterStart + strings.Index(html[typeFilterStart:], "</div>")
+			dailyReportFilterStart := strings.Index(html, `class="timeline-display-filter"`)
+			if typeFilterEnd < typeFilterStart || dailyReportFilterStart < typeFilterEnd {
+				t.Fatalf("daily report filter is not on its own row: %s", html)
+			}
+		})
+	}
+}
+
 func TestDailyReportEscapesGeneratedCopyAndStopsReloadingAfterAI(t *testing.T) {
 	templates := parseFrontendTemplates(t)
 	report := backendclient.DailyReport{

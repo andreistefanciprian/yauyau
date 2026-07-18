@@ -203,10 +203,17 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   a `TimelineEvent` — no client-side merging or sorting; the backend already
   returns one merged, ordered list for the selected date.
 * `Index` calls `loadTimeline` and renders the full page.
-* `Index` also calls `Backend.GetDailyReport` for the selected date, then
-  renders `templates/timeline.html`'s `timeline-workspace` partial. That
-  workspace contains both the daily report card and `#timeline`, so HTMX
-  event mutations can refresh both together and avoid stale report counts.
+* When the daily report is enabled, `Index` calls `Backend.GetDailyReport` for
+  the selected date, then renders `templates/timeline.html`'s
+  `timeline-workspace` partial. That workspace contains both the daily report
+  card and `#timeline`, so HTMX event mutations can refresh both together and
+  avoid stale report counts.
+  The Timeline filter includes a device-persistent `Show daily report`
+  preference, enabled by default. When disabled, the frontend omits the card
+  and skips both the deterministic report request and today's AI request.
+  Event mutations preserve the preference when refreshing the workspace. The
+  frontend-only `POST /timeline/preferences/daily-report` route stores the
+  cookie and returns the refreshed workspace.
 * When Today is selected, the deterministic card includes an HTMX `load`
   request to the frontend-only `GET /daily-report/ai` route. That route calls
   the dedicated backend `/reports/daily-card/ai` endpoint, merges only its four
