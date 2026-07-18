@@ -688,6 +688,32 @@ h2 {
   color: white;
 }
 
+.timeline-display-filter {
+  margin: 0;
+}
+
+.timeline-display-filter label {
+  display: block;
+  cursor: pointer;
+}
+
+.timeline-display-chip {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.timeline-display-filter input:checked + .timeline-display-chip {
+  border-color: color-mix(in srgb, var(--color-teal) 45%, var(--color-border));
+  background: var(--color-teal);
+  color: white;
+}
+
+.timeline-display-filter input:focus-visible + .timeline-display-chip {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 2px;
+}
+
 .settings-section {
   margin-bottom: 1rem;
   padding: 0.9rem 1rem;

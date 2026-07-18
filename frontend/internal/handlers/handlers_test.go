@@ -6,7 +6,9 @@ import (
 	"errors"
 	"html"
 	"html/template"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -112,21 +114,130 @@ func TestDailyReportAIKeepsHistoricalDayDeterministic(t *testing.T) {
 	}
 }
 
+func TestDailyReportVisibilityDefaultsOnAndHonoursCookie(t *testing.T) {
+	tests := []struct {
+		name    string
+		cookie  *http.Cookie
+		visible bool
+	}{
+		{name: "default", visible: true},
+		{name: "shown", cookie: &http.Cookie{Name: dailyReportVisibilityCookieName, Value: "1"}, visible: true},
+		{name: "hidden", cookie: &http.Cookie{Name: dailyReportVisibilityCookieName, Value: "0"}, visible: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/app", nil)
+			if tt.cookie != nil {
+				req.AddCookie(tt.cookie)
+			}
+			if got := dailyReportVisible(req); got != tt.visible {
+				t.Fatalf("dailyReportVisible() = %v, want %v", got, tt.visible)
+			}
+		})
+	}
+}
+
+func TestLoadDailyReportIfVisibleSkipsHiddenReport(t *testing.T) {
+	backend := &dailyReportAIBackend{
+		report: backendclient.DailyReport{Title: "Today so far"},
+	}
+	h := &Handlers{Backend: backend}
+
+	if got := h.loadDailyReportIfVisible(context.Background(), "2026-07-18", time.UTC, false); got != nil {
+		t.Fatalf("hidden report = %#v, want nil", got)
+	}
+	if backend.reportCalls != 0 {
+		t.Fatalf("hidden report made %d backend calls, want 0", backend.reportCalls)
+	}
+
+	if got := h.loadDailyReportIfVisible(context.Background(), "2026-07-18", time.UTC, true); got == nil {
+		t.Fatal("visible report = nil")
+	}
+	if backend.reportCalls != 1 {
+		t.Fatalf("visible report made %d backend calls, want 1", backend.reportCalls)
+	}
+}
+
+func TestDailyReportVisibilityCookie(t *testing.T) {
+	h := &Handlers{SecureCookies: true}
+	cookie := h.dailyReportVisibilityCookie(false)
+	if cookie.Name != dailyReportVisibilityCookieName || cookie.Value != "0" || cookie.Path != "/" {
+		t.Fatalf("cookie = %#v", cookie)
+	}
+	if !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || cookie.MaxAge <= 0 {
+		t.Fatalf("cookie attributes = %#v", cookie)
+	}
+}
+
+func TestUpdateTimelineDailyReportPreferenceRefreshesWorkspace(t *testing.T) {
+	for _, tt := range []struct {
+		name            string
+		visible         bool
+		wantBody        string
+		wantReportCalls int
+		wantCookie      string
+	}{
+		{name: "hide", wantBody: "hidden", wantCookie: "0"},
+		{name: "show", visible: true, wantBody: "report", wantReportCalls: 1, wantCookie: "1"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			backend := &dailyReportAIBackend{
+				report: backendclient.DailyReport{Title: "Today so far"},
+			}
+			templates := template.Must(template.New("root").Parse(`{{define "timeline-workspace"}}{{if .DailyReport}}report{{else}}hidden{{end}}{{end}}`))
+			h := &Handlers{Backend: backend, Templates: templates, SecureCookies: true}
+
+			form := url.Values{"selected_date": {time.Now().Format(time.DateOnly)}}
+			if tt.visible {
+				form.Set("show_daily_report", "1")
+			}
+			req := httptest.NewRequest(http.MethodPost, "/timeline/preferences/daily-report", strings.NewReader(form.Encode()))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rec := httptest.NewRecorder()
+
+			h.UpdateTimelineDailyReportPreference(rec, req)
+
+			if rec.Code != http.StatusOK || strings.TrimSpace(rec.Body.String()) != tt.wantBody {
+				t.Fatalf("status = %d, body = %q", rec.Code, rec.Body.String())
+			}
+			if backend.reportCalls != tt.wantReportCalls {
+				t.Fatalf("report calls = %d, want %d", backend.reportCalls, tt.wantReportCalls)
+			}
+			cookies := rec.Result().Cookies()
+			if len(cookies) != 1 || cookies[0].Name != dailyReportVisibilityCookieName || cookies[0].Value != tt.wantCookie {
+				t.Fatalf("cookies = %#v", cookies)
+			}
+		})
+	}
+}
+
 type dailyReportAIBackend struct {
 	Backend
-	report     backendclient.DailyReport
-	aiCard     backendclient.AIDailyCard
-	aiErr      error
-	reportDate string
-	aiCalled   bool
+	report      backendclient.DailyReport
+	aiCard      backendclient.AIDailyCard
+	aiErr       error
+	reportDate  string
+	reportCalls int
+	aiCalled    bool
 }
 
 func (b *dailyReportAIBackend) GetCurrentBaby(context.Context) (backendclient.Baby, error) {
 	return backendclient.Baby{Timezone: "Australia/Adelaide"}, nil
 }
 
+func (b *dailyReportAIBackend) ListEvents(_ context.Context, _, _ string, out any) error {
+	events, ok := out.(*[]backendclient.Event)
+	if !ok {
+		return errors.New("unexpected event output type")
+	}
+	*events = nil
+	return nil
+}
+
 func (b *dailyReportAIBackend) GetDailyReport(_ context.Context, date string) (backendclient.DailyReport, error) {
 	b.reportDate = date
+	b.reportCalls++
 	return b.report, nil
 }
 

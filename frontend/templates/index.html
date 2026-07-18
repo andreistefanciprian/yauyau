@@ -46,6 +46,14 @@
           <button type="button" class="type-filter-chip" data-filter-type="temperature" title="Temperature" aria-label="Filter to temperature events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "temperature"}}</span></button>
           <button type="button" class="type-filter-chip" data-filter-type="growth_measurement" title="Growth" aria-label="Filter to growth events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "growth_measurement"}}</span></button>
         </div>
+
+        <form class="timeline-display-filter" hx-post="/timeline/preferences/daily-report" hx-trigger="change" hx-target="#timeline-workspace" hx-swap="outerHTML">
+          <input type="hidden" name="selected_date" value="{{.Timeline.SelectedDate}}">
+          <label title="Show daily report">
+            <input class="sr-only" type="checkbox" id="show-daily-report" name="show_daily_report" value="1" aria-label="Show daily report"{{if .ShowDailyReport}} checked{{end}}>
+            <span class="timeline-display-chip range-pill">Daily Report</span>
+          </label>
+        </form>
       </div>
     </div>
 

@@ -571,7 +571,7 @@ document.body.addEventListener("change", (event) => {
   }
 });
 
-// The day nav and event-type filter live inside a collapsible section
+// Timeline navigation and display filters live inside a collapsible section
 // so they don't take up screen space when the timeline itself is what's
 // wanted. Collapsed is the default; the expand/collapse state is remembered
 // per device, same as the type filter below.
