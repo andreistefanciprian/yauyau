@@ -44,9 +44,9 @@ logic and violate the API-first boundary.
 ## Consequences
 
 The timeline card is fast, predictable, and identical in structure across
-today and historical days. It continues to refresh with the timeline after
-event mutations and remains enabled by default unless the user hides it with
-the existing device-local preference.
+today and historical days. It is always visible above the timeline and
+continues to refresh after event mutations. The event-type filter does not
+control the KPI card.
 
 Feed volume represents recorded non-breast-feed volume, and sleep duration
 represents recorded completed duration, matching the existing deterministic

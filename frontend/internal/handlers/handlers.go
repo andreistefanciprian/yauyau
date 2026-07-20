@@ -28,10 +28,8 @@ import (
 // dateFieldLayout and timeFieldLayout match the value formats of
 // <input type="date"> and <input type="time"> respectively.
 const (
-	dateFieldLayout                 = "2006-01-02"
-	timeFieldLayout                 = "15:04"
-	dailyReportVisibilityCookieName = "yauli_show_daily_report"
-	dailyReportVisibilityCookieTTL  = 365 * 24 * time.Hour
+	dateFieldLayout = "2006-01-02"
+	timeFieldLayout = "15:04"
 )
 
 // Backend is the backend-api boundary this package needs. Defined here (the
@@ -148,13 +146,12 @@ type accountViewData struct {
 }
 
 type indexPageData struct {
-	Baby            backendclient.Baby
-	Account         accountViewData
-	Timeline        TimelineViewData
-	DailyReport     *backendclient.DailyReport
-	ShowDailyReport bool
-	NowDate         string
-	NowTime         string
+	Baby        backendclient.Baby
+	Account     accountViewData
+	Timeline    TimelineViewData
+	DailyReport *backendclient.DailyReport
+	NowDate     string
+	NowTime     string
 }
 
 type timelineWorkspaceData struct {
@@ -205,8 +202,7 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	selectedDate := selectedTimelineDate(r, loc)
-	showDailyReport := dailyReportVisible(r)
-	dailyReport := h.loadDailyReportIfVisible(r.Context(), selectedDate, showDailyReport)
+	dailyReport := h.loadDailyReport(r.Context(), selectedDate)
 
 	timeline, err := h.loadTimeline(r.Context(), loc, selectedDate)
 	if err != nil {
@@ -217,13 +213,12 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().In(loc)
 	data := indexPageData{
-		Baby:            baby,
-		Account:         h.loadAccount(r.Context()),
-		Timeline:        timeline,
-		DailyReport:     dailyReport,
-		ShowDailyReport: showDailyReport,
-		NowDate:         now.Format(dateFieldLayout),
-		NowTime:         now.Format(timeFieldLayout),
+		Baby:        baby,
+		Account:     h.loadAccount(r.Context()),
+		Timeline:    timeline,
+		DailyReport: dailyReport,
+		NowDate:     now.Format(dateFieldLayout),
+		NowTime:     now.Format(timeFieldLayout),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -754,10 +749,6 @@ func (h *Handlers) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 // It's the shared tail of every Create*, Update*, and Delete* handler, since
 // event changes can affect both the visible event list and day summary.
 func (h *Handlers) renderTimeline(w http.ResponseWriter, r *http.Request, loc *time.Location) {
-	h.renderTimelineWithDailyReport(w, r, loc, dailyReportVisible(r))
-}
-
-func (h *Handlers) renderTimelineWithDailyReport(w http.ResponseWriter, r *http.Request, loc *time.Location, showDailyReport bool) {
 	selectedDate := selectedTimelineDate(r, loc)
 	timeline, err := h.loadTimeline(r.Context(), loc, selectedDate)
 	if err != nil {
@@ -768,56 +759,12 @@ func (h *Handlers) renderTimelineWithDailyReport(w http.ResponseWriter, r *http.
 
 	data := timelineWorkspaceData{
 		Timeline:    timeline,
-		DailyReport: h.loadDailyReportIfVisible(r.Context(), selectedDate, showDailyReport),
+		DailyReport: h.loadDailyReport(r.Context(), selectedDate),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.Templates.ExecuteTemplate(w, "timeline-workspace", data); err != nil {
 		log.Printf("render timeline workspace template: %v", err)
-	}
-}
-
-// UpdateTimelineDailyReportPreference stores a device-local display preference
-// and refreshes the selected day's workspace. Hidden reports are not fetched.
-func (h *Handlers) UpdateTimelineDailyReportPreference(w http.ResponseWriter, r *http.Request) {
-	_, loc, err := h.currentBabyLocation(r.Context())
-	if err != nil {
-		log.Printf("load baby for daily report preference: %v", err)
-		http.Error(w, "failed to update timeline", http.StatusBadGateway)
-		return
-	}
-
-	showDailyReport := r.FormValue("show_daily_report") == "1"
-	http.SetCookie(w, h.dailyReportVisibilityCookie(showDailyReport))
-	h.renderTimelineWithDailyReport(w, r, loc, showDailyReport)
-}
-
-func (h *Handlers) loadDailyReportIfVisible(ctx context.Context, date string, visible bool) *backendclient.DailyReport {
-	if !visible {
-		return nil
-	}
-	return h.loadDailyReport(ctx, date)
-}
-
-func dailyReportVisible(r *http.Request) bool {
-	cookie, err := r.Cookie(dailyReportVisibilityCookieName)
-	return err != nil || cookie.Value != "0"
-}
-
-func (h *Handlers) dailyReportVisibilityCookie(visible bool) *http.Cookie {
-	value := "0"
-	if visible {
-		value = "1"
-	}
-	return &http.Cookie{
-		Name:     dailyReportVisibilityCookieName,
-		Value:    value,
-		Path:     "/",
-		Expires:  time.Now().Add(dailyReportVisibilityCookieTTL),
-		MaxAge:   int(dailyReportVisibilityCookieTTL.Seconds()),
-		HttpOnly: true,
-		Secure:   h.SecureCookies,
-		SameSite: http.SameSiteLaxMode,
 	}
 }
 

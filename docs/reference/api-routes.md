@@ -189,17 +189,11 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   a `TimelineEvent` — no client-side merging or sorting; the backend already
   returns one merged, ordered list for the selected date.
 * `Index` calls `loadTimeline` and renders the full page.
-* When the daily report is enabled, `Index` calls `Backend.GetDailyReport` for
-  the selected date, then renders `templates/timeline.html`'s
-  `timeline-workspace` partial. That workspace contains both the daily report
-  card and `#timeline`, so HTMX event mutations can refresh both together and
-  avoid stale report counts.
-  The Timeline filter includes a device-persistent `Show daily report`
-  preference, enabled by default. When disabled, the frontend omits the card
-  and skips the deterministic report request. Event mutations preserve the
-  preference when refreshing the workspace. The frontend-only
-  `POST /timeline/preferences/daily-report` route stores the cookie and returns
-  the refreshed workspace.
+* `Index` calls `Backend.GetDailyReport` for the selected date, then renders
+  `templates/timeline.html`'s `timeline-workspace` partial. That workspace
+  always contains both the daily KPI card and `#timeline`, so HTMX event
+  mutations can refresh both together and avoid stale report counts. The
+  Timeline filter controls event types only; it does not hide the KPI card.
 * The frontend-only `GET /timeline/events` route renders the event-list
   section for HTMX refreshes. Today's timeline polls that route every 30
   seconds, while older timeline dates stay static. Passive polling does not
