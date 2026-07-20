@@ -105,6 +105,53 @@ func TestBuildDailyReportCardReturnsZeroTotalsForEmptyDay(t *testing.T) {
 	}
 }
 
+func TestBuildDailyReportCardFormatsFeedVolumeAndBreastDuration(t *testing.T) {
+	tests := []struct {
+		name   string
+		events []store.Event
+		want   string
+	}{
+		{
+			name: "bottle feeds",
+			events: []store.Event{
+				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80)}},
+			},
+			want: "80 ml",
+		},
+		{
+			name: "breast feeds",
+			events: []store.Event{
+				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast", "duration_minutes": float64(35)}},
+			},
+			want: "35 min breast",
+		},
+		{
+			name: "bottle and breast feeds",
+			events: []store.Event{
+				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80), "duration_minutes": float64(20)}},
+				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast", "duration_minutes": float64(35)}},
+			},
+			want: "80 ml · 35 min breast",
+		},
+		{
+			name: "breast feed without duration",
+			events: []store.Event{
+				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast"}},
+			},
+			want: "logged",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			card := buildDailyReportCard(tt.events)
+			if got := card.Metrics[0].Detail; got != tt.want {
+				t.Fatalf("feed detail = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDailyReportCardTitle(t *testing.T) {
 	today := time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC)
 	tests := []struct {

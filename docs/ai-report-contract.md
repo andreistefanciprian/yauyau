@@ -125,7 +125,7 @@ and existing consumers:
         "key": "feed",
         "count": 8,
         "label": "Feeds",
-        "detail": "610 ml"
+        "detail": "610 ml · 42 min breast"
       },
       {
         "key": "sleep",
@@ -580,12 +580,12 @@ Field rules:
 
 ## UI Daily KPI Card
 
-The web timeline uses no generated prose. Backend API calculates feed count
-and recorded volume, completed sleep count and duration, pump count and volume,
-and nappy count for the selected local day. The card always renders those four
-metrics in the same order, including zero values, and uses the baby name in a
-deterministic title. Today, yesterday, and earlier timeline days use the same
-contract.
+The web timeline uses no generated prose. Backend API calculates feed count,
+recorded non-breast volume and recorded breast-feed duration, completed sleep
+count and duration, pump count and volume, and nappy count for the selected
+local day. The card always renders those four metrics in the same order,
+including zero values, and uses the baby name in a deterministic title. Today,
+yesterday, and earlier timeline days use the same contract.
 
 The AI report developer prompt permits an occasional,
 one-expression Australian English flavour for every report type and locale,
@@ -899,8 +899,9 @@ Status: **implemented**.
 The daily card stays visible and fast. The UI:
 
 * renders a backend-owned title and exactly four deterministic metrics;
-* shows feed count and recorded volume, sleep count and duration, pump count
-  and recorded volume, and nappy count;
+* shows feed count, recorded non-breast volume and recorded breast-feed
+  duration, sleep count and duration, pump count and recorded volume, and
+  nappy count;
 * contains no AI prose, AI request, category icon, or model-dependent state;
 * uses the same structure for today and historical timeline days.
 

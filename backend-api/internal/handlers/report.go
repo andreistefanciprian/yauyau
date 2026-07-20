@@ -35,21 +35,22 @@ type dailyReportMetric struct {
 }
 
 type dailyReportStats struct {
-	FeedCount        int
-	MilkMl           int
-	BreastFeeds      int
-	NappyCount       int
-	WetOnlyNappies   int
-	PooOnlyNappies   int
-	MixedNappies     int
-	SleepCount       int
-	SleepMinutes     int
-	PumpCount        int
-	PumpMl           int
-	BathCount        int
-	ObservationCount int
-	TemperatureCount int
-	GrowthCount      int
+	FeedCount         int
+	MilkMl            int
+	BreastFeeds       int
+	BreastFeedMinutes int
+	NappyCount        int
+	WetOnlyNappies    int
+	PooOnlyNappies    int
+	MixedNappies      int
+	SleepCount        int
+	SleepMinutes      int
+	PumpCount         int
+	PumpMl            int
+	BathCount         int
+	ObservationCount  int
+	TemperatureCount  int
+	GrowthCount       int
 }
 
 type dailyReportPeriod struct {
@@ -168,12 +169,26 @@ func buildDailyReportCard(events []store.Event) *dailyReportCardResponse {
 
 	return &dailyReportCardResponse{
 		Metrics: []dailyReportMetric{
-			{Key: "feed", Count: stats.FeedCount, Label: "Feeds", Detail: fmt.Sprintf("%d ml", stats.MilkMl)},
+			{Key: "feed", Count: stats.FeedCount, Label: "Feeds", Detail: dailyReportFeedDetail(stats)},
 			{Key: "sleep", Count: stats.SleepCount, Label: "Sleep", Detail: formatCompactDurationMinutes(stats.SleepMinutes)},
 			{Key: "pump", Count: stats.PumpCount, Label: "Pump", Detail: fmt.Sprintf("%d ml", stats.PumpMl)},
 			{Key: "nappy", Count: stats.NappyCount, Label: "Nappies", Detail: "changed"},
 		},
 	}
+}
+
+func dailyReportFeedDetail(stats dailyReportStats) string {
+	parts := make([]string, 0, 2)
+	if stats.MilkMl > 0 || stats.FeedCount == 0 {
+		parts = append(parts, fmt.Sprintf("%d ml", stats.MilkMl))
+	}
+	if stats.BreastFeedMinutes > 0 {
+		parts = append(parts, formatCompactDurationMinutes(stats.BreastFeedMinutes)+" breast")
+	}
+	if len(parts) == 0 {
+		return "logged"
+	}
+	return strings.Join(parts, " · ")
 }
 
 func dailyReportCardTitle(babyName string, period dailyReportPeriod) string {
@@ -209,6 +224,9 @@ func (s *dailyReportStats) add(ev store.Event) {
 		feedType, _ := ev.Attributes["type"].(string)
 		if feedType == string(FeedTypeBreast) {
 			s.BreastFeeds++
+			if duration, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+				s.BreastFeedMinutes += duration
+			}
 		} else if amount, ok := attributeInt(ev.Attributes, "amount_ml"); ok {
 			s.MilkMl += amount
 		}

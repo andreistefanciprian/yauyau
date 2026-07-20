@@ -15,7 +15,7 @@ The timeline daily report is a deterministic KPI card owned by backend-api.
 For every selected day it returns the baby's day-specific title and exactly
 four metrics in a stable order:
 
-1. feed count and recorded volume;
+1. feed count, recorded non-breast volume, and recorded breast-feed duration;
 2. completed sleep count and duration;
 3. pump count and recorded volume;
 4. nappy count.
@@ -48,10 +48,11 @@ today and historical days. It is always visible above the timeline and
 continues to refresh after event mutations. The event-type filter does not
 control the KPI card.
 
-Feed volume represents recorded non-breast-feed volume, and sleep duration
-represents recorded completed duration, matching the existing deterministic
-report calculations. Zero-value metrics are still displayed so the layout
-never shifts.
+Feed volume represents recorded non-breast-feed volume. Breast duration sums
+only recorded `duration_minutes` on breast feeds; a missing duration is not
+treated as zero. Sleep duration represents recorded completed duration,
+matching the existing deterministic report calculations. Zero-value metrics
+are still displayed so the layout never shifts.
 
 The UI no longer gives a generated narrative interpretation. Scheduled email
 reports continue to provide AI-generated summaries through the separate generic

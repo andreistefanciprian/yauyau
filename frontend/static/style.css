@@ -871,6 +871,10 @@ h2 {
   white-space: nowrap;
 }
 
+.daily-report-metric-feed .daily-report-metric-detail {
+  white-space: normal;
+}
+
 @media (max-width: 360px) {
   .daily-report {
     padding-inline: 1rem;
