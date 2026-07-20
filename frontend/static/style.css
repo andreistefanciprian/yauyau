@@ -1447,30 +1447,45 @@ fieldset:disabled {
   gap: 0.65rem;
 }
 
+.event-occurred-at-fields,
 .edit-occurred-at-fields {
   display: grid;
-  gap: 0.75rem;
+  grid-template-columns: minmax(7rem, 0.8fr) minmax(0, 1fr);
+  gap: 0.5rem;
 }
 
-.sleep-edit-time-fields {
+.event-occurred-at-fields .field-label,
+.edit-occurred-at-fields .field-label {
+  min-width: 0;
+}
+
+.event-occurred-at-fields input,
+.edit-occurred-at-fields input,
+.sleep-time-pair input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.grouped-edit-time-fields {
   grid-template-columns: minmax(0, 1fr) minmax(7rem, 0.8fr);
   gap: 0.25rem 0.5rem;
 }
 
-.sleep-edit-time-fields .edit-occurred-at-label {
+.grouped-edit-time-fields .edit-occurred-at-label {
   grid-column: 1 / -1;
   font-weight: 600;
 }
 
-.sleep-edit-time-fields .field-label:first-of-type {
+.grouped-edit-time-fields .field-label:first-of-type {
   order: 2;
 }
 
-.sleep-edit-time-fields .field-label:last-of-type {
+.grouped-edit-time-fields .field-label:last-of-type {
   order: 1;
 }
 
-.sleep-edit-time-fields .field-label > span {
+.grouped-edit-time-fields .field-label > span {
   display: none;
 }
 

@@ -244,6 +244,12 @@ If everything is orange, nothing stands out.
 * teal connector
 * event-specific colored icons
 
+**Event Forms**
+
+* keep Time and Date inputs on one responsive row in both create and edit flows
+* use the same grouped Date/Time treatment for Started and Fell asleep fields
+* preserve field order and labeling between create and edit forms
+
 **Daily Report Card**
 
 * use a deterministic title with the baby's name and selected day

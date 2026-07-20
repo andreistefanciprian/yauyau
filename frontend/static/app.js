@@ -451,9 +451,12 @@ function openEditDialog(card) {
   editDeleteButton.dataset.deleteUrl = deleteURL;
   editTypeInput.value = type;
   editTitle.textContent = typeLabels[type] ? typeLabels[type].replace("Log", "Edit") : "Edit event";
-  const isSleep = type === "sleep";
-  if (editOccurredAtFields) editOccurredAtFields.classList.toggle("sleep-edit-time-fields", isSleep);
-  if (editOccurredAtLabel) editOccurredAtLabel.hidden = !isSleep;
+  const groupedStartFields = type === "sleep" || type === "feed";
+  if (editOccurredAtFields) editOccurredAtFields.classList.toggle("grouped-edit-time-fields", groupedStartFields);
+  if (editOccurredAtLabel) {
+    editOccurredAtLabel.hidden = !groupedStartFields;
+    editOccurredAtLabel.textContent = type === "sleep" ? "Fell asleep" : "Started";
+  }
   if (editTimeLabel) editTimeLabel.textContent = "Time";
   if (editDateLabel) editDateLabel.textContent = "Date";
 

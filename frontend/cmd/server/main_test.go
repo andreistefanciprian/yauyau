@@ -314,6 +314,43 @@ func TestIndexEditDialogHasImmediateDeleteAndDisabledSave(t *testing.T) {
 	}
 }
 
+func TestIndexGroupsEventDateAndTimeFields(t *testing.T) {
+	templates := parseFrontendTemplates(t)
+	data := map[string]any{
+		"Baby":        backendclient.Baby{Name: "YauYau"},
+		"Account":     map[string]string{"Label": "Parent", "Email": "parent@example.com"},
+		"Timeline":    handlers.TimelineViewData{SelectedDate: "2026-07-18"},
+		"DailyReport": (*backendclient.DailyReport)(nil),
+		"NowDate":     "2026-07-18",
+		"NowTime":     "09:30",
+	}
+
+	var rendered bytes.Buffer
+	if err := templates.ExecuteTemplate(&rendered, "index", data); err != nil {
+		t.Fatalf("render index: %v", err)
+	}
+	html := rendered.String()
+
+	for _, eventType := range []string{"nappy", "pump", "bath", "observation", "temperature", "growth_measurement"} {
+		form := createEventFormMarkup(t, html, eventType)
+		if got := strings.Count(form, `class="event-occurred-at-fields"`); got != 1 {
+			t.Errorf("%s create form has %d Time/Date groups, want 1", eventType, got)
+		}
+		if !strings.Contains(form, `type="time" name="time"`) || !strings.Contains(form, `type="date" name="date"`) {
+			t.Errorf("%s create form does not contain Time and Date inputs in its shared group", eventType)
+		}
+	}
+
+	feedForm := createEventFormMarkup(t, html, "feed")
+	if !strings.Contains(feedForm, `Started`) || strings.Count(feedForm, `class="sleep-time-pair"`) != 2 {
+		t.Errorf("feed create form does not group Started and Finished Date/Time fields")
+	}
+
+	if got := strings.Count(html, `class="edit-occurred-at-fields"`); got != 1 {
+		t.Errorf("edit dialog has %d shared Time/Date groups, want 1", got)
+	}
+}
+
 func parseFrontendTemplates(t *testing.T) *template.Template {
 	t.Helper()
 	templates, err := template.New("").Funcs(template.FuncMap{
@@ -337,4 +374,18 @@ func elementMarkup(t *testing.T, html, openingTag string) string {
 		t.Fatalf("rendered HTML element %q is not closed", openingTag)
 	}
 	return html[start : start+relativeEnd+len("</div>")]
+}
+
+func createEventFormMarkup(t *testing.T, html, eventType string) string {
+	t.Helper()
+	openingTag := `<form class="event-form" data-type="` + eventType + `"`
+	start := strings.Index(html, openingTag)
+	if start == -1 {
+		t.Fatalf("rendered HTML does not contain %s create form", eventType)
+	}
+	relativeEnd := strings.Index(html[start:], "</form>")
+	if relativeEnd == -1 {
+		t.Fatalf("rendered %s create form is not closed", eventType)
+	}
+	return html[start : start+relativeEnd+len("</form>")]
 }
