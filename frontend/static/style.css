@@ -807,12 +807,7 @@ h2 {
 }
 
 .daily-report-metrics {
-  display: grid;
-  grid-template-columns:
-    minmax(0, 1.4fr)
-    minmax(0, 1.05fr)
-    minmax(0, 0.75fr)
-    minmax(0, 0.8fr);
+  display: flex;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -820,6 +815,7 @@ h2 {
 
 .daily-report-metric {
   display: grid;
+  flex: 1 1 max-content;
   align-content: start;
   gap: 0.15rem;
   min-width: 0;

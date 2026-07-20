@@ -200,12 +200,12 @@ func formatCompactDurationMinutes(minutes int) string {
 	hours := minutes / 60
 	remainingMinutes := minutes % 60
 	if hours == 0 {
-		return fmt.Sprintf("%d min", remainingMinutes)
+		return fmt.Sprintf("%d m", remainingMinutes)
 	}
 	if remainingMinutes == 0 {
-		return fmt.Sprintf("%d hr", hours)
+		return fmt.Sprintf("%d h", hours)
 	}
-	return fmt.Sprintf("%d hr %d min", hours, remainingMinutes)
+	return fmt.Sprintf("%d h %d m", hours, remainingMinutes)
 }
 
 func (s *dailyReportStats) add(ev store.Event) {
