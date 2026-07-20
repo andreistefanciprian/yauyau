@@ -633,10 +633,12 @@
           </label>
         </div>
 
-        <button type="button" class="edit-delete-button" id="edit-event-delete"
-          hx-delete="/events/__event_id__" hx-target="#timeline-workspace" hx-swap="outerHTML"
-          hx-on::after-request="if(event.detail.successful) onEventDeleted()">Delete event</button>
-        <button type="submit" id="edit-event-save" disabled>Save changes</button>
+        <div class="edit-event-actions">
+          <button type="submit" id="edit-event-save" disabled>Save changes</button>
+          <button type="button" class="edit-delete-button" id="edit-event-delete"
+            hx-delete="/events/__event_id__" hx-target="#timeline-workspace" hx-swap="outerHTML"
+            hx-on::after-request="if(event.detail.successful) onEventDeleted()">Delete event</button>
+        </div>
       </form>
       </div>
     </dialog>

@@ -247,6 +247,7 @@ func TestIndexEditDialogHasImmediateDeleteAndDisabledSave(t *testing.T) {
 	}
 	html := rendered.String()
 	for _, marker := range []string{
+		`class="edit-event-actions"`,
 		`id="edit-event-delete"`,
 		`hx-delete="/events/__event_id__"`,
 		`id="edit-event-save" disabled`,
@@ -254,6 +255,9 @@ func TestIndexEditDialogHasImmediateDeleteAndDisabledSave(t *testing.T) {
 		if !strings.Contains(html, marker) {
 			t.Fatalf("edit dialog missing %q: %s", marker, html)
 		}
+	}
+	if saveIndex, deleteIndex := strings.Index(html, `id="edit-event-save"`), strings.Index(html, `id="edit-event-delete"`); saveIndex == -1 || deleteIndex == -1 || saveIndex > deleteIndex {
+		t.Fatalf("edit dialog actions are not ordered Save then Delete: %s", html)
 	}
 	for _, unwanted := range []string{`hx-confirm`, `id="confirm-dialog"`} {
 		if strings.Contains(html, unwanted) {

@@ -1605,6 +1605,26 @@ textarea {
   opacity: 0.45;
 }
 
+.edit-event-actions {
+  position: fixed;
+  left: 50%;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  z-index: 20;
+  display: grid;
+  gap: 0.75rem;
+  width: calc(100% - 2.5rem);
+  max-width: 430px;
+  transform: translateX(-50%);
+}
+
+.event-form .edit-event-actions button[type="submit"] {
+  position: static;
+  width: 100%;
+  max-width: none;
+  transform: none;
+  margin: 0;
+}
+
 .event-form .edit-delete-button {
   width: 100%;
   padding: 0.75rem;
@@ -1620,6 +1640,10 @@ textarea {
 
 .event-form .edit-delete-button:active {
   background: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
+}
+
+#edit-event-form {
+  padding-bottom: calc(8.5rem + env(safe-area-inset-bottom));
 }
 
 /* Auth (login / verify) */
