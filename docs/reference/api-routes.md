@@ -222,6 +222,12 @@ data-type="...">` block from `templates/index.html`. Each form still posts
 straight to its own existing endpoint (`/nappies`, `/feeds`, `/pumps`, ...); the
 dialog only changes what's *shown*, not the request shape.
 
+Timeline cards carry the event's editable values in `data-*` attributes and
+open the shared edit dialog when clicked or activated with Enter/Space. The
+edit dialog keeps Save disabled until its populated form differs from the
+original event and contains the event's immediate Delete action; deletion does
+not add a separate confirmation step.
+
 **To add a new event type on the frontend:** add a `<x>TimelineEvent`
 builder in `handlers.go` (reading from `ev.Attributes`) and a case for it
 in `timelineEvent`'s switch; add a `Create<X>` handler ending in
