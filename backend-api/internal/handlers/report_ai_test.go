@@ -16,7 +16,6 @@ import (
 
 	"github.com/andreistefanciprian/yauli/backend-api/internal/aireport"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/authctx"
-	"github.com/andreistefanciprian/yauli/backend-api/internal/dailycard"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
 
@@ -345,90 +344,6 @@ func TestValidateAIReportOutputRejectsTooManyHighlights(t *testing.T) {
 	if _, err := validateAIReportOutput(raw); err == nil || !strings.Contains(err.Error(), "highlights exceeds max 4") {
 		t.Fatalf("validateAIReportOutput err = %v, want max highlights error", err)
 	}
-}
-
-func TestValidateDailyCardOutputContract(t *testing.T) {
-	baseCard := dailycard.Output{
-		SchemaVersion: dailycard.OutputSchemaVersion,
-		Title:         "YauYau's day so far",
-		Body:          "Plenty of nappy changes and 2 pumping sessions totalling 325 ml rounded out the day. A growth check recorded 6.8 kg, a length of 66.5 cm and a head circumference of 42.2 cm, a lovely milestone to remember.",
-		Closing:       "You've got this, Dad.",
-	}
-
-	tests := []struct {
-		name      string
-		card      dailycard.Output
-		wantError string
-	}{
-		{name: "valid output", card: baseCard},
-		{
-			name: "missing title",
-			card: func() dailycard.Output {
-				card := baseCard
-				card.Title = ""
-				return card
-			}(),
-			wantError: "title is required",
-		},
-		{
-			name: "title longer than five words",
-			card: func() dailycard.Output {
-				card := baseCard
-				card.Title = "Today with YauYau and the family"
-				return card
-			}(),
-			wantError: "title exceeds 5 words",
-		},
-		{
-			name: "missing body",
-			card: func() dailycard.Output {
-				card := baseCard
-				card.Body = ""
-				return card
-			}(),
-			wantError: "body is required",
-		},
-		{
-			name: "missing closing",
-			card: func() dailycard.Output {
-				card := baseCard
-				card.Closing = ""
-				return card
-			}(),
-			wantError: "closing is required",
-		},
-		{
-			name: "model Markdown",
-			card: func() dailycard.Output {
-				card := baseCard
-				card.Body = "**The day is still unfolding.**"
-				return card
-			}(),
-			wantError: "Markdown or HTML",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			raw := mustMarshalDailyCardOutput(t, tt.card)
-			_, err := validateDailyCardOutput(raw)
-			if tt.wantError == "" && err != nil {
-				t.Fatalf("validateDailyCardOutput returned error: %v", err)
-			}
-			if tt.wantError != "" && (err == nil || !strings.Contains(err.Error(), tt.wantError)) {
-				t.Fatalf("validateDailyCardOutput error = %v, want %q", err, tt.wantError)
-			}
-		})
-	}
-}
-
-func mustMarshalDailyCardOutput(t *testing.T, card dailycard.Output) json.RawMessage {
-	t.Helper()
-	raw, err := json.Marshal(card)
-	if err != nil {
-		t.Fatalf("marshal AI output: %v", err)
-	}
-	return raw
 }
 
 func authenticatedAIReportRequest(t *testing.T, familyID uuid.UUID, body string) *http.Request {

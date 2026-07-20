@@ -51,19 +51,17 @@ func TestIconTemplatesRenderSVG(t *testing.T) {
 	}
 }
 
-func TestDailyReportRendersStructuredCopyAndDeterministicMetrics(t *testing.T) {
+func TestDailyReportRendersFourKPIs(t *testing.T) {
 	templates := parseFrontendTemplates(t)
 	report := backendclient.DailyReport{
-		Title:        "YauYau's day so far",
-		SelectedDate: "2026-07-17",
-		LoadAI:       true,
+		Title: "Yau Yau today",
 		Card: &backendclient.DailyReportCard{
-			PrimaryMetrics: []backendclient.DailyReportPrimaryMetric{
-				{Count: "4 feeds", Total: "320 ml"},
-				{Count: "4 sleeps", Total: "9 hr 39 min"},
+			Metrics: []backendclient.DailyReportMetric{
+				{Key: "feed", Count: 5, Label: "Feeds", Detail: "255 ml"},
+				{Key: "sleep", Count: 3, Label: "Sleep", Detail: "5 hr 57 min"},
+				{Key: "pump", Count: 1, Label: "Pump", Detail: "150 ml"},
+				{Key: "nappy", Count: 4, Label: "Nappies", Detail: "changed"},
 			},
-			Body:    "There were plenty of nappy changes and a growth measurement. The day is ticking along nicely.",
-			Closing: "You've got this, Dad. 💛",
 		},
 	}
 
@@ -73,24 +71,29 @@ func TestDailyReportRendersStructuredCopyAndDeterministicMetrics(t *testing.T) {
 	}
 	html := rendered.String()
 	for _, want := range []string{
-		`hx-get="/daily-report/ai?date=2026-07-17"`,
-		`YauYau&#39;s day so far`,
-		`<strong>4 feeds</strong>`,
-		`<strong>320 ml</strong>`,
-		`<strong>4 sleeps</strong>`,
-		`<strong>9 hr 39 min</strong>`,
-		`a growth measurement`,
-		`You&#39;ve got this, Dad. 💛`,
+		`Yau Yau today`,
+		`daily-report-metric-feed`,
+		`daily-report-metric-count">5</strong>`,
+		`daily-report-metric-label">Feeds</span>`,
+		`daily-report-metric-detail">255 ml</span>`,
+		`daily-report-metric-sleep`,
+		`5 hr 57 min`,
+		`daily-report-metric-pump`,
+		`150 ml`,
+		`daily-report-metric-nappy`,
+		`changed`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("daily report HTML does not contain %q: %s", want, html)
 		}
 	}
-	if strings.Contains(html, "<svg") {
-		t.Fatalf("daily report contains an icon: %s", html)
+	for _, unwanted := range []string{"hx-get=", "<p>", "<svg"} {
+		if strings.Contains(html, unwanted) {
+			t.Fatalf("daily report contains %q: %s", unwanted, html)
+		}
 	}
-	if got := strings.Count(html, "<strong>"); got != 4 {
-		t.Fatalf("daily report contains %d strong elements, want primary metrics only: %s", got, html)
+	if got := strings.Count(html, `class="daily-report-metric `); got != 4 {
+		t.Fatalf("daily report contains %d metrics, want 4: %s", got, html)
 	}
 }
 
@@ -149,54 +152,6 @@ func TestIndexRendersDailyReportVisibilityPreference(t *testing.T) {
 				t.Fatalf("daily report filter is not on its own row: %s", html)
 			}
 		})
-	}
-}
-
-func TestDailyReportEscapesGeneratedCopyAndStopsReloadingAfterAI(t *testing.T) {
-	templates := parseFrontendTemplates(t)
-	report := backendclient.DailyReport{
-		Title: `<script>alert("no")</script>`,
-		Card: &backendclient.DailyReportCard{
-			Body:    `<script>alert("no")</script>`,
-			Closing: "You've got this.",
-		},
-	}
-
-	var rendered bytes.Buffer
-	if err := templates.ExecuteTemplate(&rendered, "daily-report", report); err != nil {
-		t.Fatalf("render daily report: %v", err)
-	}
-	html := rendered.String()
-	if strings.Contains(html, "<script>") {
-		t.Fatalf("daily report rendered model HTML: %s", html)
-	}
-	if !strings.Contains(html, `&lt;script&gt;alert`) {
-		t.Fatalf("daily report did not escape model HTML: %s", html)
-	}
-	if strings.Contains(html, "hx-get=") {
-		t.Fatalf("AI daily report would reload itself: %s", html)
-	}
-}
-
-func TestHistoricalDailyReportOmitsClosing(t *testing.T) {
-	templates := parseFrontendTemplates(t)
-	report := backendclient.DailyReport{
-		Title: "Tuesday summary",
-		Card: &backendclient.DailyReportCard{
-			Body: "A new growth check recorded 3.5 kg, a lovely milestone to remember.",
-		},
-	}
-
-	var rendered bytes.Buffer
-	if err := templates.ExecuteTemplate(&rendered, "daily-report", report); err != nil {
-		t.Fatalf("render historical daily report: %v", err)
-	}
-	html := rendered.String()
-	if strings.Contains(html, "<p></p>") {
-		t.Fatalf("historical daily report renders empty prose: %s", html)
-	}
-	if got := strings.Count(html, "<p>"); got != 1 {
-		t.Fatalf("historical daily report contains %d paragraphs, want body only: %s", got, html)
 	}
 }
 

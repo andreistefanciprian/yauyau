@@ -60,7 +60,7 @@ The website is a beautiful dashboard and timeline for reviewing your baby's hist
 * 🔐 Magic-link sign in with durable sessions and short-lived backend API JWTs
 * 👥 Timeline access management, invites and relationship labels
 * 👶 Baby profile settings, including birth date, birth weight, birth length and sex
-* ✨ Cached AI copy for today's report card, with deterministic historical reports and fallback metrics
+* 📊 Daily feed, sleep, pump and nappy KPI card
 * 🗑 Owner-controlled timeline archive/delete flow
 
 **Planned**

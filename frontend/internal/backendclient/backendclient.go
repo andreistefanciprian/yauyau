@@ -71,31 +71,17 @@ type Event struct {
 }
 
 type DailyReport struct {
-	Title        string           `json:"title"`
-	Summary      string           `json:"summary"`
-	Highlights   []string         `json:"highlights"`
-	Card         *DailyReportCard `json:"card,omitempty"`
-	GeneratedAt  time.Time        `json:"generated_at"`
-	RangeStart   time.Time        `json:"range_start"`
-	RangeEnd     time.Time        `json:"range_end"`
-	SelectedDate string           `json:"-"`
-	LoadAI       bool             `json:"-"`
+	Title string           `json:"title"`
+	Card  *DailyReportCard `json:"card,omitempty"`
 }
 
 type DailyReportCard struct {
-	PrimaryMetrics []DailyReportPrimaryMetric `json:"primary_metrics"`
-	Body           string                     `json:"body,omitempty"`
-	Closing        string                     `json:"closing,omitempty"`
+	Metrics []DailyReportMetric `json:"metrics"`
 }
 
-type DailyReportPrimaryMetric struct {
-	Count string `json:"count"`
-	Total string `json:"total,omitempty"`
-}
-
-type AIDailyCard struct {
-	SchemaVersion string `json:"schema_version"`
-	Title         string `json:"title"`
-	Body          string `json:"body"`
-	Closing       string `json:"closing"`
+type DailyReportMetric struct {
+	Key    string `json:"key"`
+	Count  int    `json:"count"`
+	Label  string `json:"label"`
+	Detail string `json:"detail"`
 }

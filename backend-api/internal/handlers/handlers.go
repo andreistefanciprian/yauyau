@@ -19,7 +19,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/andreistefanciprian/yauli/backend-api/internal/aireport"
-	"github.com/andreistefanciprian/yauli/backend-api/internal/dailycard"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/reportemail"
 	"github.com/andreistefanciprian/yauli/backend-api/internal/store"
 )
@@ -80,13 +79,6 @@ type AuthClient interface {
 // data into validated ai_report_output JSON.
 type AIReportGenerator interface {
 	GenerateAIReport(ctx context.Context, input aireport.GenerationInput) (aireport.GenerationResult, error)
-}
-
-// DailyCardGenerator is deliberately separate from AIReportGenerator. It
-// accepts the complete current-day JSON envelope and returns only daily-card
-// prose under its own prompt and output contract.
-type DailyCardGenerator interface {
-	GenerateDailyCard(ctx context.Context, input json.RawMessage) (dailycard.GenerationResult, error)
 }
 
 // ReportEmailSender is the delivery boundary for scheduled AI report emails.
@@ -304,7 +296,6 @@ type Handlers struct {
 	FamilyStore       FamilyStore
 	Auth              AuthClient
 	AI                AIReportGenerator
-	DailyCardAI       DailyCardGenerator
 	ReportEmailSender ReportEmailSender
 }
 

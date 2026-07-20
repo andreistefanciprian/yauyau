@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/andreistefanciprian/yauli/backend-api/internal/aireport"
-	"github.com/andreistefanciprian/yauli/backend-api/internal/dailycard"
 )
 
 func TestNewUsesGPT56TerraByDefault(t *testing.T) {
@@ -142,68 +141,5 @@ func TestGenerateAIReportFallsBackToOutputContent(t *testing.T) {
 	}
 	if !strings.Contains(string(result.ContentJSON), `"title":"Nested"`) {
 		t.Fatalf("ContentJSON = %s, want nested report JSON", result.ContentJSON)
-	}
-}
-
-func TestGenerateDailyCardUsesSeparateSystemPromptAndSchema(t *testing.T) {
-	var captured map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
-			t.Fatalf("decode request body: %v", err)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{
-			"model": "test-model",
-			"output_text": "{\"schema_version\":\"daily_card_output.v2\",\"title\":\"YauYau's day so far\",\"body\":\"Plenty of nappy changes round out the day.\",\"closing\":\"You've got this, Dad.\"}"
-		}`))
-	}))
-	t.Cleanup(server.Close)
-
-	client := New("test-key", "test-model")
-	client.baseURL = server.URL
-	client.httpClient = server.Client()
-	input := json.RawMessage(`{"schema_version":"daily_card_input.v1","viewer":{"relationship":"Dad"},"report_data":{"range":{"generated_at":"2026-07-17T17:00:00+09:30"}}}`)
-
-	result, err := client.GenerateDailyCard(t.Context(), input)
-	if err != nil {
-		t.Fatalf("GenerateDailyCard returned error: %v", err)
-	}
-	if result.Model != "test-model" || !strings.Contains(string(result.ContentJSON), `"schema_version":"`+dailycard.OutputSchemaVersion+`"`) {
-		t.Fatalf("result = %#v", result)
-	}
-
-	messages := captured["input"].([]any)
-	systemMessage := messages[0].(map[string]any)
-	if systemMessage["role"] != "system" {
-		t.Fatalf("system role = %#v, want system", systemMessage["role"])
-	}
-	systemPrompt := systemMessage["content"].(string)
-	for _, required := range []string{
-		"Do not use hyphens, en dashes, or em dashes",
-		"at most one emoji",
-		"baby's name no more than once",
-		"complete current day output from buildReportDataForBaby",
-		"Mention every supplied current day value",
-		"Australian English expression",
-		"Use at most one across the complete report",
-	} {
-		if !strings.Contains(systemPrompt, required) {
-			t.Fatalf("system prompt missing %q", required)
-		}
-	}
-	format := captured["text"].(map[string]any)["format"].(map[string]any)
-	if format["name"] != "daily_card_output" || format["strict"] != true {
-		t.Fatalf("format = %#v", format)
-	}
-	properties := format["schema"].(map[string]any)["properties"].(map[string]any)
-	if _, ok := properties["title"]; !ok {
-		t.Fatalf("daily card schema missing title: %#v", properties)
-	}
-	if _, ok := properties["opening"]; ok {
-		t.Fatalf("daily card schema unexpectedly contains opening: %#v", properties)
-	}
-	userContent := messages[1].(map[string]any)["content"].(string)
-	if userContent != string(input) {
-		t.Fatalf("user content = %s, want exact input JSON %s", userContent, input)
 	}
 }

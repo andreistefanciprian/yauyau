@@ -72,13 +72,10 @@ signature/expiry and decodes the caller's identity into context — see
   `backend-api/internal/handlers/report.go` and summarizes the merged event
   stream into a structured response (`title`, legacy `summary` and
   `highlights`, deterministic `card`, `generated_at`, `range_start`, and
-  `range_end`). `card.primary_metrics` contains separately renderable feed and
-  sleep values so clients can emphasize exact backend facts without parsing
-  prose. The compact metrics omit filler such as "recorded" and "total". The
-  card also contains a deterministic body with general nappy wording and the
-  latest values from any recorded growth measurements. Today's deterministic
-  fallback includes a short relationship-aware closing; completed days use the
-  same title, metrics, and body shell without a closing.
+  `range_end`). `card.metrics` always contains feed count and recorded volume,
+  sleep count and duration, pump count and recorded volume, and nappy count.
+  The title uses the baby's name and selected day. The card contains no AI
+  prose or model-dependent fields.
 * `GET /api/v1/babies/current/reports/data` → `GetReportData`, the canonical
   factual report-data payload for one to 31 local calendar days. Supports
   inclusive `?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`; omitting both
@@ -89,23 +86,12 @@ signature/expiry and decodes the caller's identity into context — see
   analytics, and normalized oldest-first events per day. It also includes
   previous-7-day baseline range metadata, totals, and baby analytics. It
   intentionally does not include AI output yet.
-* `POST /api/v1/babies/current/reports/daily-card/ai` → `CreateAIDailyCard`,
-  the today-only AI copy endpoint for the web card. It accepts no date range.
-  Backend API builds the complete current-day `buildReportDataForBaby` JSON,
-  including timestamps, and passes it to the dedicated `GenerateDailyCard`
-  workflow. The response is strict `daily_card_output.v2` JSON with `title`,
-  `body`, and `closing`. It never contains feed and sleep KPI values. Cache
-  identity includes the viewer
-  relationship and semantic report data; formal family labels are normalised
-  to parent-facing Australian terms such as Dad, Mum, Grandma, and Grandpa.
-  Current-day entries have a two-hour freshness window.
 * `POST /api/v1/babies/current/reports/ai` → `CreateAIReport`, the existing
   cached AI generation path for selected daily and weekly range reports and
-  scheduled email. It remains on `ai_report_output.v1` and has a separate
-  prompt, schema, validation path, and model-facing purpose from the UI daily
-  card. Every report type and locale may occasionally use at most one subtle,
-  everyday Australian English expression when it fits naturally; locale still
-  controls terminology and units.
+  scheduled email. It remains on `ai_report_output.v1`. Every report type and
+  locale may occasionally use at most one subtle, everyday Australian English
+  expression when it fits naturally; locale still controls terminology and
+  units.
 * `PATCH /api/v1/babies/current/events/{id}` → `UpdateEvent`, type-checked
   generic edit for an existing current-baby event.
 * `DELETE /api/v1/babies/current/events/{id}` → `DeleteEvent`, removes one
@@ -210,18 +196,10 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   avoid stale report counts.
   The Timeline filter includes a device-persistent `Show daily report`
   preference, enabled by default. When disabled, the frontend omits the card
-  and skips both the deterministic report request and today's AI request.
-  Event mutations preserve the preference when refreshing the workspace. The
-  frontend-only `POST /timeline/preferences/daily-report` route stores the
-  cookie and returns the refreshed workspace.
-* When Today is selected, the deterministic card includes an HTMX `load`
-  request to the frontend-only `GET /daily-report/ai` route. That route calls
-  the dedicated backend `/reports/daily-card/ai` endpoint, merges only its four
-  escaped prose fields into the fresh deterministic card, and returns the card
-  partial without another load trigger. Yesterday and earlier days never make
-  the AI request and keep their deterministic reports. Provider, timeout, or
-  validation failures also keep the deterministic fallback, so AI never delays
-  timeline rendering or event persistence.
+  and skips the deterministic report request. Event mutations preserve the
+  preference when refreshing the workspace. The frontend-only
+  `POST /timeline/preferences/daily-report` route stores the cookie and returns
+  the refreshed workspace.
 * The frontend-only `GET /timeline/events` route renders the event-list
   section for HTMX refreshes. Today's timeline polls that route every 30
   seconds, while older timeline dates stay static. Passive polling does not

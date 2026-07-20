@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
-	"strings"
 	"testing"
 	"time"
 
@@ -55,8 +53,7 @@ func TestBuildDailyReportSummarizesTimelineEvents(t *testing.T) {
 	}
 }
 
-func TestBuildDailyReportCardPrioritisesMetricsAndTellsSecondaryStory(t *testing.T) {
-	period := dailyReportPeriodFor(time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC), time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC))
+func TestBuildDailyReportCardReturnsFourKPIs(t *testing.T) {
 	events := []store.Event{
 		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80)}},
 		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80)}},
@@ -74,118 +71,77 @@ func TestBuildDailyReportCardPrioritisesMetricsAndTellsSecondaryStory(t *testing
 		{EventType: eventTypePump, Attributes: map[string]any{"amount_ml": float64(175)}},
 		{EventType: eventTypeBath, Attributes: map[string]any{}},
 		{EventType: eventTypeTemperature, Attributes: map[string]any{}},
-		{EventType: eventTypeGrowthMeasurement, Attributes: map[string]any{"weight_grams": float64(7200)}},
 	}
 
-	card := buildDailyReportCard(events, period, "Dad")
-	if len(card.PrimaryMetrics) != 2 {
-		t.Fatalf("PrimaryMetrics = %#v, want feed and sleep", card.PrimaryMetrics)
+	card := buildDailyReportCard(events)
+	want := []dailyReportMetric{
+		{Key: "feed", Count: 4, Label: "Feeds", Detail: "320 ml"},
+		{Key: "sleep", Count: 4, Label: "Sleep", Detail: "9 hr 39 min"},
+		{Key: "pump", Count: 2, Label: "Pump", Detail: "325 ml"},
+		{Key: "nappy", Count: 4, Label: "Nappies", Detail: "changed"},
 	}
-	if got := card.PrimaryMetrics[0]; got.Count != "4 feeds" || got.Total != "320 ml" {
-		t.Fatalf("feed metric = %#v", got)
+	if len(card.Metrics) != len(want) {
+		t.Fatalf("Metrics = %#v, want %#v", card.Metrics, want)
 	}
-	if got := card.PrimaryMetrics[1]; got.Count != "4 sleeps" || got.Total != "9 hr 39 min" {
-		t.Fatalf("sleep metric = %#v", got)
-	}
-	wantStory := "The day also included plenty of nappy changes, two pumping sessions totalling 325 ml, a bath, and a temperature check. A new growth check recorded 7.2 kg, a lovely milestone to remember."
-	if card.Body != wantStory {
-		t.Fatalf("Body = %q, want %q", card.Body, wantStory)
-	}
-	if strings.Contains(card.Body, "2 nappy") || strings.Contains(card.Body, "mixed") || strings.Contains(card.Body, "wet") {
-		t.Fatalf("Body exposes nappy detail: %q", card.Body)
-	}
-	if card.Closing != "You've got this, Dad." {
-		t.Fatalf("Closing = %q", card.Closing)
+	for i := range want {
+		if card.Metrics[i] != want[i] {
+			t.Fatalf("Metrics[%d] = %#v, want %#v", i, card.Metrics[i], want[i])
+		}
 	}
 }
 
-func TestBuildHistoricalDailyReportCardOmitsFillerAndUsesLatestGrowthValues(t *testing.T) {
-	day := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
-	period := dailyReportPeriodFor(day, day.AddDate(0, 0, 2))
-	events := []store.Event{
-		{
-			EventType:  eventTypeGrowthMeasurement,
-			OccurredAt: day.Add(8 * time.Hour),
-			Attributes: map[string]any{
-				"weight_grams":          float64(3400),
-				"length_cm":             float64(51.8),
-				"head_circumference_cm": float64(35.9),
-			},
-		},
-		{
-			EventType:  eventTypeGrowthMeasurement,
-			OccurredAt: day.Add(12 * time.Hour),
-			Attributes: map[string]any{
-				"weight_grams":          float64(3500),
-				"length_cm":             float64(52.4),
-				"head_circumference_cm": float64(36.1),
-			},
-		},
+func TestBuildDailyReportCardReturnsZeroTotalsForEmptyDay(t *testing.T) {
+	card := buildDailyReportCard(nil)
+	want := []dailyReportMetric{
+		{Key: "feed", Count: 0, Label: "Feeds", Detail: "0 ml"},
+		{Key: "sleep", Count: 0, Label: "Sleep", Detail: "0 min"},
+		{Key: "pump", Count: 0, Label: "Pump", Detail: "0 ml"},
+		{Key: "nappy", Count: 0, Label: "Nappies", Detail: "changed"},
 	}
-
-	card := buildDailyReportCard(events, period, "Father")
-
-	wantStory := "A new growth check recorded 3.5 kg, a length of 52.4 cm, and a head circumference of 36.1 cm, a lovely milestone to remember."
-	if card.Body != wantStory {
-		t.Fatalf("Body = %q, want %q", card.Body, wantStory)
-	}
-	if card.Closing != "" {
-		t.Fatalf("Closing = %q, want empty historical closing", card.Closing)
-	}
-	raw, err := json.Marshal(card)
-	if err != nil {
-		t.Fatalf("marshal historical card: %v", err)
-	}
-	if strings.Contains(string(raw), "closing") {
-		t.Fatalf("historical card includes today-only fields: %s", raw)
+	for i := range want {
+		if card.Metrics[i] != want[i] {
+			t.Fatalf("Metrics[%d] = %#v, want %#v", i, card.Metrics[i], want[i])
+		}
 	}
 }
 
-func TestBuildHistoricalDailyReportCardKeepsEmptyDayMessage(t *testing.T) {
-	day := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
-	period := dailyReportPeriodFor(day, day.AddDate(0, 0, 2))
-
-	card := buildDailyReportCard(nil, period, "Father")
-
-	if card.Body != "No events were logged on Wednesday." {
-		t.Fatalf("Body = %q, want historical empty-day message", card.Body)
-	}
-	if card.Closing != "" {
-		t.Fatalf("historical closing = %q, want empty", card.Closing)
-	}
-}
-
-func TestBuildDailyReportCardHandlesMissingMeasurementsAndHistory(t *testing.T) {
+func TestDailyReportCardTitle(t *testing.T) {
+	today := time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC)
 	tests := []struct {
-		name        string
-		events      []store.Event
-		period      dailyReportPeriod
-		wantMetrics []dailyReportPrimaryMetric
+		name     string
+		babyName string
+		period   dailyReportPeriod
+		want     string
 	}{
 		{
-			name:        "breast feed has no invented volume or sleep",
-			events:      []store.Event{{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast"}}},
-			period:      dailyReportPeriodFor(time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC), time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC)),
-			wantMetrics: []dailyReportPrimaryMetric{{Count: "1 feed"}},
+			name:     "today",
+			babyName: "Yau Yau",
+			period:   dailyReportPeriodFor(today, today),
+			want:     "Yau Yau today",
 		},
 		{
-			name:        "historical day and missing name",
-			events:      []store.Event{{EventType: eventTypeSleep, Attributes: map[string]any{"duration_minutes": float64(60)}}},
-			period:      dailyReportPeriodFor(time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC), time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC)),
-			wantMetrics: []dailyReportPrimaryMetric{{Count: "1 sleep", Total: "1 hr"}},
+			name:     "yesterday",
+			babyName: "Yau Yau",
+			period:   dailyReportPeriodFor(today.AddDate(0, 0, -1), today),
+			want:     "Yau Yau yesterday",
+		},
+		{
+			name:     "earlier day",
+			babyName: "Yau Yau",
+			period:   dailyReportPeriodFor(today.AddDate(0, 0, -2), today),
+			want:     "Yau Yau on Wednesday",
+		},
+		{
+			name:   "missing baby name",
+			period: dailyReportPeriodFor(today, today),
+			want:   "Today so far",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			card := buildDailyReportCard(tt.events, tt.period, "")
-			if len(card.PrimaryMetrics) != len(tt.wantMetrics) {
-				t.Fatalf("PrimaryMetrics = %#v, want %#v", card.PrimaryMetrics, tt.wantMetrics)
-			}
-			for i, want := range tt.wantMetrics {
-				if card.PrimaryMetrics[i] != want {
-					t.Fatalf("PrimaryMetrics[%d] = %#v, want %#v", i, card.PrimaryMetrics[i], want)
-				}
+			if got := dailyReportCardTitle(tt.babyName, tt.period); got != tt.want {
+				t.Fatalf("dailyReportCardTitle() = %q, want %q", got, tt.want)
 			}
 		})
 	}
