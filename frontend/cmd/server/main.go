@@ -1,12 +1,14 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"html/template"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -32,6 +34,41 @@ func dict(pairs ...any) (map[string]any, error) {
 		m[key] = pairs[i+1]
 	}
 	return m, nil
+}
+
+// staticAssetURLs fingerprints each static file once at startup. The content
+// hash in the query string gives browsers and CDNs a new URL whenever an asset
+// changes, preventing fresh HTML from running stale JavaScript after deploys.
+func staticAssetURLs(dir string) (map[string]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("read static assets: %w", err)
+	}
+
+	urls := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		content, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			return nil, fmt.Errorf("read static asset %q: %w", name, err)
+		}
+		fingerprint := sha256.Sum256(content)
+		urls[name] = fmt.Sprintf("/static/%s?v=%x", name, fingerprint[:8])
+	}
+
+	return urls, nil
+}
+
+func staticAssetURL(urls map[string]string, name string) (string, error) {
+	assetURL, ok := urls[name]
+	if !ok {
+		return "", fmt.Errorf("static asset %q not found", name)
+	}
+	return assetURL, nil
 }
 
 func main() {
@@ -61,7 +98,15 @@ func main() {
 
 	secureCookies := os.Getenv("ENV") == "production"
 
-	templates, err := template.New("").Funcs(template.FuncMap{"dict": dict}).ParseGlob("templates/*.html")
+	staticURLs, err := staticAssetURLs("static")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	templates, err := template.New("").Funcs(template.FuncMap{
+		"assetURL": func(name string) (string, error) { return staticAssetURL(staticURLs, name) },
+		"dict":     dict,
+	}).ParseGlob("templates/*.html")
 	if err != nil {
 		log.Fatalf("parse templates: %v", err)
 	}

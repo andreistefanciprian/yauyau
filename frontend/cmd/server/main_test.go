@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"html/template"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -48,6 +50,47 @@ func TestIconTemplatesRenderSVG(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestStaticAssetURLsChangeWithContent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "app.js")
+	if err := os.WriteFile(path, []byte("first"), 0o600); err != nil {
+		t.Fatalf("write first asset: %v", err)
+	}
+
+	firstURLs, err := staticAssetURLs(dir)
+	if err != nil {
+		t.Fatalf("fingerprint first asset: %v", err)
+	}
+	firstURL, err := staticAssetURL(firstURLs, "app.js")
+	if err != nil {
+		t.Fatalf("get first asset URL: %v", err)
+	}
+	if !strings.HasPrefix(firstURL, "/static/app.js?v=") {
+		t.Fatalf("first asset URL = %q", firstURL)
+	}
+
+	if err := os.WriteFile(path, []byte("second"), 0o600); err != nil {
+		t.Fatalf("write second asset: %v", err)
+	}
+	secondURLs, err := staticAssetURLs(dir)
+	if err != nil {
+		t.Fatalf("fingerprint second asset: %v", err)
+	}
+	secondURL, err := staticAssetURL(secondURLs, "app.js")
+	if err != nil {
+		t.Fatalf("get second asset URL: %v", err)
+	}
+	if secondURL == firstURL {
+		t.Fatalf("asset URL did not change after content changed: %q", secondURL)
+	}
+}
+
+func TestStaticAssetURLRejectsUnknownAsset(t *testing.T) {
+	if _, err := staticAssetURL(map[string]string{}, "missing.js"); err == nil {
+		t.Fatal("staticAssetURL accepted an unknown asset")
 	}
 }
 
@@ -117,6 +160,11 @@ func TestIndexOmitsDailyReportToggle(t *testing.T) {
 	html := rendered.String()
 	if !strings.Contains(html, `id="type-filter"`) {
 		t.Fatalf("event type filter missing: %s", html)
+	}
+	for _, asset := range []string{"style.css", "htmx.min.js", "number-stepper.js", "app.js"} {
+		if !strings.Contains(html, `/static/`+asset+`?v=test`) {
+			t.Fatalf("index does not contain fingerprinted %s URL: %s", asset, html)
+		}
 	}
 	for _, unwanted := range []string{"show-daily-report", "/timeline/preferences/daily-report", "timeline-display-filter"} {
 		if strings.Contains(html, unwanted) {
@@ -268,7 +316,10 @@ func TestIndexEditDialogHasImmediateDeleteAndDisabledSave(t *testing.T) {
 
 func parseFrontendTemplates(t *testing.T) *template.Template {
 	t.Helper()
-	templates, err := template.New("").Funcs(template.FuncMap{"dict": dict}).ParseGlob("../../templates/*.html")
+	templates, err := template.New("").Funcs(template.FuncMap{
+		"assetURL": func(name string) string { return "/static/" + name + "?v=test" },
+		"dict":     dict,
+	}).ParseGlob("../../templates/*.html")
 	if err != nil {
 		t.Fatalf("parse templates: %v", err)
 	}

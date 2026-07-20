@@ -228,6 +228,11 @@ edit dialog keeps Save disabled until its populated form differs from the
 original event and contains the event's immediate Delete action; deletion does
 not add a separate confirmation step.
 
+Frontend templates load CSS and JavaScript through content-fingerprinted
+`/static/...?...` URLs generated once at server startup. A changed asset gets a
+new URL on deployment, so CDN or browser caching cannot combine fresh HTML with
+stale client behavior.
+
 **To add a new event type on the frontend:** add a `<x>TimelineEvent`
 builder in `handlers.go` (reading from `ev.Attributes`) and a case for it
 in `timelineEvent`'s switch; add a `Create<X>` handler ending in
