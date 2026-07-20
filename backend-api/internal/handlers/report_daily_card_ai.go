@@ -11,7 +11,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -64,7 +63,7 @@ type dailyCardResult struct {
 	InputHash string
 }
 
-// CreateAIDailyCard returns the AI prose for today's card only. Historical
+// CreateAIDailyCard returns the AI copy for today's card only. Historical
 // timeline days continue to use the deterministic daily report.
 func (h *Handlers) CreateAIDailyCard(w http.ResponseWriter, r *http.Request) {
 	baby, ok := h.currentBabyForRequest(w, r)
@@ -129,7 +128,7 @@ func (h *Handlers) loadOrCreateDailyCard(ctx context.Context, baby store.Baby, r
 	cacheRangeEnd := aiReportCacheRangeEnd(window)
 	cached, err := h.Store.GetAIReportCache(ctx, baby.FamilyID, baby.ID, dailyCardCacheReportType, window.RangeStart, cacheRangeEnd, inputHash)
 	if err == nil && dailyCardCacheFresh(cached, now) {
-		contentJSON, validationErr := validateDailyCardOutput(cached.ContentJSON, reportData, relationship)
+		contentJSON, validationErr := validateDailyCardOutput(cached.ContentJSON)
 		if validationErr != nil {
 			return result, fmt.Errorf("%w: cached output: %v", errDailyCardOutputInvalid, validationErr)
 		}
@@ -148,7 +147,7 @@ func (h *Handlers) loadOrCreateDailyCard(ctx context.Context, baby store.Baby, r
 	if err != nil {
 		return result, fmt.Errorf("%w: %v", errDailyCardGenerationFailed, err)
 	}
-	contentJSON, err := validateDailyCardOutput(generated.ContentJSON, reportData, relationship)
+	contentJSON, err := validateDailyCardOutput(generated.ContentJSON)
 	if err != nil {
 		return result, fmt.Errorf("%w: %v", errDailyCardOutputInvalid, err)
 	}
@@ -194,7 +193,7 @@ func dailyCardCacheFresh(cached store.AIReportCache, now time.Time) bool {
 	return !cached.CreatedAt.IsZero() && !cached.CreatedAt.Before(now.Add(-dailyCardCacheTTL))
 }
 
-func validateDailyCardOutput(raw json.RawMessage, reportData reportDataResponse, relationship string) (json.RawMessage, error) {
+func validateDailyCardOutput(raw json.RawMessage) (json.RawMessage, error) {
 	var output dailycard.Output
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
@@ -207,42 +206,22 @@ func validateDailyCardOutput(raw json.RawMessage, reportData reportDataResponse,
 	if output.SchemaVersion != dailycard.OutputSchemaVersion {
 		return nil, fmt.Errorf("schema_version = %q, want %q", output.SchemaVersion, dailycard.OutputSchemaVersion)
 	}
-	if strings.TrimSpace(output.Opening) == "" {
-		return nil, errors.New("opening is required")
+	if strings.TrimSpace(output.Title) == "" {
+		return nil, errors.New("title is required")
 	}
-	if strings.TrimSpace(output.Observation) == "" {
-		return nil, errors.New("observation is required")
+	if len(strings.Fields(output.Title)) > 5 {
+		return nil, errors.New("title exceeds 5 words")
 	}
-	if strings.TrimSpace(output.Encouragement) == "" {
-		return nil, errors.New("encouragement is required")
+	if strings.TrimSpace(output.Body) == "" {
+		return nil, errors.New("body is required")
 	}
-	if hasSecondaryDailyReportEvents(reportData.Totals) && strings.TrimSpace(output.Story) == "" {
-		return nil, errors.New("story is required when secondary events are present")
+	if strings.TrimSpace(output.Closing) == "" {
+		return nil, errors.New("closing is required")
 	}
 
-	all := strings.Join([]string{output.Opening, output.Story, output.Observation, output.Encouragement}, " ")
+	all := strings.Join([]string{output.Title, output.Body, output.Closing}, " ")
 	if len(strings.Fields(all)) > 80 {
 		return nil, errors.New("prose exceeds 80 words")
-	}
-
-	babyName := strings.TrimSpace(reportData.Baby.Name)
-	if babyName != "" && countDailyCardMention(all, babyName) != 1 {
-		return nil, errors.New("baby name must appear exactly once")
-	}
-	if babyName == "" && !strings.Contains(strings.ToLower(all), "your little one") {
-		return nil, errors.New("missing baby name requires neutral wording")
-	}
-
-	relationship = parentFacingRelationship(relationship)
-	if relationship != "" && countDailyCardMention(all, relationship) != 1 {
-		return nil, errors.New("viewer relationship must appear exactly once")
-	}
-	if relationship != "" && countDailyCardMention(output.Encouragement, relationship) != 1 {
-		return nil, errors.New("viewer relationship must appear in encouragement")
-	}
-	relationshipCheck := removeDailyCardMention(all, babyName)
-	if relationship == "" && containsDailyCardWord(relationshipCheck, "dad", "father", "grandma", "grandpa", "mom", "mother", "mum") {
-		return nil, errors.New("viewer relationship must not be assumed")
 	}
 
 	if strings.ContainsAny(all, "`<>#[]") || strings.Contains(all, "**") {
@@ -254,35 +233,6 @@ func validateDailyCardOutput(raw json.RawMessage, reportData reportDataResponse,
 	}
 	return normalized, nil
 }
-
-func hasSecondaryDailyReportEvents(totals reportTotalsResponse) bool {
-	return totals.Nappies.Count+totals.Pumps.Count+totals.Baths.Count+totals.Observations.Count+totals.Temperatures.Count+totals.Growth.Count > 0
-}
-
-func countDailyCardMention(value, target string) int {
-	if target == "" {
-		return 0
-	}
-	pattern := `(?i)(^|[^\pL\pN])` + regexp.QuoteMeta(target) + `($|[^\pL\pN])`
-	return len(regexp.MustCompile(pattern).FindAllStringIndex(value, -1))
-}
-
-func removeDailyCardMention(value, target string) string {
-	if target == "" {
-		return value
-	}
-	return regexp.MustCompile(`(?i)`+regexp.QuoteMeta(target)).ReplaceAllString(value, "")
-}
-
-func containsDailyCardWord(value string, words ...string) bool {
-	for _, word := range words {
-		if countDailyCardMention(value, word) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
 func (h *Handlers) currentViewerRelationship(ctx context.Context, familyID uuid.UUID) (string, error) {
 	claims, ok := authctx.FromContext(ctx)
 	if !ok || h.FamilyStore == nil {

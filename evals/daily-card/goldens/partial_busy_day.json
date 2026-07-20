@@ -1,7 +1,7 @@
 {
   "input": {
     "schema_version": "daily_card_input.v1",
-    "output_schema_version": "daily_card_output.v1",
+    "output_schema_version": "daily_card_output.v2",
     "locale": "en-AU",
     "viewer": {
       "relationship": "Dad"
@@ -128,10 +128,9 @@
     }
   },
   "golden_output": {
-    "schema_version": "daily_card_output.v1",
-    "opening": "Here's how YauYau's day is taking shape.",
-    "story": "Along the way, there were plenty of nappy changes, 3 pumping sessions totalling 405 ml, a bath and a temperature check.",
-    "observation": "Feeding, nappies, and sleep are all close to the past week's pattern so far.",
-    "encouragement": "Every update helps tell today's story. You've got this, Dad."
+    "schema_version": "daily_card_output.v2",
+    "title": "YauYau's day so far",
+    "body": "Along the way, there were plenty of nappy changes, 3 pumping sessions totalling 405 ml, a bath and a temperature check. Feeding, nappies and sleep are all close to the past week's pattern so far.",
+    "closing": "You've got this, Dad."
   }
 }

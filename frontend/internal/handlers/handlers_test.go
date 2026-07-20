@@ -21,23 +21,28 @@ func TestDailyReportAIUsesGeneratedCopyOrDeterministicFallback(t *testing.T) {
 		name      string
 		aiCard    backendclient.AIDailyCard
 		aiErr     error
-		wantIntro string
+		wantTitle string
+		wantBody  string
+		wantClose string
 	}{
 		{
 			name: "valid generated copy",
 			aiCard: backendclient.AIDailyCard{
-				SchemaVersion: "daily_card_output.v1",
-				Opening:       "Here's how YauYau's day is taking shape.",
-				Story:         "The day also included plenty of nappy changes.",
-				Observation:   "The day is still unfolding.",
-				Encouragement: "You've got this, Dad.",
+				SchemaVersion: "daily_card_output.v2",
+				Title:         "YauYau's day so far",
+				Body:          "Plenty of nappy changes rounded out the day.",
+				Closing:       "You've got this, Dad.",
 			},
-			wantIntro: "Here's how YauYau's day is taking shape.",
+			wantTitle: "YauYau's day so far",
+			wantBody:  "Plenty of nappy changes rounded out the day.",
+			wantClose: "You've got this, Dad.",
 		},
 		{
 			name:      "provider failure keeps fallback",
 			aiErr:     errors.New("provider unavailable"),
-			wantIntro: "Deterministic intro.",
+			wantTitle: "Today so far",
+			wantBody:  "Deterministic story.",
+			wantClose: "You've got this.",
 		},
 	}
 
@@ -47,15 +52,14 @@ func TestDailyReportAIUsesGeneratedCopyOrDeterministicFallback(t *testing.T) {
 				report: backendclient.DailyReport{
 					Title: "Today so far",
 					Card: &backendclient.DailyReportCard{
-						Intro:         "Deterministic intro.",
-						Observation:   "Deterministic observation.",
-						Encouragement: "You've got this.",
+						Body:    "Deterministic story.",
+						Closing: "You've got this.",
 					},
 				},
 				aiCard: tt.aiCard,
 				aiErr:  tt.aiErr,
 			}
-			templates := template.Must(template.New("root").Parse(`{{define "daily-report"}}{{.Card.Intro}}|{{.Card.Observation}}|{{.Card.Encouragement}}{{end}}`))
+			templates := template.Must(template.New("root").Parse(`{{define "daily-report"}}{{.Title}}|{{.Card.Body}}|{{.Card.Closing}}{{end}}`))
 			h := &Handlers{Backend: backend, Templates: templates}
 
 			rec := httptest.NewRecorder()
@@ -70,8 +74,11 @@ func TestDailyReportAIUsesGeneratedCopyOrDeterministicFallback(t *testing.T) {
 			if rec.Code != 200 {
 				t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())
 			}
-			if !strings.Contains(html.UnescapeString(rec.Body.String()), tt.wantIntro) {
-				t.Fatalf("body = %q, want intro %q", rec.Body.String(), tt.wantIntro)
+			body := html.UnescapeString(rec.Body.String())
+			for _, want := range []string{tt.wantTitle, tt.wantBody, tt.wantClose} {
+				if !strings.Contains(body, want) {
+					t.Fatalf("body = %q, want %q", rec.Body.String(), want)
+				}
 			}
 			if backend.reportDate != today || !backend.aiCalled {
 				t.Fatalf("report date = %q, AI called = %v", backend.reportDate, backend.aiCalled)
@@ -83,15 +90,13 @@ func TestDailyReportAIUsesGeneratedCopyOrDeterministicFallback(t *testing.T) {
 func TestDailyReportAIKeepsHistoricalDayDeterministic(t *testing.T) {
 	backend := &dailyReportAIBackend{
 		report: backendclient.DailyReport{
-			Title: "Yesterday",
+			Title: "Yesterday summary",
 			Card: &backendclient.DailyReportCard{
-				Intro:         "Deterministic intro.",
-				Observation:   "Deterministic observation.",
-				Encouragement: "You've got this.",
+				Body: "Deterministic story.",
 			},
 		},
 	}
-	templates := template.Must(template.New("root").Parse(`{{define "daily-report"}}{{.Card.Intro}}{{end}}`))
+	templates := template.Must(template.New("root").Parse(`{{define "daily-report"}}{{.Title}}|{{.Card.Body}}|{{.Card.Closing}}{{end}}`))
 	h := &Handlers{Backend: backend, Templates: templates}
 
 	loc, err := time.LoadLocation("Australia/Adelaide")
@@ -109,8 +114,8 @@ func TestDailyReportAIKeepsHistoricalDayDeterministic(t *testing.T) {
 	if backend.aiCalled {
 		t.Fatal("historical daily report called the AI endpoint")
 	}
-	if !strings.Contains(rec.Body.String(), "Deterministic intro.") {
-		t.Fatalf("body = %q, want deterministic intro", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "Yesterday summary|Deterministic story.|") {
+		t.Fatalf("body = %q, want deterministic historical card without a closing", rec.Body.String())
 	}
 }
 

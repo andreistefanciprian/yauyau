@@ -77,28 +77,25 @@ func TestBuildDailyReportCardPrioritisesMetricsAndTellsSecondaryStory(t *testing
 		{EventType: eventTypeGrowthMeasurement, Attributes: map[string]any{"weight_grams": float64(7200)}},
 	}
 
-	card := buildDailyReportCard(events, period, "YauYau", "Dad")
-	if card.Intro != "Here's how YauYau's day is taking shape." {
-		t.Fatalf("Intro = %q", card.Intro)
-	}
+	card := buildDailyReportCard(events, period, "Dad")
 	if len(card.PrimaryMetrics) != 2 {
 		t.Fatalf("PrimaryMetrics = %#v, want feed and sleep", card.PrimaryMetrics)
 	}
-	if got := card.PrimaryMetrics[0]; got.Count != "4 feeds" || got.Total != "320 ml" || got.Qualifier != "recorded" {
+	if got := card.PrimaryMetrics[0]; got.Count != "4 feeds" || got.Total != "320 ml" {
 		t.Fatalf("feed metric = %#v", got)
 	}
-	if got := card.PrimaryMetrics[1]; got.Count != "4 sleep periods" || got.Total != "9 hr 39 min" || got.Qualifier != "total" {
+	if got := card.PrimaryMetrics[1]; got.Count != "4 sleeps" || got.Total != "9 hr 39 min" {
 		t.Fatalf("sleep metric = %#v", got)
 	}
 	wantStory := "The day also included plenty of nappy changes, two pumping sessions totalling 325 ml, a bath, and a temperature check. A new growth check recorded 7.2 kg, a lovely milestone to remember."
-	if card.Story != wantStory {
-		t.Fatalf("Story = %q, want %q", card.Story, wantStory)
+	if card.Body != wantStory {
+		t.Fatalf("Body = %q, want %q", card.Body, wantStory)
 	}
-	if strings.Contains(card.Story, "2 nappy") || strings.Contains(card.Story, "mixed") || strings.Contains(card.Story, "wet") {
-		t.Fatalf("Story exposes nappy detail: %q", card.Story)
+	if strings.Contains(card.Body, "2 nappy") || strings.Contains(card.Body, "mixed") || strings.Contains(card.Body, "wet") {
+		t.Fatalf("Body exposes nappy detail: %q", card.Body)
 	}
-	if card.Encouragement != "Thanks for keeping the story up to date. You've got this, Dad." {
-		t.Fatalf("Encouragement = %q", card.Encouragement)
+	if card.Closing != "You've got this, Dad." {
+		t.Fatalf("Closing = %q", card.Closing)
 	}
 }
 
@@ -126,23 +123,20 @@ func TestBuildHistoricalDailyReportCardOmitsFillerAndUsesLatestGrowthValues(t *t
 		},
 	}
 
-	card := buildDailyReportCard(events, period, "Yau Yau", "Father")
+	card := buildDailyReportCard(events, period, "Father")
 
 	wantStory := "A new growth check recorded 3.5 kg, a length of 52.4 cm, and a head circumference of 36.1 cm, a lovely milestone to remember."
-	if card.Story != wantStory {
-		t.Fatalf("Story = %q, want %q", card.Story, wantStory)
+	if card.Body != wantStory {
+		t.Fatalf("Body = %q, want %q", card.Body, wantStory)
 	}
-	if card.Observation != "" {
-		t.Fatalf("Observation = %q, want empty historical observation", card.Observation)
-	}
-	if card.Encouragement != "" {
-		t.Fatalf("Encouragement = %q, want empty historical encouragement", card.Encouragement)
+	if card.Closing != "" {
+		t.Fatalf("Closing = %q, want empty historical closing", card.Closing)
 	}
 	raw, err := json.Marshal(card)
 	if err != nil {
 		t.Fatalf("marshal historical card: %v", err)
 	}
-	if strings.Contains(string(raw), "observation") || strings.Contains(string(raw), "encouragement") {
+	if strings.Contains(string(raw), "closing") {
 		t.Fatalf("historical card includes today-only fields: %s", raw)
 	}
 }
@@ -151,13 +145,13 @@ func TestBuildHistoricalDailyReportCardKeepsEmptyDayMessage(t *testing.T) {
 	day := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
 	period := dailyReportPeriodFor(day, day.AddDate(0, 0, 2))
 
-	card := buildDailyReportCard(nil, period, "Yau Yau", "Father")
+	card := buildDailyReportCard(nil, period, "Father")
 
-	if card.Story != "No events were logged on Wednesday." {
-		t.Fatalf("Story = %q, want historical empty-day message", card.Story)
+	if card.Body != "No events were logged on Wednesday." {
+		t.Fatalf("Body = %q, want historical empty-day message", card.Body)
 	}
-	if card.Observation != "" || card.Encouragement != "" {
-		t.Fatalf("historical filler = observation %q, encouragement %q", card.Observation, card.Encouragement)
+	if card.Closing != "" {
+		t.Fatalf("historical closing = %q, want empty", card.Closing)
 	}
 }
 
@@ -166,33 +160,25 @@ func TestBuildDailyReportCardHandlesMissingMeasurementsAndHistory(t *testing.T) 
 		name        string
 		events      []store.Event
 		period      dailyReportPeriod
-		babyName    string
-		wantIntro   string
 		wantMetrics []dailyReportPrimaryMetric
 	}{
 		{
 			name:        "breast feed has no invented volume or sleep",
 			events:      []store.Event{{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast"}}},
 			period:      dailyReportPeriodFor(time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC), time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC)),
-			babyName:    "YauYau",
-			wantIntro:   "Here's how YauYau's day is taking shape.",
 			wantMetrics: []dailyReportPrimaryMetric{{Count: "1 feed"}},
 		},
 		{
 			name:        "historical day and missing name",
 			events:      []store.Event{{EventType: eventTypeSleep, Attributes: map[string]any{"duration_minutes": float64(60)}}},
 			period:      dailyReportPeriodFor(time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC), time.Date(2026, 7, 17, 0, 0, 0, 0, time.UTC)),
-			wantIntro:   "Here's how your little one's day took shape.",
-			wantMetrics: []dailyReportPrimaryMetric{{Count: "1 sleep period", Total: "1 hr", Qualifier: "total"}},
+			wantMetrics: []dailyReportPrimaryMetric{{Count: "1 sleep", Total: "1 hr"}},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			card := buildDailyReportCard(tt.events, tt.period, tt.babyName, "")
-			if card.Intro != tt.wantIntro {
-				t.Fatalf("Intro = %q, want %q", card.Intro, tt.wantIntro)
-			}
+			card := buildDailyReportCard(tt.events, tt.period, "")
 			if len(card.PrimaryMetrics) != len(tt.wantMetrics) {
 				t.Fatalf("PrimaryMetrics = %#v, want %#v", card.PrimaryMetrics, tt.wantMetrics)
 			}

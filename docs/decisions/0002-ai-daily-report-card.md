@@ -17,8 +17,8 @@ or HTML would add unnecessary presentation and security complexity.
 
 ## Decision
 
-Backend API continues to own and format the title, feed metrics, sleep metrics,
-and a complete deterministic card fallback.
+Backend API continues to own and format the feed metrics, sleep metrics, and a
+complete deterministic card fallback, including a fallback title.
 
 Today's UI card uses a dedicated generation workflow:
 
@@ -28,11 +28,11 @@ Today's UI card uses a dedicated generation workflow:
   wrapped in `daily_card_input.v1` with locale and viewer relationship;
 * `GenerateDailyCard(context.Context, json.RawMessage)` sends that JSON with
   the separate `daily_card_system_prompt.txt` system prompt;
-* the model returns strict `daily_card_output.v1` JSON containing `opening`,
-  `story`, `observation`, and `encouragement` only;
+* the model returns strict `daily_card_output.v2` JSON containing a short
+  `title`, one cohesive `body`, and a brief `closing` only;
 * backend application validation runs before generated content is cached or
   returned;
-* the frontend maps `opening` onto the existing card introduction and keeps
+* the frontend replaces the fallback title, body, and closing while keeping
   deterministic feed and sleep metrics unchanged.
 
 The generic `GenerateAIReport` workflow remains on `ai_report_output.v1` and
@@ -47,9 +47,9 @@ flowchart LR
     A["buildReportDataForBaby for today"] --> B["daily_card_input.v1 with timestamps"]
     B --> C["GenerateDailyCard"]
     P["daily_card_system_prompt.txt"] --> C
-    C --> D["Validate daily_card_output.v1"]
+    C --> D["Validate daily_card_output.v2"]
     D --> E["Cache as report_type daily_card"]
-    E --> F["Merge prose into today's deterministic card"]
+    E --> F["Merge title, body and closing into today's card"]
 
     G["Selected range report data"] --> H["GenerateAIReport"]
     Q["ai_report_developer_prompt.txt"] --> H
@@ -64,7 +64,7 @@ when no new event has been recorded, without putting the wall clock directly
 into the semantic hash.
 
 The web app renders deterministic content immediately. An HTMX request loads
-AI prose only when Today is selected. Yesterday and earlier timeline days keep
+AI copy only when Today is selected. Yesterday and earlier timeline days keep
 the deterministic card without AI interpretation. Any timeout, provider
 failure, refusal, invalid output, or stale cache with generation unavailable
 leaves the deterministic fallback visible.
@@ -109,7 +109,8 @@ closings.
 
 The API adds a today-only `POST /reports/daily-card/ai` endpoint and keeps the
 existing generic `POST /reports/ai` contract unchanged. The deterministic
-`GET /reports/daily` contract remains the source for title and KPI rendering.
+`GET /reports/daily` contract remains the source for fallback content and KPI
+rendering.
 
 The system prompt and application validator form a product contract. Changes
 to tone, factual boundaries, punctuation, emoji use, growth coverage, or

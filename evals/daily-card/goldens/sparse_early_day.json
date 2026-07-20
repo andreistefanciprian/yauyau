@@ -1,7 +1,7 @@
 {
   "input": {
     "schema_version": "daily_card_input.v1",
-    "output_schema_version": "daily_card_output.v1",
+    "output_schema_version": "daily_card_output.v2",
     "locale": "en-AU",
     "viewer": {
       "relationship": ""
@@ -99,10 +99,9 @@
     }
   },
   "golden_output": {
-    "schema_version": "daily_card_output.v1",
-    "opening": "YauYau's day is only just taking shape.",
-    "story": "",
-    "observation": "Only one update has been recorded so far.",
-    "encouragement": "Every update helps tell today's story."
+    "schema_version": "daily_card_output.v2",
+    "title": "YauYau's morning",
+    "body": "Only one update has been recorded so far.",
+    "closing": "Enjoy the little moments."
   }
 }

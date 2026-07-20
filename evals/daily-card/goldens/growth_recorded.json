@@ -1,7 +1,7 @@
 {
   "input": {
     "schema_version": "daily_card_input.v1",
-    "output_schema_version": "daily_card_output.v1",
+    "output_schema_version": "daily_card_output.v2",
     "locale": "en-AU",
     "viewer": {
       "relationship": "Mum"
@@ -102,10 +102,9 @@
     }
   },
   "golden_output": {
-    "schema_version": "daily_card_output.v1",
-    "opening": "YauYau's day is taking shape.",
-    "story": "Alongside the nappy changes, a new growth measurement of 6.8 kg adds a proud little moment to the story.",
-    "observation": "The report covers the day so far.",
-    "encouragement": "Thanks for keeping today's story up to date, Mum."
+    "schema_version": "daily_card_output.v2",
+    "title": "YauYau today",
+    "body": "Alongside the nappy changes, today's 6.8 kg growth measurement marks a lovely milestone to remember.",
+    "closing": "One cuddle at a time."
   }
 }

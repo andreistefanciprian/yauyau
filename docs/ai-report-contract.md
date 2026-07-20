@@ -124,22 +124,18 @@ and existing consumers:
     "3 sleeps totalling 4 hours 20 minutes."
   ],
   "card": {
-    "intro": "Here's how YauYau's day is taking shape.",
     "primary_metrics": [
       {
         "count": "4 feeds",
-        "total": "320 ml",
-        "qualifier": "recorded"
+        "total": "320 ml"
       },
       {
-        "count": "4 sleep periods",
-        "total": "9 hr 39 min",
-        "qualifier": "total"
+        "count": "4 sleeps",
+        "total": "9 hr 39 min"
       }
     ],
-    "story": "The day also included plenty of nappy changes, two pumping sessions totalling 325 ml, a bath and a temperature check. A growth check recorded 6.8 kg and a length of 66.5 cm, a lovely milestone to remember.",
-    "observation": "Today's everyday moments are taking shape.",
-    "encouragement": "Thanks for keeping the story up to date. You've got this, Dad."
+    "body": "The day also included plenty of nappy changes, two pumping sessions totalling 325 ml, a bath and a temperature check. A growth check recorded 6.8 kg and a length of 66.5 cm, a lovely milestone to remember.",
+    "closing": "You've got this, Dad."
   },
   "generated_at": "2026-07-13T09:30:00+09:30",
   "range_start": "2026-07-13T00:00:00+09:30",
@@ -596,7 +592,7 @@ complete response is passed to the model without removing timestamps:
 ```json
 {
   "schema_version": "daily_card_input.v1",
-  "output_schema_version": "daily_card_output.v1",
+  "output_schema_version": "daily_card_output.v2",
   "locale": "en-AU",
   "viewer": {
     "relationship": "Dad"
@@ -628,54 +624,52 @@ The output is:
 
 ```json
 {
-  "schema_version": "daily_card_output.v1",
-  "opening": "Here's how YauYau's day is taking shape.",
-  "story": "Along the way, there were plenty of nappy changes, 3 pumping sessions totalling 405 ml, a bath and a temperature check.",
-  "observation": "Feeding, nappies, and sleep are all close to the past week's pattern so far.",
-  "encouragement": "Every update helps tell today's story. You've got this, Dad."
+  "schema_version": "daily_card_output.v2",
+  "title": "YauYau's day so far",
+  "body": "Along the way, there were plenty of nappy changes, 3 pumping sessions totalling 405 ml, a bath and a temperature check. Feeding, nappies and sleep are all close to the past week's pattern so far.",
+  "closing": "You've got this, Dad."
 }
 ```
 
-The UI renders the title and deterministic feed and sleep lines separately.
-The model must not repeat those facts.
+The UI renders deterministic feed and sleep lines separately. The model owns
+the current-day title, body, and closing, and must not repeat those KPI facts.
 
 Completed timeline days keep the deterministic card layout. Their story
 includes the latest recorded weight, length, and head circumference values
-when available. Historical cards omit the today-oriented observation and
-relationship encouragement; a completed day with no events shows its factual
-empty-day message in the story instead.
+when available. Historical cards use the same title, metrics, and body shell
+but omit the closing; a completed day with no events shows its factual
+empty-day message in the body instead.
 
 Daily-card rules:
 
-* `opening` uses the baby name exactly once, or `your little one` when the name
-  is unavailable, and avoids generic "picture" wording;
-* `story` describes secondary events naturally, uses general nappy wording
-  without counts or subtype details, preserves the exact supplied pumping
-  count and volume, and includes every supplied value from a
-  growth measurement recorded today as a warm milestone without inferring a
-  growth rate or medical conclusion;
-* `observation` prioritises supplied baseline comparisons, then useful interval
-  or sequence analytics, and uses current time-of-day context only when no more
+* `title` is no more than five words and normally uses the baby name once;
+* `body` combines the secondary-event story with the most useful supplied
+  insight, uses general nappy wording without counts or subtype details,
+  preserves the exact supplied pumping count and volume, and includes every
+  supplied value from a growth measurement recorded today as a warm milestone
+  without inferring a growth rate or medical conclusion;
+* `body` prioritises supplied baseline comparisons, then useful interval or
+  sequence analytics, and uses current time-of-day context only when no more
   useful analytic is available;
-* `encouragement` celebrates the viewer's effort and uses the configured
-  parent-facing relationship exactly once when available; formal stored labels
-  are normalised for Australian English, including Father to Dad, Mother to
-  Mum, Grandmother to Grandma, and Grandfather to Grandpa;
+* `closing` is a brief uplifting line and may use the configured parent-facing
+  relationship; formal stored labels are normalised for Australian English,
+  including Father to Dad, Mother to Mum, Grandmother to Grandma, and
+  Grandfather to Grandpa;
 * an output may occasionally use one common, natural Australian English
   expression when it improves the prose, without explanation or stereotypical
   slang, regardless of report locale;
 * generated prose does not use hyphens, en dashes, or em dashes as punctuation;
   punctuation inside a supplied name or relationship is preserved;
-* at most one emoji may appear, only in `observation` or `encouragement`;
+* at most one emoji may appear, only in `body` or `closing`;
 * output contains no Markdown, headings, bullet points, HTML, or category
   icons;
 * output does not interpret temperature, growth, feeding, sleep, or any other
   fact medically;
 * application validation checks the structured contract, required fields,
-  output size, personalisation placement, and safe rendering before caching.
-  Factual faithfulness and prose quality are prompt and eval concerns rather
-  than attempts to parse creative text with hard-coded phrases and regular
-  expressions.
+  five-word title limit, output size, and safe rendering before caching.
+  Personalisation, factual faithfulness, and prose quality are prompt and eval
+  concerns rather than attempts to parse creative text with hard-coded phrases
+  and regular expressions.
 
 The system prompt is version-controlled at
 `backend-api/internal/aiclient/prompts/daily_card_system_prompt.txt`. Generic
@@ -842,7 +836,7 @@ POST /api/v1/babies/current/reports/daily-card/ai
 
 The endpoint accepts an empty JSON object and always builds the current day in
 the baby's timezone. Clients cannot select a historical date through this
-route. It returns `daily_card_output.v1` directly.
+route. It returns `daily_card_output.v2` directly.
 
 Rules:
 
@@ -978,7 +972,7 @@ for generic range reports without calling OpenAI.
 
 Dedicated daily-card fixtures live in
 [evals/daily-card](../evals/daily-card). The handler test suite validates those
-`daily_card_output.v1` examples with the same application checks used before
+`daily_card_output.v2` examples with the same application checks used before
 caching.
 
 Representative cases should cover:
@@ -1021,16 +1015,15 @@ The first eval suite should check:
 
 Daily-card evals additionally check:
 
-* output is valid `daily_card_output.v1` JSON;
-* the baby name appears exactly once;
-* relationship-aware encouragement uses the normalised parent-facing label
-  exactly once;
+* output is valid `daily_card_output.v2` JSON;
+* the title is no more than five words and normally uses the baby name once;
+* the closing is short and may use the normalised parent-facing relationship;
 * feed and sleep KPI facts are not repeated;
 * nappies are described without counts or subtype details;
 * pumping count and volume match supplied facts and pumping volume is not
   described as consumed milk;
 * every supplied value from a growth measurement recorded today is mentioned
-  accurately in the story;
+  accurately in the body;
 * rubric review checks that generated prose contains no unsupported facts,
   medical interpretation, Markdown, category icons, or prohibited dash
   punctuation;
@@ -1113,8 +1106,9 @@ Recommended sequence:
 9. **Frontend AI interaction**
    * Status: implemented as asynchronous enhancement of the daily card.
    * Render deterministic fallback copy before the AI request.
-   * Use a separate `daily_card_output.v1` prompt and contract for Today.
-   * Replace only escaped daily-card prose when valid AI output arrives.
+   * Use a separate `daily_card_output.v2` prompt and contract for Today.
+   * Replace only the escaped title, body, and closing when valid AI output
+     arrives.
    * Keep deterministic copy visible on timeout, provider error, or invalid
      output.
    * Keep historical timeline days deterministic.

@@ -74,11 +74,11 @@ signature/expiry and decodes the caller's identity into context — see
   `highlights`, deterministic `card`, `generated_at`, `range_start`, and
   `range_end`). `card.primary_metrics` contains separately renderable feed and
   sleep values so clients can emphasize exact backend facts without parsing
-  prose. The card also contains warm deterministic fallback copy, including
-  the baby name, general nappy wording, and the latest values from any recorded
-  growth measurements. Today's deterministic fallback includes
-  relationship-aware encouragement and an observation; completed days omit
-  both rather than displaying generic filler copy.
+  prose. The compact metrics omit filler such as "recorded" and "total". The
+  card also contains a deterministic body with general nappy wording and the
+  latest values from any recorded growth measurements. Today's deterministic
+  fallback includes a short relationship-aware closing; completed days use the
+  same title, metrics, and body shell without a closing.
 * `GET /api/v1/babies/current/reports/data` → `GetReportData`, the canonical
   factual report-data payload for one to 31 local calendar days. Supports
   inclusive `?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`; omitting both
@@ -90,12 +90,12 @@ signature/expiry and decodes the caller's identity into context — see
   previous-7-day baseline range metadata, totals, and baby analytics. It
   intentionally does not include AI output yet.
 * `POST /api/v1/babies/current/reports/daily-card/ai` → `CreateAIDailyCard`,
-  the today-only AI prose endpoint for the web card. It accepts no date range.
+  the today-only AI copy endpoint for the web card. It accepts no date range.
   Backend API builds the complete current-day `buildReportDataForBaby` JSON,
   including timestamps, and passes it to the dedicated `GenerateDailyCard`
-  workflow. The response is strict `daily_card_output.v1` JSON with `opening`,
-  `story`, `observation`, and `encouragement`. It never contains the report
-  title or feed and sleep KPI values. Cache identity includes the viewer
+  workflow. The response is strict `daily_card_output.v2` JSON with `title`,
+  `body`, and `closing`. It never contains feed and sleep KPI values. Cache
+  identity includes the viewer
   relationship and semantic report data; formal family labels are normalised
   to parent-facing Australian terms such as Dad, Mum, Grandma, and Grandpa.
   Current-day entries have a two-hour freshness window.

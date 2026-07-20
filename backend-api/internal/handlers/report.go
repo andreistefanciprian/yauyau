@@ -25,17 +25,14 @@ type dailyReportResponse struct {
 }
 
 type dailyReportCardResponse struct {
-	Intro          string                     `json:"intro"`
 	PrimaryMetrics []dailyReportPrimaryMetric `json:"primary_metrics"`
-	Story          string                     `json:"story,omitempty"`
-	Observation    string                     `json:"observation,omitempty"`
-	Encouragement  string                     `json:"encouragement,omitempty"`
+	Body           string                     `json:"body,omitempty"`
+	Closing        string                     `json:"closing,omitempty"`
 }
 
 type dailyReportPrimaryMetric struct {
-	Count     string `json:"count"`
-	Total     string `json:"total,omitempty"`
-	Qualifier string `json:"qualifier,omitempty"`
+	Count string `json:"count"`
+	Total string `json:"total,omitempty"`
 }
 
 type dailyReportStats struct {
@@ -73,7 +70,7 @@ type dailyReportPeriod struct {
 
 // GetDailyReport returns a calendar-day report for the current baby in the
 // baby's timezone. The card facts and fallback prose are deterministic and
-// backend-owned; the frontend may later replace only the prose through the
+// backend-owned; the frontend may later replace the title and prose through the
 // separate cached AI report endpoint.
 func (h *Handlers) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 	baby, ok := h.currentBabyForRequest(w, r)
@@ -109,7 +106,7 @@ func (h *Handlers) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	report := buildDailyReport(events, window, generatedAt, period)
-	report.Card = buildDailyReportCard(events, period, baby.Name, relationship)
+	report.Card = buildDailyReportCard(events, period, relationship)
 	writeJSON(w, http.StatusOK, report)
 }
 
@@ -180,39 +177,26 @@ func buildDailyReport(events []store.Event, window timelineDayWindow, generatedA
 	}
 }
 
-func buildDailyReportCard(events []store.Event, period dailyReportPeriod, babyName, relationship string) *dailyReportCardResponse {
+func buildDailyReportCard(events []store.Event, period dailyReportPeriod, relationship string) *dailyReportCardResponse {
 	stats := dailyReportStats{}
 	for _, ev := range events {
 		stats.add(ev)
 	}
 
-	name := strings.TrimSpace(babyName)
-	subject := "your little one"
-	if name != "" {
-		subject = name
-	}
-	intro := fmt.Sprintf("Here's how %s's day took shape.", subject)
-	if period.InProgress {
-		intro = fmt.Sprintf("Here's how %s's day is taking shape.", subject)
-	}
-
 	card := &dailyReportCardResponse{
-		Intro:          intro,
 		PrimaryMetrics: dailyReportPrimaryMetrics(stats),
-		Story:          dailyReportStory(stats),
+		Body:           dailyReportStory(stats),
 	}
 	if !period.InProgress {
 		if stats.totalEvents() == 0 {
-			card.Story = period.EmptySummary
+			card.Body = period.EmptySummary
 		}
 		return card
 	}
 
-	card.Encouragement = dailyReportEncouragement(relationship)
+	card.Closing = dailyReportClosing(relationship)
 	if stats.totalEvents() == 0 {
-		card.Observation = period.EmptySummary
-	} else {
-		card.Observation = "Today's everyday moments are taking shape."
+		card.Body = period.EmptySummary
 	}
 	return card
 }
@@ -223,15 +207,13 @@ func dailyReportPrimaryMetrics(stats dailyReportStats) []dailyReportPrimaryMetri
 		metric := dailyReportPrimaryMetric{Count: pluralize(stats.FeedCount, "feed", "feeds")}
 		if stats.MilkMl > 0 {
 			metric.Total = fmt.Sprintf("%d ml", stats.MilkMl)
-			metric.Qualifier = "recorded"
 		}
 		metrics = append(metrics, metric)
 	}
 	if stats.SleepCount > 0 {
-		metric := dailyReportPrimaryMetric{Count: pluralize(stats.SleepCount, "sleep period", "sleep periods")}
+		metric := dailyReportPrimaryMetric{Count: pluralize(stats.SleepCount, "sleep", "sleeps")}
 		if stats.SleepMinutes > 0 {
 			metric.Total = formatCompactDurationMinutes(stats.SleepMinutes)
-			metric.Qualifier = "total"
 		}
 		metrics = append(metrics, metric)
 	}
@@ -307,12 +289,12 @@ func formatGrowthCentimetres(value float64) string {
 	return strconv.FormatFloat(value, 'f', -1, 64)
 }
 
-func dailyReportEncouragement(relationship string) string {
+func dailyReportClosing(relationship string) string {
 	relationship = parentFacingRelationship(relationship)
 	if relationship == "" {
-		return "Thanks for keeping the story up to date. You've got this."
+		return "You've got this."
 	}
-	return fmt.Sprintf("Thanks for keeping the story up to date. You've got this, %s.", relationship)
+	return fmt.Sprintf("You've got this, %s.", relationship)
 }
 
 func formatCompactDurationMinutes(minutes int) string {

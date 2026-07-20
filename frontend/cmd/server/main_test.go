@@ -54,18 +54,16 @@ func TestIconTemplatesRenderSVG(t *testing.T) {
 func TestDailyReportRendersStructuredCopyAndDeterministicMetrics(t *testing.T) {
 	templates := parseFrontendTemplates(t)
 	report := backendclient.DailyReport{
-		Title:        "Today so far",
+		Title:        "YauYau's day so far",
 		SelectedDate: "2026-07-17",
 		LoadAI:       true,
 		Card: &backendclient.DailyReportCard{
-			Intro: "Here's how YauYau's day is taking shape.",
 			PrimaryMetrics: []backendclient.DailyReportPrimaryMetric{
-				{Count: "4 feeds", Total: "320 ml", Qualifier: "recorded"},
-				{Count: "4 sleep periods", Total: "9 hr 39 min", Qualifier: "total"},
+				{Count: "4 feeds", Total: "320 ml"},
+				{Count: "4 sleeps", Total: "9 hr 39 min"},
 			},
-			Story:         "There were plenty of nappy changes and a growth measurement.",
-			Observation:   "The day is still unfolding.",
-			Encouragement: "You've got this, Dad. 💛",
+			Body:    "There were plenty of nappy changes and a growth measurement. The day is ticking along nicely.",
+			Closing: "You've got this, Dad. 💛",
 		},
 	}
 
@@ -76,9 +74,10 @@ func TestDailyReportRendersStructuredCopyAndDeterministicMetrics(t *testing.T) {
 	html := rendered.String()
 	for _, want := range []string{
 		`hx-get="/daily-report/ai?date=2026-07-17"`,
+		`YauYau&#39;s day so far`,
 		`<strong>4 feeds</strong>`,
 		`<strong>320 ml</strong>`,
-		`<strong>4 sleep periods</strong>`,
+		`<strong>4 sleeps</strong>`,
 		`<strong>9 hr 39 min</strong>`,
 		`a growth measurement`,
 		`You&#39;ve got this, Dad. 💛`,
@@ -156,11 +155,10 @@ func TestIndexRendersDailyReportVisibilityPreference(t *testing.T) {
 func TestDailyReportEscapesGeneratedCopyAndStopsReloadingAfterAI(t *testing.T) {
 	templates := parseFrontendTemplates(t)
 	report := backendclient.DailyReport{
-		Title: "Today so far",
+		Title: `<script>alert("no")</script>`,
 		Card: &backendclient.DailyReportCard{
-			Intro:         `<script>alert("no")</script>`,
-			Observation:   "The day is captured here.",
-			Encouragement: "You've got this.",
+			Body:    `<script>alert("no")</script>`,
+			Closing: "You've got this.",
 		},
 	}
 
@@ -180,13 +178,12 @@ func TestDailyReportEscapesGeneratedCopyAndStopsReloadingAfterAI(t *testing.T) {
 	}
 }
 
-func TestHistoricalDailyReportOmitsEmptyObservationAndEncouragement(t *testing.T) {
+func TestHistoricalDailyReportOmitsClosing(t *testing.T) {
 	templates := parseFrontendTemplates(t)
 	report := backendclient.DailyReport{
 		Title: "Tuesday summary",
 		Card: &backendclient.DailyReportCard{
-			Intro: "Here's how Yau Yau's day took shape.",
-			Story: "A new growth check recorded 3.5 kg, a lovely milestone to remember.",
+			Body: "A new growth check recorded 3.5 kg, a lovely milestone to remember.",
 		},
 	}
 
@@ -198,8 +195,8 @@ func TestHistoricalDailyReportOmitsEmptyObservationAndEncouragement(t *testing.T
 	if strings.Contains(html, "<p></p>") {
 		t.Fatalf("historical daily report renders empty prose: %s", html)
 	}
-	if got := strings.Count(html, "<p>"); got != 2 {
-		t.Fatalf("historical daily report contains %d paragraphs, want intro and story: %s", got, html)
+	if got := strings.Count(html, "<p>"); got != 1 {
+		t.Fatalf("historical daily report contains %d paragraphs, want body only: %s", got, html)
 	}
 }
 

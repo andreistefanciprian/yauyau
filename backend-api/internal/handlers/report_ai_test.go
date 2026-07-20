@@ -348,133 +348,60 @@ func TestValidateAIReportOutputRejectsTooManyHighlights(t *testing.T) {
 }
 
 func TestValidateDailyCardOutputContract(t *testing.T) {
-	weightGrams := 6800
-	lengthCM := 66.5
-	headCircumferenceCM := 42.2
-	baseData := reportDataResponse{
-		Baby:  reportBabyResponse{Name: "YauYau"},
-		Range: reportRangeResponse{IsPartial: true},
-		Totals: reportTotalsResponse{
-			Nappies: reportNappyTotals{Count: 4},
-			Pumps:   reportPumpTotals{Count: 2, TotalMl: 325},
-			Growth: reportGrowthTotals{
-				Count:                     1,
-				LatestWeightGrams:         &weightGrams,
-				LatestLengthCM:            &lengthCM,
-				LatestHeadCircumferenceCM: &headCircumferenceCM,
-			},
-		},
-	}
 	baseCard := dailycard.Output{
 		SchemaVersion: dailycard.OutputSchemaVersion,
-		Opening:       "Here's how YauYau's day is taking shape.",
-		Story:         "The day also included plenty of nappy changes and 2 pumping sessions totalling 325 ml. A growth check recorded 6.8 kg, a length of 66.5 cm and a head circumference of 42.2 cm, a lovely milestone to remember.",
-		Observation:   "The report covers the day so far.",
-		Encouragement: "You've got this, Dad. 💛",
+		Title:         "YauYau's day so far",
+		Body:          "Plenty of nappy changes and 2 pumping sessions totalling 325 ml rounded out the day. A growth check recorded 6.8 kg, a length of 66.5 cm and a head circumference of 42.2 cm, a lovely milestone to remember.",
+		Closing:       "You've got this, Dad.",
 	}
 
 	tests := []struct {
-		name         string
-		data         reportDataResponse
-		relationship string
-		card         dailycard.Output
-		wantError    string
+		name      string
+		card      dailycard.Output
+		wantError string
 	}{
-		{name: "dad with one encouragement emoji", data: baseData, relationship: "Dad", card: baseCard},
+		{name: "valid output", card: baseCard},
 		{
-			name:         "formal father relationship uses dad",
-			data:         baseData,
-			relationship: "Father",
-			card:         baseCard,
-		},
-		{
-			name:         "mum relationship",
-			data:         baseData,
-			relationship: "Mum",
+			name: "missing title",
 			card: func() dailycard.Output {
 				card := baseCard
-				card.Encouragement = "You've got this, Mum."
+				card.Title = ""
 				return card
 			}(),
+			wantError: "title is required",
 		},
 		{
-			name: "missing relationship",
-			data: baseData,
+			name: "title longer than five words",
 			card: func() dailycard.Output {
 				card := baseCard
-				card.Encouragement = "You've got this."
+				card.Title = "Today with YauYau and the family"
 				return card
 			}(),
+			wantError: "title exceeds 5 words",
 		},
 		{
-			name: "neutral moment is not mistaken for mom",
-			data: baseData,
+			name: "missing body",
 			card: func() dailycard.Output {
 				card := baseCard
-				card.Encouragement = "One moment at a time."
+				card.Body = ""
 				return card
 			}(),
+			wantError: "body is required",
 		},
 		{
-			name: "baby name is not mistaken for a relationship",
-			data: func() reportDataResponse {
-				data := baseData
-				data.Baby.Name = "Mum"
-				return data
-			}(),
+			name: "missing closing",
 			card: func() dailycard.Output {
 				card := baseCard
-				card.Opening = "Here's how Mum's day is taking shape."
-				card.Encouragement = "You've got this."
+				card.Closing = ""
 				return card
 			}(),
+			wantError: "closing is required",
 		},
 		{
-			name: "baby name is counted as a complete mention",
-			data: func() reportDataResponse {
-				data := baseData
-				data.Baby.Name = "Ann"
-				return data
-			}(),
+			name: "model Markdown",
 			card: func() dailycard.Output {
 				card := baseCard
-				card.Opening = "Here's how Ann's day is taking shape."
-				card.Observation = "Another part of the day is still unfolding."
-				card.Encouragement = "You've got this."
-				return card
-			}(),
-		},
-		{
-			name: "missing relationship cannot assume dad",
-			data: baseData,
-			card: func() dailycard.Output {
-				card := baseCard
-				card.Encouragement = "You've got this, Dad."
-				return card
-			}(),
-			wantError: "must not be assumed",
-		},
-		{
-			name: "missing baby name",
-			data: func() reportDataResponse {
-				data := baseData
-				data.Baby.Name = ""
-				return data
-			}(),
-			relationship: "Dad",
-			card: func() dailycard.Output {
-				card := baseCard
-				card.Opening = "Here's how your little one's day is taking shape."
-				return card
-			}(),
-		},
-		{
-			name:         "model Markdown",
-			data:         baseData,
-			relationship: "Dad",
-			card: func() dailycard.Output {
-				card := baseCard
-				card.Observation = "**The day is still unfolding.**"
+				card.Body = "**The day is still unfolding.**"
 				return card
 			}(),
 			wantError: "Markdown or HTML",
@@ -484,7 +411,7 @@ func TestValidateDailyCardOutputContract(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			raw := mustMarshalDailyCardOutput(t, tt.card)
-			_, err := validateDailyCardOutput(raw, tt.data, tt.relationship)
+			_, err := validateDailyCardOutput(raw)
 			if tt.wantError == "" && err != nil {
 				t.Fatalf("validateDailyCardOutput returned error: %v", err)
 			}

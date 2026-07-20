@@ -83,23 +83,19 @@ type DailyReport struct {
 }
 
 type DailyReportCard struct {
-	Intro          string                     `json:"intro"`
 	PrimaryMetrics []DailyReportPrimaryMetric `json:"primary_metrics"`
-	Story          string                     `json:"story,omitempty"`
-	Observation    string                     `json:"observation,omitempty"`
-	Encouragement  string                     `json:"encouragement,omitempty"`
+	Body           string                     `json:"body,omitempty"`
+	Closing        string                     `json:"closing,omitempty"`
 }
 
 type DailyReportPrimaryMetric struct {
-	Count     string `json:"count"`
-	Total     string `json:"total,omitempty"`
-	Qualifier string `json:"qualifier,omitempty"`
+	Count string `json:"count"`
+	Total string `json:"total,omitempty"`
 }
 
 type AIDailyCard struct {
 	SchemaVersion string `json:"schema_version"`
-	Opening       string `json:"opening"`
-	Story         string `json:"story"`
-	Observation   string `json:"observation"`
-	Encouragement string `json:"encouragement"`
+	Title         string `json:"title"`
+	Body          string `json:"body"`
+	Closing       string `json:"closing"`
 }

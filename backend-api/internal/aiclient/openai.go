@@ -299,11 +299,10 @@ func dailyCardOutputSchema() map[string]any {
 				"type": "string",
 				"enum": []string{dailycard.OutputSchemaVersion},
 			},
-			"opening":       map[string]any{"type": "string", "maxLength": 240},
-			"story":         map[string]any{"type": "string", "maxLength": 400},
-			"observation":   map[string]any{"type": "string", "maxLength": 240},
-			"encouragement": map[string]any{"type": "string", "maxLength": 240},
+			"title":   map[string]any{"type": "string", "maxLength": 80},
+			"body":    map[string]any{"type": "string", "maxLength": 640},
+			"closing": map[string]any{"type": "string", "maxLength": 120},
 		},
-		"required": []string{"schema_version", "opening", "story", "observation", "encouragement"},
+		"required": []string{"schema_version", "title", "body", "closing"},
 	}
 }

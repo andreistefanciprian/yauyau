@@ -30,7 +30,7 @@ func TestDailyCardGoldenFixtures(t *testing.T) {
 			if err := json.Unmarshal(raw, &fixture); err != nil {
 				t.Fatalf("decode fixture: %v", err)
 			}
-			if _, err := validateDailyCardOutput(fixture.GoldenOutput, fixture.Input.ReportData, fixture.Input.Viewer.Relationship); err != nil {
+			if _, err := validateDailyCardOutput(fixture.GoldenOutput); err != nil {
 				t.Fatalf("validate golden output: %v", err)
 			}
 		})

@@ -154,7 +154,7 @@ func TestGenerateDailyCardUsesSeparateSystemPromptAndSchema(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{
 			"model": "test-model",
-			"output_text": "{\"schema_version\":\"daily_card_output.v1\",\"opening\":\"Here's how YauYau's day is taking shape.\",\"story\":\"Plenty of nappy changes round out today's picture.\",\"observation\":\"Today is still unfolding.\",\"encouragement\":\"You've got this, Dad.\"}"
+			"output_text": "{\"schema_version\":\"daily_card_output.v2\",\"title\":\"YauYau's day so far\",\"body\":\"Plenty of nappy changes round out the day.\",\"closing\":\"You've got this, Dad.\"}"
 		}`))
 	}))
 	t.Cleanup(server.Close)
@@ -181,11 +181,11 @@ func TestGenerateDailyCardUsesSeparateSystemPromptAndSchema(t *testing.T) {
 	for _, required := range []string{
 		"Do not use hyphens, en dashes, or em dashes",
 		"at most one emoji",
-		"baby name exactly once",
+		"baby's name no more than once",
 		"complete current day output from buildReportDataForBaby",
-		"mention every supplied current-day value",
-		"Australian English flavour",
-		"Use at most one such expression",
+		"Mention every supplied current day value",
+		"Australian English expression",
+		"Use at most one across the complete report",
 	} {
 		if !strings.Contains(systemPrompt, required) {
 			t.Fatalf("system prompt missing %q", required)
@@ -196,11 +196,11 @@ func TestGenerateDailyCardUsesSeparateSystemPromptAndSchema(t *testing.T) {
 		t.Fatalf("format = %#v", format)
 	}
 	properties := format["schema"].(map[string]any)["properties"].(map[string]any)
-	if _, ok := properties["title"]; ok {
-		t.Fatalf("daily card schema unexpectedly contains title: %#v", properties)
+	if _, ok := properties["title"]; !ok {
+		t.Fatalf("daily card schema missing title: %#v", properties)
 	}
-	if _, ok := properties["opening"]; !ok {
-		t.Fatalf("daily card schema missing opening: %#v", properties)
+	if _, ok := properties["opening"]; ok {
+		t.Fatalf("daily card schema unexpectedly contains opening: %#v", properties)
 	}
 	userContent := messages[1].(map[string]any)["content"].(string)
 	if userContent != string(input) {

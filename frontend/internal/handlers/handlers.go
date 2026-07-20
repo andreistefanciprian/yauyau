@@ -858,10 +858,9 @@ func (h *Handlers) DailyReportAI(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("load AI daily card: %v", err)
 		} else if report.Card != nil {
-			report.Card.Intro = generated.Opening
-			report.Card.Story = generated.Story
-			report.Card.Observation = generated.Observation
-			report.Card.Encouragement = generated.Encouragement
+			report.Title = generated.Title
+			report.Card.Body = generated.Body
+			report.Card.Closing = generated.Closing
 		}
 	}
 

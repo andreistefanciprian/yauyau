@@ -28,11 +28,10 @@ func TestLoadOrCreateDailyCardPassesFullCurrentDayJSON(t *testing.T) {
 	generator := &fakeDailyCardGenerator{
 		model: "test-model",
 		output: json.RawMessage(`{
-			"schema_version":"daily_card_output.v1",
-			"opening":"Here's how YauYau's day is taking shape.",
-			"story":"",
-			"observation":"The day is still unfolding.",
-			"encouragement":"You've got this, Dad."
+			"schema_version":"daily_card_output.v2",
+			"title":"YauYau's day so far",
+			"body":"Only a few updates have been recorded so far.",
+			"closing":"You've got this, Dad."
 		}`),
 	}
 	h := &Handlers{Store: fakeStore, DailyCardAI: generator}
@@ -89,11 +88,10 @@ func TestCreateAIDailyCardUsesViewerRelationship(t *testing.T) {
 	generator := &fakeDailyCardGenerator{
 		model: "test-model",
 		output: json.RawMessage(`{
-			"schema_version":"daily_card_output.v1",
-			"opening":"Here's how YauYau's day is taking shape.",
-			"story":"",
-			"observation":"The day is still unfolding.",
-			"encouragement":"You've got this, Dad."
+			"schema_version":"daily_card_output.v2",
+			"title":"YauYau's day so far",
+			"body":"Only a few updates have been recorded so far.",
+			"closing":"You've got this, Dad."
 		}`),
 	}
 	h := &Handlers{Store: fakeStore, FamilyStore: familyStore, DailyCardAI: generator}
@@ -106,7 +104,7 @@ func TestCreateAIDailyCardUsesViewerRelationship(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), `"schema_version":"daily_card_output.v1"`) {
+	if !strings.Contains(rec.Body.String(), `"schema_version":"daily_card_output.v2"`) {
 		t.Fatalf("body = %s", rec.Body.String())
 	}
 	var input dailyCardInput

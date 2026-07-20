@@ -13,17 +13,15 @@
     <h2 id="daily-report-title">{{.Title}}</h2>
   </div>
   {{with .Card}}
-  <p>{{.Intro}}</p>
   {{if .PrimaryMetrics}}
   <ul class="daily-report-metrics">
     {{range .PrimaryMetrics}}
-    <li><strong>{{.Count}}</strong>{{if .Total}} <span aria-hidden="true">·</span> <strong>{{.Total}}</strong>{{end}}{{if .Qualifier}} {{.Qualifier}}{{end}}</li>
+    <li><strong>{{.Count}}</strong>{{if .Total}} <span aria-hidden="true">·</span> <strong>{{.Total}}</strong>{{end}}</li>
     {{end}}
   </ul>
   {{end}}
-  {{if .Story}}<p>{{.Story}}</p>{{end}}
-  {{if .Observation}}<p>{{.Observation}}</p>{{end}}
-  {{if .Encouragement}}<p>{{.Encouragement}}</p>{{end}}
+  {{if .Body}}<p>{{.Body}}</p>{{end}}
+  {{if .Closing}}<p>{{.Closing}}</p>{{end}}
   {{else}}
     {{if .Highlights}}
     <ul class="daily-report-highlights">
