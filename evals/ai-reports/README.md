@@ -4,8 +4,8 @@ Status: **golden fixtures only**.
 
 These cases document representative inputs and good `ai_report_output.v1`
 responses for Yauli range and scheduled-email reports. They do not call OpenAI
-and are not wired into CI yet. The separate UI card evals live in
-[`evals/daily-card`](../daily-card).
+and are not wired into CI yet. The web timeline card is deterministic and is
+covered by Go tests rather than model evals.
 
 The goal is to make expected behavior reviewable before building a fuller eval
 runner.

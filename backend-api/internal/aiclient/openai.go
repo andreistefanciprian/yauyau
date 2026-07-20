@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/andreistefanciprian/yauli/backend-api/internal/aireport"
-	"github.com/andreistefanciprian/yauli/backend-api/internal/dailycard"
 )
 
 const (
@@ -26,9 +25,6 @@ const (
 //
 //go:embed prompts/ai_report_developer_prompt.txt
 var aiReportDeveloperPromptTemplate string
-
-//go:embed prompts/daily_card_system_prompt.txt
-var dailyCardSystemPrompt string
 
 type Client struct {
 	apiKey     string
@@ -87,33 +83,6 @@ func (c *Client) GenerateAIReport(ctx context.Context, input aireport.Generation
 		return aireport.GenerationResult{}, err
 	}
 	return aireport.GenerationResult{Model: model, ContentJSON: contentJSON}, nil
-}
-
-// GenerateDailyCard accepts the complete current-day JSON envelope and
-// returns strict daily_card_output JSON. The handler owns input construction,
-// factual validation, and caching; this client owns only model transport.
-func (c *Client) GenerateDailyCard(ctx context.Context, input json.RawMessage) (dailycard.GenerationResult, error) {
-	if !json.Valid(input) {
-		return dailycard.GenerationResult{}, errors.New("daily card input is not valid JSON")
-	}
-
-	model, contentJSON, err := c.generateStructuredOutput(
-		ctx,
-		"system",
-		dailyCardSystemPrompt,
-		input,
-		openAITextFormat{
-			Type:        "json_schema",
-			Name:        "daily_card_output",
-			Description: "Warm, factual prose for today's Yauli daily card.",
-			Strict:      true,
-			Schema:      dailyCardOutputSchema(),
-		},
-	)
-	if err != nil {
-		return dailycard.GenerationResult{}, err
-	}
-	return dailycard.GenerationResult{Model: model, ContentJSON: contentJSON}, nil
 }
 
 func (c *Client) generateStructuredOutput(ctx context.Context, instructionRole, instruction string, inputJSON []byte, format openAITextFormat) (string, json.RawMessage, error) {
@@ -287,22 +256,5 @@ func aiReportOutputSchema() map[string]any {
 			"caveats",
 			"questions_for_parent",
 		},
-	}
-}
-
-func dailyCardOutputSchema() map[string]any {
-	return map[string]any{
-		"type":                 "object",
-		"additionalProperties": false,
-		"properties": map[string]any{
-			"schema_version": map[string]any{
-				"type": "string",
-				"enum": []string{dailycard.OutputSchemaVersion},
-			},
-			"title":   map[string]any{"type": "string", "maxLength": 80},
-			"body":    map[string]any{"type": "string", "maxLength": 640},
-			"closing": map[string]any{"type": "string", "maxLength": 120},
-		},
-		"required": []string{"schema_version", "title", "body", "closing"},
 	}
 }

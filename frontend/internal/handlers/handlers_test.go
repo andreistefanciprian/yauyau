@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"html"
 	"html/template"
 	"net/http"
 	"net/http/httptest"
@@ -15,109 +14,6 @@ import (
 
 	"github.com/andreistefanciprian/yauli/frontend/internal/backendclient"
 )
-
-func TestDailyReportAIUsesGeneratedCopyOrDeterministicFallback(t *testing.T) {
-	tests := []struct {
-		name      string
-		aiCard    backendclient.AIDailyCard
-		aiErr     error
-		wantTitle string
-		wantBody  string
-		wantClose string
-	}{
-		{
-			name: "valid generated copy",
-			aiCard: backendclient.AIDailyCard{
-				SchemaVersion: "daily_card_output.v2",
-				Title:         "YauYau's day so far",
-				Body:          "Plenty of nappy changes rounded out the day.",
-				Closing:       "You've got this, Dad.",
-			},
-			wantTitle: "YauYau's day so far",
-			wantBody:  "Plenty of nappy changes rounded out the day.",
-			wantClose: "You've got this, Dad.",
-		},
-		{
-			name:      "provider failure keeps fallback",
-			aiErr:     errors.New("provider unavailable"),
-			wantTitle: "Today so far",
-			wantBody:  "Deterministic story.",
-			wantClose: "You've got this.",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			backend := &dailyReportAIBackend{
-				report: backendclient.DailyReport{
-					Title: "Today so far",
-					Card: &backendclient.DailyReportCard{
-						Body:    "Deterministic story.",
-						Closing: "You've got this.",
-					},
-				},
-				aiCard: tt.aiCard,
-				aiErr:  tt.aiErr,
-			}
-			templates := template.Must(template.New("root").Parse(`{{define "daily-report"}}{{.Title}}|{{.Card.Body}}|{{.Card.Closing}}{{end}}`))
-			h := &Handlers{Backend: backend, Templates: templates}
-
-			rec := httptest.NewRecorder()
-			loc, err := time.LoadLocation("Australia/Adelaide")
-			if err != nil {
-				t.Fatalf("load timezone: %v", err)
-			}
-			today := time.Now().In(loc).Format(time.DateOnly)
-			req := httptest.NewRequest("GET", "/daily-report/ai?date="+today, nil)
-			h.DailyReportAI(rec, req)
-
-			if rec.Code != 200 {
-				t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())
-			}
-			body := html.UnescapeString(rec.Body.String())
-			for _, want := range []string{tt.wantTitle, tt.wantBody, tt.wantClose} {
-				if !strings.Contains(body, want) {
-					t.Fatalf("body = %q, want %q", rec.Body.String(), want)
-				}
-			}
-			if backend.reportDate != today || !backend.aiCalled {
-				t.Fatalf("report date = %q, AI called = %v", backend.reportDate, backend.aiCalled)
-			}
-		})
-	}
-}
-
-func TestDailyReportAIKeepsHistoricalDayDeterministic(t *testing.T) {
-	backend := &dailyReportAIBackend{
-		report: backendclient.DailyReport{
-			Title: "Yesterday summary",
-			Card: &backendclient.DailyReportCard{
-				Body: "Deterministic story.",
-			},
-		},
-	}
-	templates := template.Must(template.New("root").Parse(`{{define "daily-report"}}{{.Title}}|{{.Card.Body}}|{{.Card.Closing}}{{end}}`))
-	h := &Handlers{Backend: backend, Templates: templates}
-
-	loc, err := time.LoadLocation("Australia/Adelaide")
-	if err != nil {
-		t.Fatalf("load timezone: %v", err)
-	}
-	yesterday := time.Now().In(loc).AddDate(0, 0, -1).Format(time.DateOnly)
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/daily-report/ai?date="+yesterday, nil)
-	h.DailyReportAI(rec, req)
-
-	if rec.Code != 200 {
-		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())
-	}
-	if backend.aiCalled {
-		t.Fatal("historical daily report called the AI endpoint")
-	}
-	if !strings.Contains(rec.Body.String(), "Yesterday summary|Deterministic story.|") {
-		t.Fatalf("body = %q, want deterministic historical card without a closing", rec.Body.String())
-	}
-}
 
 func TestDailyReportVisibilityDefaultsOnAndHonoursCookie(t *testing.T) {
 	tests := []struct {
@@ -144,23 +40,26 @@ func TestDailyReportVisibilityDefaultsOnAndHonoursCookie(t *testing.T) {
 }
 
 func TestLoadDailyReportIfVisibleSkipsHiddenReport(t *testing.T) {
-	backend := &dailyReportAIBackend{
+	backend := &dailyReportBackend{
 		report: backendclient.DailyReport{Title: "Today so far"},
 	}
 	h := &Handlers{Backend: backend}
 
-	if got := h.loadDailyReportIfVisible(context.Background(), "2026-07-18", time.UTC, false); got != nil {
+	if got := h.loadDailyReportIfVisible(context.Background(), "2026-07-18", false); got != nil {
 		t.Fatalf("hidden report = %#v, want nil", got)
 	}
 	if backend.reportCalls != 0 {
 		t.Fatalf("hidden report made %d backend calls, want 0", backend.reportCalls)
 	}
 
-	if got := h.loadDailyReportIfVisible(context.Background(), "2026-07-18", time.UTC, true); got == nil {
+	if got := h.loadDailyReportIfVisible(context.Background(), "2026-07-18", true); got == nil {
 		t.Fatal("visible report = nil")
 	}
 	if backend.reportCalls != 1 {
 		t.Fatalf("visible report made %d backend calls, want 1", backend.reportCalls)
+	}
+	if backend.reportDate != "2026-07-18" {
+		t.Fatalf("visible report date = %q, want 2026-07-18", backend.reportDate)
 	}
 }
 
@@ -187,7 +86,7 @@ func TestUpdateTimelineDailyReportPreferenceRefreshesWorkspace(t *testing.T) {
 		{name: "show", visible: true, wantBody: "report", wantReportCalls: 1, wantCookie: "1"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			backend := &dailyReportAIBackend{
+			backend := &dailyReportBackend{
 				report: backendclient.DailyReport{Title: "Today so far"},
 			}
 			templates := template.Must(template.New("root").Parse(`{{define "timeline-workspace"}}{{if .DailyReport}}report{{else}}hidden{{end}}{{end}}`))
@@ -217,21 +116,18 @@ func TestUpdateTimelineDailyReportPreferenceRefreshesWorkspace(t *testing.T) {
 	}
 }
 
-type dailyReportAIBackend struct {
+type dailyReportBackend struct {
 	Backend
 	report      backendclient.DailyReport
-	aiCard      backendclient.AIDailyCard
-	aiErr       error
 	reportDate  string
 	reportCalls int
-	aiCalled    bool
 }
 
-func (b *dailyReportAIBackend) GetCurrentBaby(context.Context) (backendclient.Baby, error) {
+func (b *dailyReportBackend) GetCurrentBaby(context.Context) (backendclient.Baby, error) {
 	return backendclient.Baby{Timezone: "Australia/Adelaide"}, nil
 }
 
-func (b *dailyReportAIBackend) ListEvents(_ context.Context, _, _ string, out any) error {
+func (b *dailyReportBackend) ListEvents(_ context.Context, _, _ string, out any) error {
 	events, ok := out.(*[]backendclient.Event)
 	if !ok {
 		return errors.New("unexpected event output type")
@@ -240,15 +136,10 @@ func (b *dailyReportAIBackend) ListEvents(_ context.Context, _, _ string, out an
 	return nil
 }
 
-func (b *dailyReportAIBackend) GetDailyReport(_ context.Context, date string) (backendclient.DailyReport, error) {
+func (b *dailyReportBackend) GetDailyReport(_ context.Context, date string) (backendclient.DailyReport, error) {
 	b.reportDate = date
 	b.reportCalls++
 	return b.report, nil
-}
-
-func (b *dailyReportAIBackend) CreateTodayAIDailyCard(context.Context) (backendclient.AIDailyCard, error) {
-	b.aiCalled = true
-	return b.aiCard, b.aiErr
 }
 
 func TestFeedAmountFromFormIgnoresBreastAmount(t *testing.T) {

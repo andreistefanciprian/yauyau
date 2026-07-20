@@ -92,7 +92,6 @@ func main() {
 			r.Get("/app", h.Index)
 			r.Get("/timeline/events", h.TimelineEvents)
 			r.Post("/timeline/preferences/daily-report", h.UpdateTimelineDailyReportPreference)
-			r.Get("/daily-report/ai", h.DailyReportAI)
 			r.Get("/settings", h.ShowSettings)
 			r.Post("/settings/account", h.UpdateAccountSettings)
 			r.Post("/settings/report-emails", h.UpdateReportEmailSettings)

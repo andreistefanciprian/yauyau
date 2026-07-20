@@ -18,14 +18,12 @@ import (
 type HTTPClient struct {
 	baseURL string
 	http    *http.Client
-	aiHTTP  *http.Client
 }
 
 func New(baseURL string) *HTTPClient {
 	return &HTTPClient{
 		baseURL: baseURL,
 		http:    &http.Client{Timeout: 5 * time.Second},
-		aiHTTP:  &http.Client{Timeout: 20 * time.Second},
 	}
 }
 
@@ -138,14 +136,6 @@ func (c *HTTPClient) GetDailyReport(ctx context.Context, date string) (DailyRepo
 	return report, nil
 }
 
-func (c *HTTPClient) CreateTodayAIDailyCard(ctx context.Context) (AIDailyCard, error) {
-	var card AIDailyCard
-	if err := c.postJSONDecodeWithClient(ctx, c.aiHTTP, "/api/v1/babies/current/reports/daily-card/ai", struct{}{}, &card); err != nil {
-		return AIDailyCard{}, err
-	}
-	return card, nil
-}
-
 // CreateEvent posts payload (form fields plus "occurred_at") to the given
 // resource's create endpoint.
 func (c *HTTPClient) CreateEvent(ctx context.Context, resource string, payload map[string]any) error {
@@ -204,10 +194,6 @@ func (c *HTTPClient) RemoveTimelineMember(ctx context.Context, userID string) er
 // error for any transport failure or non-2xx response. Callers own closing
 // resp.Body on success.
 func (c *HTTPClient) do(ctx context.Context, method, path string, body io.Reader) (*http.Response, error) {
-	return c.doWithClient(ctx, c.http, method, path, body)
-}
-
-func (c *HTTPClient) doWithClient(ctx context.Context, client *http.Client, method, path string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
 	if err != nil {
 		return nil, fmt.Errorf("building request: %w", err)
@@ -222,7 +208,7 @@ func (c *HTTPClient) doWithClient(ctx context.Context, client *http.Client, meth
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := client.Do(req)
+	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("calling backend: %w", err)
 	}
@@ -302,15 +288,11 @@ func (c *HTTPClient) patchJSONDecode(ctx context.Context, path string, payload a
 // postJSONDecode POSTs payload as JSON and decodes the response body into
 // out.
 func (c *HTTPClient) postJSONDecode(ctx context.Context, path string, payload any, out any) error {
-	return c.postJSONDecodeWithClient(ctx, c.http, path, payload, out)
-}
-
-func (c *HTTPClient) postJSONDecodeWithClient(ctx context.Context, client *http.Client, path string, payload any, out any) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("encoding request: %w", err)
 	}
-	resp, err := c.doWithClient(ctx, client, http.MethodPost, path, bytes.NewReader(body))
+	resp, err := c.do(ctx, http.MethodPost, path, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}

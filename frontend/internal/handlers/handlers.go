@@ -49,7 +49,6 @@ type Backend interface {
 	ArchiveCurrentBaby(ctx context.Context, confirmName string) error
 	ListEvents(ctx context.Context, resource, date string, out any) error
 	GetDailyReport(ctx context.Context, date string) (backendclient.DailyReport, error)
-	CreateTodayAIDailyCard(ctx context.Context) (backendclient.AIDailyCard, error)
 	CreateEvent(ctx context.Context, resource string, payload map[string]any) error
 	UpdateEvent(ctx context.Context, id string, payload map[string]any) error
 	DeleteEvent(ctx context.Context, id string) error
@@ -207,7 +206,7 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 
 	selectedDate := selectedTimelineDate(r, loc)
 	showDailyReport := dailyReportVisible(r)
-	dailyReport := h.loadDailyReportIfVisible(r.Context(), selectedDate, loc, showDailyReport)
+	dailyReport := h.loadDailyReportIfVisible(r.Context(), selectedDate, showDailyReport)
 
 	timeline, err := h.loadTimeline(r.Context(), loc, selectedDate)
 	if err != nil {
@@ -769,7 +768,7 @@ func (h *Handlers) renderTimelineWithDailyReport(w http.ResponseWriter, r *http.
 
 	data := timelineWorkspaceData{
 		Timeline:    timeline,
-		DailyReport: h.loadDailyReportIfVisible(r.Context(), selectedDate, loc, showDailyReport),
+		DailyReport: h.loadDailyReportIfVisible(r.Context(), selectedDate, showDailyReport),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -779,8 +778,7 @@ func (h *Handlers) renderTimelineWithDailyReport(w http.ResponseWriter, r *http.
 }
 
 // UpdateTimelineDailyReportPreference stores a device-local display preference
-// and refreshes the selected day's workspace. Hidden reports are not fetched,
-// so today's AI card is not requested either.
+// and refreshes the selected day's workspace. Hidden reports are not fetched.
 func (h *Handlers) UpdateTimelineDailyReportPreference(w http.ResponseWriter, r *http.Request) {
 	_, loc, err := h.currentBabyLocation(r.Context())
 	if err != nil {
@@ -794,11 +792,11 @@ func (h *Handlers) UpdateTimelineDailyReportPreference(w http.ResponseWriter, r 
 	h.renderTimelineWithDailyReport(w, r, loc, showDailyReport)
 }
 
-func (h *Handlers) loadDailyReportIfVisible(ctx context.Context, date string, loc *time.Location, visible bool) *backendclient.DailyReport {
+func (h *Handlers) loadDailyReportIfVisible(ctx context.Context, date string, visible bool) *backendclient.DailyReport {
 	if !visible {
 		return nil
 	}
-	return h.loadDailyReport(ctx, date, loc)
+	return h.loadDailyReport(ctx, date)
 }
 
 func dailyReportVisible(r *http.Request) bool {
@@ -823,51 +821,13 @@ func (h *Handlers) dailyReportVisibilityCookie(visible bool) *http.Cookie {
 	}
 }
 
-func (h *Handlers) loadDailyReport(ctx context.Context, date string, loc *time.Location) *backendclient.DailyReport {
+func (h *Handlers) loadDailyReport(ctx context.Context, date string) *backendclient.DailyReport {
 	report, err := h.Backend.GetDailyReport(ctx, date)
 	if err != nil {
 		log.Printf("load daily report: %v", err)
 		return nil
 	}
-	report.SelectedDate = date
-	report.LoadAI = date == timelineDate(0, time.Now().In(loc))
 	return &report
-}
-
-// DailyReportAI replaces the deterministic daily card copy after the page is
-// already usable. Provider errors leave the fresh deterministic fallback in
-// place, so event logging and timeline rendering never depend on AI.
-func (h *Handlers) DailyReportAI(w http.ResponseWriter, r *http.Request) {
-	_, loc, err := h.currentBabyLocation(r.Context())
-	if err != nil {
-		log.Printf("load baby for AI daily report: %v", err)
-		http.Error(w, "failed to load daily report", http.StatusBadGateway)
-		return
-	}
-
-	date := selectedTimelineDate(r, loc)
-	report := h.loadDailyReport(r.Context(), date, loc)
-	if report == nil {
-		http.Error(w, "failed to load daily report", http.StatusBadGateway)
-		return
-	}
-	report.LoadAI = false
-
-	if date == timelineDate(0, time.Now().In(loc)) {
-		generated, err := h.Backend.CreateTodayAIDailyCard(r.Context())
-		if err != nil {
-			log.Printf("load AI daily card: %v", err)
-		} else if report.Card != nil {
-			report.Title = generated.Title
-			report.Card.Body = generated.Body
-			report.Card.Closing = generated.Closing
-		}
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.Templates.ExecuteTemplate(w, "daily-report", report); err != nil {
-		log.Printf("render AI daily report: %v", err)
-	}
 }
 
 // FinishSleepNow completes an ongoing sleep from its existing start time to

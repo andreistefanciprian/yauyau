@@ -25,10 +25,10 @@ timeline.
 
 The first AI consumers should be:
 
-* an on-demand daily report in the web app;
 * scheduled daily email reports;
 * scheduled weekly email reports;
-* later MCP tools that retrieve the same backend-owned report output.
+* later on-demand and MCP consumers that retrieve the same backend-owned
+  report output.
 
 ## Non-Goals
 
@@ -61,20 +61,17 @@ That means:
 
 ```mermaid
 flowchart LR
-    A["Backend report facts"] --> B["Deterministic card"]
-    A --> C["Cached AI summary lookup"]
+    A["Backend report facts"] --> B["Deterministic UI KPI card"]
+    A --> C["Cached AI range report lookup"]
     C --> D{"Valid cached result?"}
-    D -->|"Yes"| E["Replace card copy"]
+    D -->|"Yes"| E["Render email or return report"]
     D -->|"No"| F["Generate and validate"]
     F -->|"Valid"| E
-    F -->|"Invalid or unavailable"| B
 ```
 
-The normal daily report and timeline remain fast without waiting for OpenAI.
-The web app renders the deterministic card first, then uses an HTMX request to
-load cached or newly generated prose. A provider failure leaves the fallback
-card in place. A changed event changes the semantic input hash, while unchanged
-data reuses the cached AI output.
+The normal daily KPI card and timeline never wait for OpenAI. Generic AI range
+reports are cached independently. A changed event changes their semantic input
+hash, while unchanged data reuses the cached AI output.
 
 ## Report Types
 
@@ -108,15 +105,14 @@ Yauli should keep two separate concepts.
 ### Daily Report
 
 The daily report is the compact backend-owned card shown in the UI. It answers
-"what was logged?" in a short, scannable way and includes deterministic
-fallback prose so AI availability never controls whether the card renders.
+"what was logged?" in a short, scannable way using four deterministic KPIs.
 
 Current shape, with legacy `summary` and `highlights` retained for report-data
 and existing consumers:
 
 ```json
 {
-  "title": "Today so far",
+  "title": "Yau Yau today",
   "summary": "Today has feeding, nappies, and sleep logged so far.",
   "highlights": [
     "8 feeds with 610 ml recorded.",
@@ -124,18 +120,32 @@ and existing consumers:
     "3 sleeps totalling 4 hours 20 minutes."
   ],
   "card": {
-    "primary_metrics": [
+    "metrics": [
       {
-        "count": "4 feeds",
-        "total": "320 ml"
+        "key": "feed",
+        "count": 8,
+        "label": "Feeds",
+        "detail": "610 ml"
       },
       {
-        "count": "4 sleeps",
-        "total": "9 hr 39 min"
+        "key": "sleep",
+        "count": 3,
+        "label": "Sleep",
+        "detail": "4 hr 20 min"
+      },
+      {
+        "key": "pump",
+        "count": 4,
+        "label": "Pump",
+        "detail": "480 ml"
+      },
+      {
+        "key": "nappy",
+        "count": 11,
+        "label": "Nappies",
+        "detail": "changed"
       }
-    ],
-    "body": "The day also included plenty of nappy changes, two pumping sessions totalling 325 ml, a bath and a temperature check. A growth check recorded 6.8 kg and a length of 66.5 cm, a lovely milestone to remember.",
-    "closing": "You've got this, Dad."
+    ]
   },
   "generated_at": "2026-07-13T09:30:00+09:30",
   "range_start": "2026-07-13T00:00:00+09:30",
@@ -520,12 +530,6 @@ The model input should still receive the real current cutoff. This lets a
 second request reuse the cached report when only the wall clock advanced,
 while a newly logged event still changes the deterministic input hash.
 
-The dedicated UI daily-card hash additionally includes the current viewer
-relationship. Its cache entry is considered fresh for two hours so the model
-can reconsider time-of-day context even when the semantic event data has not
-changed. Regeneration refreshes the cache timestamp without adding the wall
-clock to the semantic hash.
-
 Do not include the current generation timestamp in the input hash, otherwise
 the cache will miss every time. Do not include `delivery` in the semantic
 input hash unless delivery intentionally changes generated content.
@@ -574,108 +578,16 @@ Field rules:
   them.
 * `questions_for_parent`: 0-3 items; optional, practical follow-up questions.
 
-## Daily Card Input and Output Contract
+## UI Daily KPI Card
 
-The web daily card is not part of `GenerateAIReport` or
-`ai_report_output.v1`. It has a dedicated JSON-in, JSON-out workflow and a
-separate system prompt.
+The web timeline uses no generated prose. Backend API calculates feed count
+and recorded volume, completed sleep count and duration, pump count and volume,
+and nappy count for the selected local day. The card always renders those four
+metrics in the same order, including zero values, and uses the baby name in a
+deterministic title. Today, yesterday, and earlier timeline days use the same
+contract.
 
-Backend API builds today's canonical report data directly with:
-
-```go
-buildReportDataForBaby(ctx, baby, "", "", now)
-```
-
-Both empty dates select the current local day in the baby's timezone. The
-complete response is passed to the model without removing timestamps:
-
-```json
-{
-  "schema_version": "daily_card_input.v1",
-  "output_schema_version": "daily_card_output.v2",
-  "locale": "en-AU",
-  "viewer": {
-    "relationship": "Dad"
-  },
-  "report_data": {
-    "baby": {},
-    "range": {},
-    "totals": {},
-    "analytics": {},
-    "baseline": {},
-    "days": []
-  }
-}
-```
-
-`report_data` is the full `buildReportDataForBaby` output. In particular, the
-model receives `range.range_start`, `range.range_end`, `range.generated_at`,
-analytics timestamps, and event `occurred_at` timestamps so it can understand
-how far the current day has progressed. No `dayProgress` field or coarse time
-bucket is added to the model input.
-
-The model boundary is intentionally small:
-
-```go
-GenerateDailyCard(context.Context, json.RawMessage) (dailycard.GenerationResult, error)
-```
-
-The output is:
-
-```json
-{
-  "schema_version": "daily_card_output.v2",
-  "title": "YauYau's day so far",
-  "body": "Along the way, there were plenty of nappy changes, 3 pumping sessions totalling 405 ml, a bath and a temperature check. Feeding, nappies and sleep are all close to the past week's pattern so far.",
-  "closing": "You've got this, Dad."
-}
-```
-
-The UI renders deterministic feed and sleep lines separately. The model owns
-the current-day title, body, and closing, and must not repeat those KPI facts.
-
-Completed timeline days keep the deterministic card layout. Their story
-includes the latest recorded weight, length, and head circumference values
-when available. Historical cards use the same title, metrics, and body shell
-but omit the closing; a completed day with no events shows its factual
-empty-day message in the body instead.
-
-Daily-card rules:
-
-* `title` is no more than five words and normally uses the baby name once;
-* `body` combines the secondary-event story with the most useful supplied
-  insight, uses general nappy wording without counts or subtype details,
-  preserves the exact supplied pumping count and volume, and includes every
-  supplied value from a growth measurement recorded today as a warm milestone
-  without inferring a growth rate or medical conclusion;
-* `body` prioritises supplied baseline comparisons, then useful interval or
-  sequence analytics, and uses current time-of-day context only when no more
-  useful analytic is available;
-* `closing` is a brief uplifting line and may use the configured parent-facing
-  relationship; formal stored labels are normalised for Australian English,
-  including Father to Dad, Mother to Mum, Grandmother to Grandma, and
-  Grandfather to Grandpa;
-* an output may occasionally use one common, natural Australian English
-  expression when it improves the prose, without explanation or stereotypical
-  slang, regardless of report locale;
-* generated prose does not use hyphens, en dashes, or em dashes as punctuation;
-  punctuation inside a supplied name or relationship is preserved;
-* at most one emoji may appear, only in `body` or `closing`;
-* output contains no Markdown, headings, bullet points, HTML, or category
-  icons;
-* output does not interpret temperature, growth, feeding, sleep, or any other
-  fact medically;
-* application validation checks the structured contract, required fields,
-  five-word title limit, output size, and safe rendering before caching.
-  Personalisation, factual faithfulness, and prose quality are prompt and eval
-  concerns rather than attempts to parse creative text with hard-coded phrases
-  and regular expressions.
-
-The system prompt is version-controlled at
-`backend-api/internal/aiclient/prompts/daily_card_system_prompt.txt`. Generic
-range reports continue using `ai_report_developer_prompt.txt`.
-
-The generic AI report developer prompt permits the same occasional,
+The AI report developer prompt permits an occasional,
 one-expression Australian English flavour for every report type and locale,
 including scheduled daily email summaries and weekly reports. The locale
 continues to control terminology and units, not whether Yauli's conversational
@@ -762,9 +674,8 @@ Additional rules:
 ## Scheduled Email Reports
 
 Scheduled email reports use the generic `ai_report_output.v1` range-report
-contract. They do not use the today-only UI daily-card prompt or output.
-Email delivery remains a renderer and scheduler concern, not another AI
-reporting workflow.
+contract. Email delivery remains a renderer and scheduler concern, not another
+AI reporting workflow.
 
 Daily email reports:
 
@@ -827,30 +738,6 @@ Rules:
 * regenerates only when input changes or cache policy says to refresh.
 * returns a clear not-configured response on cache miss when
   `OPENAI_API_KEY` is not set.
-
-### Today's AI Daily Card
-
-```http
-POST /api/v1/babies/current/reports/daily-card/ai
-```
-
-The endpoint accepts an empty JSON object and always builds the current day in
-the baby's timezone. Clients cannot select a historical date through this
-route. It returns `daily_card_output.v2` directly.
-
-Rules:
-
-* called asynchronously only when Today is selected and deterministic content
-  is already visible;
-* sends the complete current-day report JSON, including timestamps, to the
-  dedicated `GenerateDailyCard` method;
-* uses separate prompt, input schema, output schema, validation, and cache
-  identity from `GenerateAIReport`;
-* returns a cached card while it is semantically current and no more than two
-  hours old;
-* regenerates when event data changes or the freshness window expires;
-* returns a clear not-configured response when generation is unavailable, so
-  the frontend can keep its deterministic fallback.
 
 Generation configuration:
 
@@ -916,11 +803,6 @@ The cache protects UX and cost. It should not make event creation slower.
 It is not canonical baby history; events remain the source of truth, and AI
 reports are regenerable from deterministic report data.
 
-Daily-card entries reuse this table with `report_type=daily_card`. They remain
-contractually separate through their prompt and schema versions. A semantic
-cache hit is used for at most two hours; regenerating the same semantic input
-updates its `created_at` freshness timestamp.
-
 Scheduled email jobs should reuse cached channel-neutral reports when the
 deterministic input hash matches. They should not regenerate the same report
 repeatedly for each recipient.
@@ -970,11 +852,6 @@ The first golden fixtures live in [evals/ai-reports](../evals/ai-reports).
 They document representative inputs and good `ai_report_output.v1` responses
 for generic range reports without calling OpenAI.
 
-Dedicated daily-card fixtures live in
-[evals/daily-card](../evals/daily-card). The handler test suite validates those
-`daily_card_output.v2` examples with the same application checks used before
-caching.
-
 Representative cases should cover:
 
 * complete daily report;
@@ -1013,45 +890,19 @@ The first eval suite should check:
 * scheduled weekly output stays concise.
 * canonical input hashing is stable when only generated timestamps change.
 
-Daily-card evals additionally check:
-
-* output is valid `daily_card_output.v2` JSON;
-* the title is no more than five words and normally uses the baby name once;
-* the closing is short and may use the normalised parent-facing relationship;
-* feed and sleep KPI facts are not repeated;
-* nappies are described without counts or subtype details;
-* pumping count and volume match supplied facts and pumping volume is not
-  described as consumed milk;
-* every supplied value from a growth measurement recorded today is mentioned
-  accurately in the body;
-* rubric review checks that generated prose contains no unsupported facts,
-  medical interpretation, Markdown, category icons, or prohibited dash
-  punctuation;
-* rubric review checks that emoji use follows the prompt;
-* rubric review checks that any Australian English expression is natural,
-  varied, appears at most once, and is neither explained nor stereotypical;
-* partial-day wording reflects the current timestamps.
-
 Document the eval command in the eval README when the suite is added.
 
 ## Frontend Plan
 
-Status: **implemented for the daily report card**.
+Status: **implemented**.
 
-The normal day summary stays visible and fast. The UI:
+The daily card stays visible and fast. The UI:
 
-* renders backend-owned fallback prose and deterministic KPI fields first;
-* requests dedicated daily-card AI prose through an HTMX `load` request after
-  today's card is visible;
-* swaps only escaped text fields into the existing card;
-* never renders raw model Markdown or HTML;
-* applies bold emphasis only to feed count, recorded feed volume, sleep count,
-  and total sleep duration;
-* contains no feed, sleep, nappy, pump, bottle, or moon icons;
-* keeps fallback content when the AI request fails or returns invalid output;
-* keeps yesterday and earlier timeline days entirely deterministic.
-
-The UI should not block event saves while AI is generating.
+* renders a backend-owned title and exactly four deterministic metrics;
+* shows feed count and recorded volume, sleep count and duration, pump count
+  and recorded volume, and nappy count;
+* contains no AI prose, AI request, category icon, or model-dependent state;
+* uses the same structure for today and historical timeline days.
 
 ## Rollout PRs
 
@@ -1103,15 +954,10 @@ Recommended sequence:
    * Use complete selected windows by default.
    * Render cached AI report JSON into email templates.
 
-9. **Frontend AI interaction**
-   * Status: implemented as asynchronous enhancement of the daily card.
-   * Render deterministic fallback copy before the AI request.
-   * Use a separate `daily_card_output.v2` prompt and contract for Today.
-   * Replace only the escaped title, body, and closing when valid AI output
-     arrives.
-   * Keep deterministic copy visible on timeout, provider error, or invalid
-     output.
-   * Keep historical timeline days deterministic.
+9. **Frontend KPI card**
+   * Status: implemented as a deterministic timeline summary.
+   * Render feed, sleep, pump, and nappy totals from backend-owned facts.
+   * Keep the card independent of model configuration and availability.
 
 10. **MCP exposure**
    * Expose deterministic report data first.

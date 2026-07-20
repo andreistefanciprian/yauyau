@@ -816,66 +816,107 @@ h2 {
 
 .daily-report {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.9rem;
   margin: 0 0 1rem;
-  padding: 0.95rem 1rem;
-  border: 1px solid color-mix(in srgb, var(--color-teal) 28%, var(--color-border));
-  border-radius: 0.75rem;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-teal) 14%, var(--color-surface)),
-    var(--color-surface)
-  );
+  padding: 1.2rem 1.25rem 1.15rem;
+  border: 0;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--color-blue) 14%, var(--color-surface));
   box-shadow: 0 8px 22px rgba(51, 65, 85, 0.06);
 }
 
-.daily-report-header {
-  display: block;
-}
-
 .daily-report h2 {
+  margin: 0;
+  color: var(--color-heading);
   font-size: 1rem;
+  font-weight: 750;
 }
 
-.daily-report p {
-  margin: 0.3rem 0 0;
-  color: var(--color-text-secondary);
-  font-size: 0.92rem;
-  line-height: 1.45;
-}
-
-.daily-report-highlights,
 .daily-report-metrics {
   display: grid;
-  gap: 0.45rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.daily-report-highlights li,
-.daily-report-metrics li {
-  position: relative;
-  padding-left: 1rem;
+.daily-report-metric {
+  display: grid;
+  align-content: start;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0 0.5rem;
+  border-left: 1px solid color-mix(in srgb, var(--color-blue) 22%, transparent);
+}
+
+.daily-report-metric:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.daily-report-metric:last-child {
+  padding-right: 0;
+}
+
+.daily-report-metric-count {
   color: var(--color-text-primary);
-  font-size: 0.9rem;
-  line-height: 1.45;
+  font-size: 2rem;
+  font-weight: 780;
+  line-height: 1;
 }
 
-.daily-report-highlights li::before,
-.daily-report-metrics li::before {
-  position: absolute;
-  top: 0.62em;
-  left: 0.2rem;
-  width: 0.35rem;
-  height: 0.35rem;
-  border-radius: 50%;
-  background: var(--color-teal);
-  content: "";
+.daily-report-metric-label {
+  color: var(--color-blue);
+  font-size: 0.69rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  line-height: 1.25;
+  text-transform: uppercase;
 }
 
-.daily-report-metrics strong {
-  font-weight: 700;
+.daily-report-metric-feed .daily-report-metric-label {
+  color: var(--color-event-feed);
+}
+
+.daily-report-metric-sleep .daily-report-metric-label {
+  color: var(--color-event-sleep);
+}
+
+.daily-report-metric-pump .daily-report-metric-label {
+  color: var(--color-event-pump);
+}
+
+.daily-report-metric-nappy .daily-report-metric-label {
+  color: var(--color-event-nappy);
+}
+
+.daily-report-metric-detail {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+@media (max-width: 360px) {
+  .daily-report {
+    padding-inline: 1rem;
+  }
+
+  .daily-report-metric {
+    padding-inline: 0.25rem;
+  }
+
+  .daily-report-metric:first-child {
+    padding-left: 0;
+  }
+
+  .daily-report-metric:last-child {
+    padding-right: 0;
+  }
+
+  .daily-report-metric-detail {
+    font-size: 0.64rem;
+  }
 }
 
 .member-list {

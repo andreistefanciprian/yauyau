@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,38 +24,32 @@ type dailyReportResponse struct {
 }
 
 type dailyReportCardResponse struct {
-	PrimaryMetrics []dailyReportPrimaryMetric `json:"primary_metrics"`
-	Body           string                     `json:"body,omitempty"`
-	Closing        string                     `json:"closing,omitempty"`
+	Metrics []dailyReportMetric `json:"metrics"`
 }
 
-type dailyReportPrimaryMetric struct {
-	Count string `json:"count"`
-	Total string `json:"total,omitempty"`
+type dailyReportMetric struct {
+	Key    string `json:"key"`
+	Count  int    `json:"count"`
+	Label  string `json:"label"`
+	Detail string `json:"detail"`
 }
 
 type dailyReportStats struct {
-	FeedCount                       int
-	MilkMl                          int
-	BreastFeeds                     int
-	NappyCount                      int
-	WetOnlyNappies                  int
-	PooOnlyNappies                  int
-	MixedNappies                    int
-	SleepCount                      int
-	SleepMinutes                    int
-	PumpCount                       int
-	PumpMl                          int
-	BathCount                       int
-	ObservationCount                int
-	TemperatureCount                int
-	GrowthCount                     int
-	LatestGrowthWeightGrams         *int
-	LatestGrowthWeightAt            time.Time
-	LatestGrowthLengthCM            *float64
-	LatestGrowthLengthAt            time.Time
-	LatestGrowthHeadCircumferenceCM *float64
-	LatestGrowthHeadCircumferenceAt time.Time
+	FeedCount        int
+	MilkMl           int
+	BreastFeeds      int
+	NappyCount       int
+	WetOnlyNappies   int
+	PooOnlyNappies   int
+	MixedNappies     int
+	SleepCount       int
+	SleepMinutes     int
+	PumpCount        int
+	PumpMl           int
+	BathCount        int
+	ObservationCount int
+	TemperatureCount int
+	GrowthCount      int
 }
 
 type dailyReportPeriod struct {
@@ -69,9 +62,7 @@ type dailyReportPeriod struct {
 }
 
 // GetDailyReport returns a calendar-day report for the current baby in the
-// baby's timezone. The card facts and fallback prose are deterministic and
-// backend-owned; the frontend may later replace the title and prose through the
-// separate cached AI report endpoint.
+// baby's timezone. The KPI card is deterministic and backend-owned.
 func (h *Handlers) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 	baby, ok := h.currentBabyForRequest(w, r)
 	if !ok {
@@ -96,17 +87,9 @@ func (h *Handlers) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	relationship := ""
-	if period.InProgress {
-		relationship, err = h.currentViewerRelationship(r.Context(), baby.FamilyID)
-		if err != nil {
-			log.Printf("load daily report viewer relationship: %v", err)
-			relationship = ""
-		}
-	}
-
 	report := buildDailyReport(events, window, generatedAt, period)
-	report.Card = buildDailyReportCard(events, period, relationship)
+	report.Title = dailyReportCardTitle(baby.Name, period)
+	report.Card = buildDailyReportCard(events)
 	writeJSON(w, http.StatusOK, report)
 }
 
@@ -177,124 +160,34 @@ func buildDailyReport(events []store.Event, window timelineDayWindow, generatedA
 	}
 }
 
-func buildDailyReportCard(events []store.Event, period dailyReportPeriod, relationship string) *dailyReportCardResponse {
+func buildDailyReportCard(events []store.Event) *dailyReportCardResponse {
 	stats := dailyReportStats{}
 	for _, ev := range events {
 		stats.add(ev)
 	}
 
-	card := &dailyReportCardResponse{
-		PrimaryMetrics: dailyReportPrimaryMetrics(stats),
-		Body:           dailyReportStory(stats),
+	return &dailyReportCardResponse{
+		Metrics: []dailyReportMetric{
+			{Key: "feed", Count: stats.FeedCount, Label: "Feeds", Detail: fmt.Sprintf("%d ml", stats.MilkMl)},
+			{Key: "sleep", Count: stats.SleepCount, Label: "Sleep", Detail: formatCompactDurationMinutes(stats.SleepMinutes)},
+			{Key: "pump", Count: stats.PumpCount, Label: "Pump", Detail: fmt.Sprintf("%d ml", stats.PumpMl)},
+			{Key: "nappy", Count: stats.NappyCount, Label: "Nappies", Detail: "changed"},
+		},
 	}
-	if !period.InProgress {
-		if stats.totalEvents() == 0 {
-			card.Body = period.EmptySummary
-		}
-		return card
-	}
-
-	card.Closing = dailyReportClosing(relationship)
-	if stats.totalEvents() == 0 {
-		card.Body = period.EmptySummary
-	}
-	return card
 }
 
-func dailyReportPrimaryMetrics(stats dailyReportStats) []dailyReportPrimaryMetric {
-	metrics := make([]dailyReportPrimaryMetric, 0, 2)
-	if stats.FeedCount > 0 {
-		metric := dailyReportPrimaryMetric{Count: pluralize(stats.FeedCount, "feed", "feeds")}
-		if stats.MilkMl > 0 {
-			metric.Total = fmt.Sprintf("%d ml", stats.MilkMl)
-		}
-		metrics = append(metrics, metric)
+func dailyReportCardTitle(babyName string, period dailyReportPeriod) string {
+	babyName = strings.TrimSpace(babyName)
+	if babyName == "" {
+		return period.Title
 	}
-	if stats.SleepCount > 0 {
-		metric := dailyReportPrimaryMetric{Count: pluralize(stats.SleepCount, "sleep", "sleeps")}
-		if stats.SleepMinutes > 0 {
-			metric.Total = formatCompactDurationMinutes(stats.SleepMinutes)
-		}
-		metrics = append(metrics, metric)
+	if period.InProgress {
+		return babyName + " today"
 	}
-	return metrics
-}
-
-func dailyReportStory(stats dailyReportStats) string {
-	parts := make([]string, 0, 5)
-	if stats.NappyCount > 0 {
-		nappies := "nappy changes"
-		if stats.NappyCount >= 3 {
-			nappies = "plenty of nappy changes"
-		}
-		parts = append(parts, nappies)
+	if period.Subject == "Yesterday" {
+		return babyName + " yesterday"
 	}
-	if stats.PumpCount > 0 {
-		pump := fmt.Sprintf("%s pumping %s", countWord(stats.PumpCount), singularOrPlural(stats.PumpCount, "session", "sessions"))
-		if stats.PumpMl > 0 {
-			pump += fmt.Sprintf(" totalling %d ml", stats.PumpMl)
-		}
-		parts = append(parts, pump)
-	}
-	if stats.BathCount > 0 {
-		parts = append(parts, "a bath")
-	}
-	if stats.TemperatureCount > 0 {
-		parts = append(parts, "a temperature check")
-	}
-	if stats.ObservationCount > 0 {
-		parts = append(parts, "an observation")
-	}
-	story := ""
-	if len(parts) > 0 {
-		story = "The day also included " + joinNatural(parts) + "."
-	}
-	if stats.GrowthCount > 0 {
-		if story != "" {
-			story += " "
-		}
-		story += dailyReportGrowthStory(stats)
-	}
-	return story
-}
-
-func dailyReportGrowthStory(stats dailyReportStats) string {
-	measurements := make([]string, 0, 3)
-	if stats.LatestGrowthWeightGrams != nil {
-		measurements = append(measurements, formatGrowthWeight(*stats.LatestGrowthWeightGrams))
-	}
-	if stats.LatestGrowthLengthCM != nil {
-		measurements = append(measurements, fmt.Sprintf("a length of %s cm", formatGrowthCentimetres(*stats.LatestGrowthLengthCM)))
-	}
-	if stats.LatestGrowthHeadCircumferenceCM != nil {
-		measurements = append(measurements, fmt.Sprintf("a head circumference of %s cm", formatGrowthCentimetres(*stats.LatestGrowthHeadCircumferenceCM)))
-	}
-	if len(measurements) == 0 {
-		return "A new growth measurement added another moment to the day's story."
-	}
-	return "A new growth check recorded " + joinNatural(measurements) + ", a lovely milestone to remember."
-}
-
-func formatGrowthWeight(grams int) string {
-	wholeKG := grams / 1000
-	fraction := grams % 1000
-	if fraction == 0 {
-		return fmt.Sprintf("%d kg", wholeKG)
-	}
-	decimal := strings.TrimRight(fmt.Sprintf("%03d", fraction), "0")
-	return fmt.Sprintf("%d.%s kg", wholeKG, decimal)
-}
-
-func formatGrowthCentimetres(value float64) string {
-	return strconv.FormatFloat(value, 'f', -1, 64)
-}
-
-func dailyReportClosing(relationship string) string {
-	relationship = parentFacingRelationship(relationship)
-	if relationship == "" {
-		return "You've got this."
-	}
-	return fmt.Sprintf("You've got this, %s.", relationship)
+	return babyName + " on " + period.Subject
 }
 
 func formatCompactDurationMinutes(minutes int) string {
@@ -307,34 +200,6 @@ func formatCompactDurationMinutes(minutes int) string {
 		return fmt.Sprintf("%d hr", hours)
 	}
 	return fmt.Sprintf("%d hr %d min", hours, remainingMinutes)
-}
-
-func countWord(count int) string {
-	words := []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
-	if count >= 0 && count < len(words) {
-		return words[count]
-	}
-	return fmt.Sprintf("%d", count)
-}
-
-func singularOrPlural(count int, singular, plural string) string {
-	if count == 1 {
-		return singular
-	}
-	return plural
-}
-
-func joinNatural(parts []string) string {
-	switch len(parts) {
-	case 0:
-		return ""
-	case 1:
-		return parts[0]
-	case 2:
-		return parts[0] + " and " + parts[1]
-	default:
-		return strings.Join(parts[:len(parts)-1], ", ") + ", and " + parts[len(parts)-1]
-	}
 }
 
 func (s *dailyReportStats) add(ev store.Event) {
@@ -376,26 +241,7 @@ func (s *dailyReportStats) add(ev store.Event) {
 	case eventTypeTemperature:
 		s.TemperatureCount++
 	case eventTypeGrowthMeasurement:
-		s.addGrowthMeasurement(ev)
-	}
-}
-
-func (s *dailyReportStats) addGrowthMeasurement(ev store.Event) {
-	s.GrowthCount++
-	if weightGrams, ok := attributeOptionalInt(ev.Attributes, "weight_grams"); ok && (s.LatestGrowthWeightGrams == nil || ev.OccurredAt.After(s.LatestGrowthWeightAt)) {
-		value := weightGrams
-		s.LatestGrowthWeightGrams = &value
-		s.LatestGrowthWeightAt = ev.OccurredAt
-	}
-	if lengthCM, ok := attributeFloat(ev.Attributes, "length_cm"); ok && (s.LatestGrowthLengthCM == nil || ev.OccurredAt.After(s.LatestGrowthLengthAt)) {
-		value := lengthCM
-		s.LatestGrowthLengthCM = &value
-		s.LatestGrowthLengthAt = ev.OccurredAt
-	}
-	if headCircumferenceCM, ok := attributeFloat(ev.Attributes, "head_circumference_cm"); ok && (s.LatestGrowthHeadCircumferenceCM == nil || ev.OccurredAt.After(s.LatestGrowthHeadCircumferenceAt)) {
-		value := headCircumferenceCM
-		s.LatestGrowthHeadCircumferenceCM = &value
-		s.LatestGrowthHeadCircumferenceAt = ev.OccurredAt
+		s.GrowthCount++
 	}
 }
 

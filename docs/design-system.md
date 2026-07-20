@@ -246,17 +246,15 @@ If everything is orange, nothing stands out.
 
 **Daily Report Card**
 
-* keep the existing report title outside generated copy
-* show deterministic feed and sleep metrics near the top
-* use AI prose only for Today; historical timeline days keep deterministic
-  report copy
-* bold only feed count, recorded feed volume, sleep count, and total sleep
-  duration
-* use short plain-text paragraphs for story, observation, and encouragement
-* do not add feed, sleep, nappy, pump, bottle, moon, or similar icons
-* keep generated copy escaped; do not render model HTML or Markdown
-* target a complete card that parents can scan in 5 to 10 seconds
-* use no more than one emoji, and only in observation or encouragement
+* use a deterministic title with the baby's name and selected day
+* show exactly four KPIs in this order: feeds, sleep, pump, nappies
+* show the event count prominently, followed by a coloured uppercase label and
+  compact detail such as volume, duration, or "changed"
+* use event colours only for the labels; keep count and detail text neutral
+* separate the four columns with subtle dividers
+* do not add generated prose, icons, emoji, or model-dependent state
+* use the same structure for today and historical timeline days
+* keep the complete card glanceable in 5 seconds
 
 ---
 

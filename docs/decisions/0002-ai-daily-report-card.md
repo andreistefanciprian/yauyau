@@ -1,5 +1,7 @@
 # Dedicated AI Daily Report Card
 
+Status: **superseded by [ADR 0003](0003-deterministic-daily-kpi-card.md)**.
+
 ## Context
 
 The deterministic daily report is accurate but reads like a statistics dump.
