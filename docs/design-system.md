@@ -250,7 +250,8 @@ If everything is orange, nothing stands out.
 * show exactly four KPIs in this order: feeds, sleep, pump, nappies
 * show the event count prominently, followed by a coloured uppercase label and
   compact detail such as volume, duration, or "changed"
-* show recorded breast-feed duration beside feed volume when both are present
+* show total recorded feed duration beside total feed volume as
+  `255 ml · 42 min`
 * use event colours only for the labels; keep count and detail text neutral
 * separate the four columns with subtle dividers
 * do not add generated prose, icons, emoji, or model-dependent state

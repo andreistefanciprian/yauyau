@@ -55,10 +55,10 @@ func TestBuildDailyReportSummarizesTimelineEvents(t *testing.T) {
 
 func TestBuildDailyReportCardReturnsFourKPIs(t *testing.T) {
 	events := []store.Event{
-		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80)}},
-		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80)}},
-		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "expressed", "amount_ml": float64(80)}},
-		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "expressed", "amount_ml": float64(80)}},
+		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80), "duration_minutes": float64(10)}},
+		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80), "duration_minutes": float64(12)}},
+		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "expressed", "amount_ml": float64(80), "duration_minutes": float64(8)}},
+		{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast", "duration_minutes": float64(12)}},
 		{EventType: eventTypeSleep, Attributes: map[string]any{"duration_minutes": float64(120)}},
 		{EventType: eventTypeSleep, Attributes: map[string]any{"duration_minutes": float64(180)}},
 		{EventType: eventTypeSleep, Attributes: map[string]any{"duration_minutes": float64(139)}},
@@ -75,7 +75,7 @@ func TestBuildDailyReportCardReturnsFourKPIs(t *testing.T) {
 
 	card := buildDailyReportCard(events)
 	want := []dailyReportMetric{
-		{Key: "feed", Count: 4, Label: "Feeds", Detail: "320 ml"},
+		{Key: "feed", Count: 4, Label: "Feeds", Detail: "240 ml · 42 min"},
 		{Key: "sleep", Count: 4, Label: "Sleep", Detail: "9 hr 39 min"},
 		{Key: "pump", Count: 2, Label: "Pump", Detail: "325 ml"},
 		{Key: "nappy", Count: 4, Label: "Nappies", Detail: "changed"},
@@ -93,7 +93,7 @@ func TestBuildDailyReportCardReturnsFourKPIs(t *testing.T) {
 func TestBuildDailyReportCardReturnsZeroTotalsForEmptyDay(t *testing.T) {
 	card := buildDailyReportCard(nil)
 	want := []dailyReportMetric{
-		{Key: "feed", Count: 0, Label: "Feeds", Detail: "0 ml"},
+		{Key: "feed", Count: 0, Label: "Feeds", Detail: "0 ml · 0 min"},
 		{Key: "sleep", Count: 0, Label: "Sleep", Detail: "0 min"},
 		{Key: "pump", Count: 0, Label: "Pump", Detail: "0 ml"},
 		{Key: "nappy", Count: 0, Label: "Nappies", Detail: "changed"},
@@ -105,40 +105,41 @@ func TestBuildDailyReportCardReturnsZeroTotalsForEmptyDay(t *testing.T) {
 	}
 }
 
-func TestBuildDailyReportCardFormatsFeedVolumeAndBreastDuration(t *testing.T) {
+func TestBuildDailyReportCardTotalsFeedVolumeAndDurationAcrossTypes(t *testing.T) {
 	tests := []struct {
 		name   string
 		events []store.Event
 		want   string
 	}{
 		{
-			name: "bottle feeds",
+			name: "formula feed",
 			events: []store.Event{
-				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80)}},
+				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80), "duration_minutes": float64(15)}},
 			},
-			want: "80 ml",
+			want: "80 ml · 15 min",
 		},
 		{
-			name: "breast feeds",
+			name: "breast feed",
 			events: []store.Event{
 				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast", "duration_minutes": float64(35)}},
 			},
-			want: "35 min breast",
+			want: "0 ml · 35 min",
 		},
 		{
-			name: "bottle and breast feeds",
+			name: "mixed feed types",
 			events: []store.Event{
 				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80), "duration_minutes": float64(20)}},
+				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "expressed", "amount_ml": float64(70), "duration_minutes": float64(10)}},
 				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast", "duration_minutes": float64(35)}},
 			},
-			want: "80 ml · 35 min breast",
+			want: "150 ml · 1 hr 5 min",
 		},
 		{
-			name: "breast feed without duration",
+			name: "feed without volume or duration",
 			events: []store.Event{
 				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast"}},
 			},
-			want: "logged",
+			want: "0 ml · 0 min",
 		},
 	}
 

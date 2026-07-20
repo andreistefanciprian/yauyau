@@ -72,9 +72,9 @@ signature/expiry and decodes the caller's identity into context — see
   `backend-api/internal/handlers/report.go` and summarizes the merged event
   stream into a structured response (`title`, legacy `summary` and
   `highlights`, deterministic `card`, `generated_at`, `range_start`, and
-  `range_end`). `card.metrics` always contains feed count, recorded non-breast
-  volume, and recorded breast-feed duration when available; sleep count and
-  duration; pump count and recorded volume; and nappy count.
+  `range_end`). `card.metrics` always contains feed count, total recorded feed
+  volume, and total recorded feed duration; sleep count and duration; pump
+  count and recorded volume; and nappy count.
   The title uses the baby's name and selected day. The card contains no AI
   prose or model-dependent fields.
 * `GET /api/v1/babies/current/reports/data` → `GetReportData`, the canonical

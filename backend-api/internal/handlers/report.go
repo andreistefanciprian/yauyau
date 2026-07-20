@@ -35,22 +35,23 @@ type dailyReportMetric struct {
 }
 
 type dailyReportStats struct {
-	FeedCount         int
-	MilkMl            int
-	BreastFeeds       int
-	BreastFeedMinutes int
-	NappyCount        int
-	WetOnlyNappies    int
-	PooOnlyNappies    int
-	MixedNappies      int
-	SleepCount        int
-	SleepMinutes      int
-	PumpCount         int
-	PumpMl            int
-	BathCount         int
-	ObservationCount  int
-	TemperatureCount  int
-	GrowthCount       int
+	FeedCount        int
+	FeedMl           int
+	FeedMinutes      int
+	MilkMl           int
+	BreastFeeds      int
+	NappyCount       int
+	WetOnlyNappies   int
+	PooOnlyNappies   int
+	MixedNappies     int
+	SleepCount       int
+	SleepMinutes     int
+	PumpCount        int
+	PumpMl           int
+	BathCount        int
+	ObservationCount int
+	TemperatureCount int
+	GrowthCount      int
 }
 
 type dailyReportPeriod struct {
@@ -178,17 +179,7 @@ func buildDailyReportCard(events []store.Event) *dailyReportCardResponse {
 }
 
 func dailyReportFeedDetail(stats dailyReportStats) string {
-	parts := make([]string, 0, 2)
-	if stats.MilkMl > 0 || stats.FeedCount == 0 {
-		parts = append(parts, fmt.Sprintf("%d ml", stats.MilkMl))
-	}
-	if stats.BreastFeedMinutes > 0 {
-		parts = append(parts, formatCompactDurationMinutes(stats.BreastFeedMinutes)+" breast")
-	}
-	if len(parts) == 0 {
-		return "logged"
-	}
-	return strings.Join(parts, " · ")
+	return fmt.Sprintf("%d ml · %s", stats.FeedMl, formatCompactDurationMinutes(stats.FeedMinutes))
 }
 
 func dailyReportCardTitle(babyName string, period dailyReportPeriod) string {
@@ -221,13 +212,17 @@ func (s *dailyReportStats) add(ev store.Event) {
 	switch ev.EventType {
 	case eventTypeFeed:
 		s.FeedCount++
+		amount, hasAmount := attributeInt(ev.Attributes, "amount_ml")
+		if hasAmount {
+			s.FeedMl += amount
+		}
+		if duration, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+			s.FeedMinutes += duration
+		}
 		feedType, _ := ev.Attributes["type"].(string)
 		if feedType == string(FeedTypeBreast) {
 			s.BreastFeeds++
-			if duration, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
-				s.BreastFeedMinutes += duration
-			}
-		} else if amount, ok := attributeInt(ev.Attributes, "amount_ml"); ok {
+		} else if hasAmount {
 			s.MilkMl += amount
 		}
 	case eventTypeNappy:
