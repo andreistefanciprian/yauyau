@@ -136,15 +136,17 @@
           <input type="text" name="notes" placeholder="e.g. mustard yellow">
         </label>
 
-        <label class="field-label">
-          Time
-          <input type="time" name="time" value="{{.NowTime}}" required>
-        </label>
+        <div class="event-occurred-at-fields">
+          <label class="field-label">
+            Time
+            <input type="time" name="time" value="{{.NowTime}}" required>
+          </label>
 
-        <label class="field-label">
-          Date
-          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
-        </label>
+          <label class="field-label">
+            Date
+            <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+          </label>
+        </div>
 
         <button type="submit">Save</button>
       </form>
@@ -220,15 +222,17 @@
           <input type="text" name="notes" placeholder="e.g. left side">
         </label>
 
-        <label class="field-label">
-          Time
-          <input type="time" name="time" value="{{.NowTime}}" required>
-        </label>
+        <div class="event-occurred-at-fields">
+          <label class="field-label">
+            Time
+            <input type="time" name="time" value="{{.NowTime}}" required>
+          </label>
 
-        <label class="field-label">
-          Date
-          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
-        </label>
+          <label class="field-label">
+            Date
+            <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+          </label>
+        </div>
 
         <button type="submit">Save</button>
       </form>
@@ -251,22 +255,23 @@
           {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "20" "SliderStep" "5" "Label" "bath duration" "Value" "10")}}
         </label>
 
-        <div class="field-row">
-          <fieldset>
-            <legend>Time is</legend>
-            <label><input type="radio" name="bath_time_basis" value="start" required checked> Start time</label>
-            <label><input type="radio" name="bath_time_basis" value="end"> End time</label>
-          </fieldset>
+        <fieldset>
+          <legend>Time is</legend>
+          <label><input type="radio" name="bath_time_basis" value="start" required checked> Start time</label>
+          <label><input type="radio" name="bath_time_basis" value="end"> End time</label>
+        </fieldset>
+
+        <div class="event-occurred-at-fields">
           <label class="field-label">
             Time
             <input type="time" name="time" value="{{.NowTime}}" required>
           </label>
-        </div>
 
-        <label class="field-label">
-          Date
-          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
-        </label>
+          <label class="field-label">
+            Date
+            <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+          </label>
+        </div>
 
         <button type="submit">Save</button>
       </form>
@@ -332,15 +337,17 @@
           </datalist>
         </label>
 
-        <label class="field-label">
-          Time
-          <input type="time" name="time" value="{{.NowTime}}" required>
-        </label>
+        <div class="event-occurred-at-fields">
+          <label class="field-label">
+            Time
+            <input type="time" name="time" value="{{.NowTime}}" required>
+          </label>
 
-        <label class="field-label">
-          Date
-          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
-        </label>
+          <label class="field-label">
+            Date
+            <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+          </label>
+        </div>
 
         <button type="submit">Save</button>
       </form>
@@ -369,15 +376,17 @@
           <input type="text" name="notes" placeholder="e.g. after bath">
         </label>
 
-        <label class="field-label">
-          Time
-          <input type="time" name="time" value="{{.NowTime}}" required>
-        </label>
+        <div class="event-occurred-at-fields">
+          <label class="field-label">
+            Time
+            <input type="time" name="time" value="{{.NowTime}}" required>
+          </label>
 
-        <label class="field-label">
-          Date
-          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
-        </label>
+          <label class="field-label">
+            Date
+            <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+          </label>
+        </div>
 
         <button type="submit">Save</button>
       </form>
@@ -404,15 +413,17 @@
           <input type="text" name="notes" placeholder="e.g. 8 week check">
         </label>
 
-        <label class="field-label">
-          Time
-          <input type="time" name="time" value="{{.NowTime}}" required>
-        </label>
+        <div class="event-occurred-at-fields">
+          <label class="field-label">
+            Time
+            <input type="time" name="time" value="{{.NowTime}}" required>
+          </label>
 
-        <label class="field-label">
-          Date
-          <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
-        </label>
+          <label class="field-label">
+            Date
+            <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+          </label>
+        </div>
 
         <button type="submit">Save</button>
       </form>
