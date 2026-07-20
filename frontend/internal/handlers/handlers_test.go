@@ -2,6 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,6 +30,53 @@ func TestFeedAmountFromFormRequiresBottleAmount(t *testing.T) {
 			}
 			if _, err := feedAmountFromForm(feedType, "0"); err == nil {
 				t.Fatalf("feedAmountFromForm accepted zero %s amount", feedType)
+			}
+		})
+	}
+}
+
+func TestBathUpdatePayloadUsesEditedSettings(t *testing.T) {
+	loc := time.FixedZone("ACST", 9*60*60+30*60)
+	tests := []struct {
+		name           string
+		bathType       string
+		time           string
+		timeBasis      string
+		wantOccurredAt string
+	}{
+		{name: "type and clock time", bathType: "bottom_part", time: "08:15", timeBasis: "start", wantOccurredAt: "2026-07-20T08:15:00+09:30"},
+		{name: "end time", bathType: "whole_body", time: "08:15", timeBasis: "end", wantOccurredAt: "2026-07-20T08:05:00+09:30"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			form := url.Values{
+				"event_type":       {"bath"},
+				"type":             {test.bathType},
+				"date":             {"2026-07-20"},
+				"time":             {test.time},
+				"bath_time_basis":  {test.timeBasis},
+				"duration_minutes": {"10"},
+			}
+			req := httptest.NewRequest(http.MethodPatch, "/events/bath-id", strings.NewReader(form.Encode()))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			if err := req.ParseForm(); err != nil {
+				t.Fatalf("ParseForm returned error: %v", err)
+			}
+
+			payload, err := (&Handlers{}).eventUpdatePayloadFromForm(loc, req)
+			if err != nil {
+				t.Fatalf("eventUpdatePayloadFromForm returned error: %v", err)
+			}
+			if payload["occurred_at"] != test.wantOccurredAt {
+				t.Errorf("occurred_at = %q, want %q", payload["occurred_at"], test.wantOccurredAt)
+			}
+			attributes, ok := payload["attributes"].(map[string]any)
+			if !ok {
+				t.Fatalf("attributes = %#v, want map[string]any", payload["attributes"])
+			}
+			if attributes["type"] != test.bathType {
+				t.Errorf("type = %q, want %q", attributes["type"], test.bathType)
 			}
 		})
 	}

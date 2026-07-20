@@ -113,16 +113,16 @@ function updatePooSizeFields(scope) {
 }
 
 function updateFeedAmountFields(scope) {
-  const forms = scope.matches?.("form") ? [scope] : Array.from(scope.querySelectorAll("form"));
-  forms.forEach((form) => {
-    const feedType = selectedRadioValue(form, "type");
+  scope.querySelectorAll("[data-feed-amount-field]").forEach((container) => {
+    const feedFields = container.closest('form[data-type="feed"], [data-edit-type="feed"]');
+    if (!feedFields || feedFields.hidden) return;
+
+    const feedType = selectedRadioValue(feedFields, "type");
     const disableAmount = feedType === "breast";
-    form.querySelectorAll("[data-feed-amount-field]").forEach((container) => {
-      container.classList.toggle("field-disabled", disableAmount);
-      container.querySelectorAll("input").forEach((input) => {
-        input.disabled = disableAmount;
-        if (disableAmount) input.value = "";
-      });
+    container.classList.toggle("field-disabled", disableAmount);
+    container.querySelectorAll("input").forEach((input) => {
+      input.disabled = disableAmount;
+      if (disableAmount) input.value = "";
     });
   });
 }
