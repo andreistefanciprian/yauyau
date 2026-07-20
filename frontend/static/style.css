@@ -1030,6 +1030,21 @@ h2 {
   padding: 0.85rem 1rem;
   border-radius: 0.85rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.event-card-open {
+  border-radius: inherit;
+}
+
+.event-card-open:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-teal) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.event-card:active {
+  transform: scale(0.995);
 }
 
 .event-card-header {
@@ -1136,49 +1151,6 @@ h2 {
   color: var(--color-text-secondary);
 }
 
-.event-edit,
-.event-delete {
-  -webkit-appearance: none;
-  appearance: none;
-  display: inline-grid;
-  width: 1.65rem;
-  height: 1.65rem;
-  place-items: center;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: inherit;
-  line-height: 1;
-  margin-left: 0.15rem;
-  opacity: 0.55;
-  padding: 0;
-  cursor: pointer;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.event-delete {
-  font-size: 1.1rem;
-}
-
-.event-edit svg {
-  pointer-events: none;
-}
-
-.event-edit:hover,
-.event-edit:active {
-  opacity: 1;
-  color: var(--color-blue);
-  background: color-mix(in srgb, var(--color-blue) 10%, transparent);
-}
-
-.event-delete:hover,
-.event-delete:active {
-  opacity: 1;
-  color: var(--color-danger);
-  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
-}
-
 .event-nappy {
   background: var(--card-bg-nappy);
 }
@@ -1269,78 +1241,6 @@ dialog#edit-event-dialog {
 dialog#add-event-dialog::backdrop,
 dialog#edit-event-dialog::backdrop {
   background: rgba(0, 0, 0, 0.4);
-}
-
-/* Confirm dialog (replaces the native, unstyleable window.confirm() that
-   htmx's hx-confirm triggers by default — see app.js's htmx:confirm
-   listener) */
-
-dialog#confirm-dialog {
-  border: none;
-  border-radius: 1rem;
-  padding: 0;
-  max-width: 320px;
-  width: calc(100% - 2.5rem);
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-}
-
-dialog#confirm-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.confirm-dialog-content {
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  text-align: center;
-}
-
-.confirm-dialog-content h2 {
-  text-align: center;
-}
-
-.confirm-dialog-content p {
-  margin: 0;
-  color: var(--color-text-secondary);
-}
-
-.confirm-dialog-actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.confirm-dialog-actions button {
-  flex: 1;
-  padding: 0.65rem;
-  border-radius: 0.5rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  font-family: inherit;
-  border: none;
-  cursor: pointer;
-}
-
-.confirm-cancel-button {
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
-}
-
-.confirm-cancel-button:hover {
-  background: var(--color-border);
-}
-
-.confirm-danger-button {
-  background: var(--color-danger);
-  color: white;
-}
-
-.confirm-danger-button:active {
-  background: color-mix(in srgb, var(--color-danger) 82%, black);
 }
 
 /* Padding lives here, not on the dialog itself, so every pixel a user can
@@ -1698,6 +1598,28 @@ textarea {
 
 .event-form button[type="submit"]:active {
   background: color-mix(in srgb, var(--color-teal) 82%, black);
+}
+
+.event-form button[type="submit"]:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.event-form .edit-delete-button {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, var(--color-border));
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-danger);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.event-form .edit-delete-button:active {
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
 }
 
 /* Auth (login / verify) */

@@ -633,19 +633,11 @@
           </label>
         </div>
 
-        <button type="submit">Save changes</button>
+        <button type="button" class="edit-delete-button" id="edit-event-delete"
+          hx-delete="/events/__event_id__" hx-target="#timeline-workspace" hx-swap="outerHTML"
+          hx-on::after-request="if(event.detail.successful) onEventDeleted()">Delete event</button>
+        <button type="submit" id="edit-event-save" disabled>Save changes</button>
       </form>
-      </div>
-    </dialog>
-
-    <dialog id="confirm-dialog" aria-labelledby="confirm-dialog-title">
-      <div class="dialog-content confirm-dialog-content">
-        <h2 id="confirm-dialog-title">Delete event</h2>
-        <p id="confirm-dialog-message"></p>
-        <div class="confirm-dialog-actions">
-          <button type="button" class="confirm-cancel-button" id="confirm-dialog-cancel">Cancel</button>
-          <button type="button" class="confirm-danger-button" id="confirm-dialog-accept">Delete</button>
-        </div>
       </div>
     </dialog>
   </main>

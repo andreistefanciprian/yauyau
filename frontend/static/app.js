@@ -203,6 +203,8 @@ window.onEventSaved = onEventSaved;
 const editDialog = document.getElementById("edit-event-dialog");
 const editForm = document.getElementById("edit-event-form");
 const editCloseButton = document.getElementById("edit-event-close");
+const editDeleteButton = document.getElementById("edit-event-delete");
+const editSaveButton = document.getElementById("edit-event-save");
 const editTypeInput = document.getElementById("edit-event-type");
 const editSections = Array.from(document.querySelectorAll(".edit-event-fields"));
 const editTitle = document.getElementById("edit-event-title");
@@ -210,6 +212,7 @@ const editTimeLabel = editForm.querySelector("[data-edit-time-label]");
 const editDateLabel = editForm.querySelector("[data-edit-date-label]");
 const editOccurredAtFields = editForm.querySelector("[data-edit-occurred-at-fields]");
 const editOccurredAtLabel = editForm.querySelector("[data-edit-occurred-at-label]");
+let editFormBaseline = "";
 
 function setSectionEnabled(section, enabled) {
   section.hidden = !enabled;
@@ -422,15 +425,30 @@ function editSectionForType(type) {
   return editSections.find((section) => section.dataset.editType === type);
 }
 
-function openEditDialog(button) {
-  const type = button.dataset.eventType;
-  const eventID = button.dataset.eventId;
+function editFormState() {
+  return JSON.stringify(Array.from(new FormData(editForm).entries()));
+}
+
+function updateEditSaveState() {
+  editSaveButton.disabled = editFormState() === editFormBaseline;
+}
+
+function queueEditSaveStateUpdate() {
+  queueMicrotask(updateEditSaveState);
+}
+
+function openEditDialog(card) {
+  const type = card.dataset.eventType;
+  const eventID = card.dataset.eventId;
   if (!type || !eventID) return;
 
   editForm.reset();
   const patchURL = `/events/${eventID}?selected_date=${encodeURIComponent(selectedTimelineDate())}`;
   editForm.setAttribute("hx-patch", patchURL);
   editForm.dataset.patchUrl = patchURL;
+  const deleteURL = `/events/${eventID}?selected_date=${encodeURIComponent(selectedTimelineDate())}`;
+  editDeleteButton.setAttribute("hx-delete", deleteURL);
+  editDeleteButton.dataset.deleteUrl = deleteURL;
   editTypeInput.value = type;
   editTitle.textContent = typeLabels[type] ? typeLabels[type].replace("Log", "Edit") : "Edit event";
   const isSleep = type === "sleep";
@@ -448,61 +466,63 @@ function openEditDialog(button) {
   const editDateInput = editForm.querySelector('input[type="date"]');
   if (editDateInput) editDateInput.max = localDateValue(new Date());
 
-  setFieldValue(editForm, "date", button.dataset.date);
-  setFieldValue(editForm, "time", button.dataset.time);
+  setFieldValue(editForm, "date", card.dataset.date);
+  setFieldValue(editForm, "time", card.dataset.time);
 
   switch (type) {
     case "nappy":
-      setRadioValue(activeSection, "kind", button.dataset.kind, "wet");
-      setRadioValue(activeSection, "poo_size", button.dataset.pooSize, "medium");
-      setCheckboxValues(activeSection, "labels", button.dataset.labels);
+      setRadioValue(activeSection, "kind", card.dataset.kind, "wet");
+      setRadioValue(activeSection, "poo_size", card.dataset.pooSize, "medium");
+      setCheckboxValues(activeSection, "labels", card.dataset.labels);
       updatePooSizeFields(editForm);
-      setFieldValue(activeSection, "notes", button.dataset.notes);
+      setFieldValue(activeSection, "notes", card.dataset.notes);
       break;
     case "feed":
-      setRadioValue(activeSection, "type", button.dataset.type, "expressed");
-      setFieldValue(activeSection, "amount_ml", button.dataset.amountMl);
-      setFieldValue(activeSection, "duration_minutes", button.dataset.durationMinutes);
-      setFeedEndFromStart(editForm, button.dataset.durationMinutes);
+      setRadioValue(activeSection, "type", card.dataset.type, "expressed");
+      setFieldValue(activeSection, "amount_ml", card.dataset.amountMl);
+      setFieldValue(activeSection, "duration_minutes", card.dataset.durationMinutes);
+      setFeedEndFromStart(editForm, card.dataset.durationMinutes);
       updateFeedDuration(editForm);
       updateFeedAmountFields(editForm);
-      setCheckboxValues(activeSection, "labels", button.dataset.labels);
-      setFieldValue(activeSection, "notes", button.dataset.notes);
+      setCheckboxValues(activeSection, "labels", card.dataset.labels);
+      setFieldValue(activeSection, "notes", card.dataset.notes);
       break;
     case "pump":
-      setFieldValue(activeSection, "amount_ml", button.dataset.amountMl);
-      setFieldValue(activeSection, "notes", button.dataset.notes);
+      setFieldValue(activeSection, "amount_ml", card.dataset.amountMl);
+      setFieldValue(activeSection, "notes", card.dataset.notes);
       break;
     case "bath":
-      setRadioValue(activeSection, "type", button.dataset.type, "bottom_part");
+      setRadioValue(activeSection, "type", card.dataset.type, "bottom_part");
       setRadioValue(activeSection, "bath_time_basis", "start", "start");
-      setFieldValue(activeSection, "notes", button.dataset.notes);
-      setFieldValue(activeSection, "duration_minutes", button.dataset.durationMinutes);
+      setFieldValue(activeSection, "notes", card.dataset.notes);
+      setFieldValue(activeSection, "duration_minutes", card.dataset.durationMinutes);
       break;
     case "sleep":
-      setRadioValue(activeSection, "type", button.dataset.type, "nap");
-      setFieldValue(activeSection, "notes", button.dataset.notes);
-      setFieldValue(activeSection, "duration_minutes", button.dataset.durationMinutes);
-      setSleepEndFromStart(editForm, button.dataset.durationMinutes);
+      setRadioValue(activeSection, "type", card.dataset.type, "nap");
+      setFieldValue(activeSection, "notes", card.dataset.notes);
+      setFieldValue(activeSection, "duration_minutes", card.dataset.durationMinutes);
+      setSleepEndFromStart(editForm, card.dataset.durationMinutes);
       updateSleepDuration(editForm);
       break;
     case "observation":
-      setFieldValue(activeSection, "text", button.dataset.text);
-      setFieldValue(activeSection, "category", button.dataset.category);
+      setFieldValue(activeSection, "text", card.dataset.text);
+      setFieldValue(activeSection, "category", card.dataset.category);
       break;
     case "temperature":
-      setFieldValue(activeSection, "temperature_c", button.dataset.temperatureC);
-      setFieldValue(activeSection, "method", button.dataset.method || "ear");
-      setFieldValue(activeSection, "notes", button.dataset.notes);
+      setFieldValue(activeSection, "temperature_c", card.dataset.temperatureC);
+      setFieldValue(activeSection, "method", card.dataset.method || "ear");
+      setFieldValue(activeSection, "notes", card.dataset.notes);
       break;
     case "growth_measurement":
-      setFieldValue(activeSection, "weight_kg", button.dataset.weightKg);
-      setFieldValue(activeSection, "length_cm", button.dataset.lengthCm);
-      setFieldValue(activeSection, "head_circumference_cm", button.dataset.headCircumferenceCm);
-      setFieldValue(activeSection, "notes", button.dataset.notes);
+      setFieldValue(activeSection, "weight_kg", card.dataset.weightKg);
+      setFieldValue(activeSection, "length_cm", card.dataset.lengthCm);
+      setFieldValue(activeSection, "head_circumference_cm", card.dataset.headCircumferenceCm);
+      setFieldValue(activeSection, "notes", card.dataset.notes);
       break;
   }
 
+  editFormBaseline = editFormState();
+  updateEditSaveState();
   editDialog.showModal();
 }
 
@@ -512,8 +532,17 @@ function selectedTimelineDate() {
 }
 
 document.body.addEventListener("click", (event) => {
-  const editButton = event.target.closest(".event-edit");
-  if (editButton) openEditDialog(editButton);
+  if (event.target.closest("button, a, input, select, textarea, .event-quick-action")) return;
+  const card = event.target.closest(".event-card");
+  if (card) openEditDialog(card);
+});
+
+document.body.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const trigger = event.target.closest(".event-card-open");
+  if (!trigger || event.target !== trigger) return;
+  event.preventDefault();
+  openEditDialog(trigger.closest(".event-card"));
 });
 
 editCloseButton.addEventListener("click", () => editDialog.close());
@@ -525,6 +554,9 @@ editDialog.addEventListener("click", (event) => {
 editDialog.addEventListener("close", () => {
   editForm.reset();
   delete editForm.dataset.patchUrl;
+  delete editDeleteButton.dataset.deleteUrl;
+  editFormBaseline = "";
+  editSaveButton.disabled = true;
   editSections.forEach((section) => setSectionEnabled(section, false));
   hideDialogError(editDialog);
 });
@@ -533,11 +565,24 @@ editForm.addEventListener("htmx:configRequest", (event) => {
   if (editForm.dataset.patchUrl) event.detail.path = editForm.dataset.patchUrl;
 });
 
+editDeleteButton.addEventListener("htmx:configRequest", (event) => {
+  if (editDeleteButton.dataset.deleteUrl) event.detail.path = editDeleteButton.dataset.deleteUrl;
+});
+
+editForm.addEventListener("input", queueEditSaveStateUpdate);
+editForm.addEventListener("change", queueEditSaveStateUpdate);
+
 function onEventEdited() {
   editDialog.close();
 }
 
 window.onEventEdited = onEventEdited;
+
+function onEventDeleted() {
+  editDialog.close();
+}
+
+window.onEventDeleted = onEventDeleted;
 
 document.body.addEventListener("input", (event) => {
   const form = event.target.closest("form");
@@ -719,40 +764,3 @@ if (typeFilter) {
     if (event.target.id === "timeline" || event.target.id === "timeline-workspace") applyEventFilter();
   });
 }
-
-// Replaces the native window.confirm() that htmx's hx-confirm would
-// otherwise trigger (e.g. for event deletion) with a styled dialog, since
-// window.confirm() can't be themed at all.
-
-const confirmDialog = document.getElementById("confirm-dialog");
-const confirmMessage = document.getElementById("confirm-dialog-message");
-const confirmCancelButton = document.getElementById("confirm-dialog-cancel");
-const confirmAcceptButton = document.getElementById("confirm-dialog-accept");
-
-document.body.addEventListener("htmx:confirm", (event) => {
-  if (!event.detail.elt.hasAttribute("hx-confirm")) return;
-  event.preventDefault();
-
-  confirmDialog.returnValue = "";
-  confirmMessage.textContent = event.detail.question;
-  confirmDialog.showModal();
-
-  const onAccept = () => confirmDialog.close("accept");
-
-  const onClose = () => {
-    confirmAcceptButton.removeEventListener("click", onAccept);
-    if (confirmDialog.returnValue === "accept") {
-      event.detail.issueRequest(true);
-    }
-  };
-
-  confirmAcceptButton.addEventListener("click", onAccept);
-  confirmDialog.addEventListener("close", onClose, { once: true });
-});
-
-confirmCancelButton.addEventListener("click", () => confirmDialog.close("cancel"));
-
-// Clicking the backdrop (outside the dialog's content box) cancels it.
-confirmDialog.addEventListener("click", (event) => {
-  if (event.target === confirmDialog) confirmDialog.close("cancel");
-});

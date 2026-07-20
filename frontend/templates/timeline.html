@@ -37,42 +37,39 @@
 {{if .Events}}
 <div class="timeline">
   {{range .Events}}
-  <article class="event-card event-{{.CSSClass}}" data-event-type="{{.EventType}}">
-    <div class="event-card-header">
-      <span class="event-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" .EventType}}</span>
-      <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">· {{.Kind}}</span>{{end}}{{if .InlineDetail}} <span class="event-inline-detail">· {{.InlineDetail}}</span>{{end}}</span>
-      <span class="event-time">{{.Time}}</span>
-      <button type="button" class="event-edit" aria-label="Edit event"
-        data-event-id="{{.ID}}"
-        data-event-type="{{.EventType}}"
-        data-date="{{.DateValue}}"
-        data-time="{{.TimeValue}}"
-        data-kind="{{.KindValue}}"
-        data-poo-size="{{.PooSizeValue}}"
-        data-labels="{{.LabelValues}}"
-        data-type="{{.TypeValue}}"
-        data-amount-ml="{{.AmountMl}}"
-        data-duration-minutes="{{.DurationMinutes}}"
-        data-temperature-c="{{.TemperatureC}}"
-        data-weight-kg="{{.WeightKg}}"
-        data-length-cm="{{.LengthCM}}"
-        data-head-circumference-cm="{{.HeadCircumferenceCM}}"
-        data-method="{{.Method}}"
-        data-notes="{{.Notes}}"
-        data-text="{{.Text}}"
-        data-category="{{.Category}}"
-        title="Edit event">{{template "edit-icon"}}</button>
-      <button type="button" class="event-delete" aria-label="Delete event"
-        hx-delete="/events/{{.ID}}?selected_date={{$.SelectedDate}}" hx-target="#timeline-workspace" hx-swap="outerHTML"
-        hx-confirm="Delete {{.TypeLabel}} event?" title="Delete event">&times;</button>
+  <article class="event-card event-{{.CSSClass}}"
+    data-event-id="{{.ID}}"
+    data-event-type="{{.EventType}}"
+    data-date="{{.DateValue}}"
+    data-time="{{.TimeValue}}"
+    data-kind="{{.KindValue}}"
+    data-poo-size="{{.PooSizeValue}}"
+    data-labels="{{.LabelValues}}"
+    data-type="{{.TypeValue}}"
+    data-amount-ml="{{.AmountMl}}"
+    data-duration-minutes="{{.DurationMinutes}}"
+    data-temperature-c="{{.TemperatureC}}"
+    data-weight-kg="{{.WeightKg}}"
+    data-length-cm="{{.LengthCM}}"
+    data-head-circumference-cm="{{.HeadCircumferenceCM}}"
+    data-method="{{.Method}}"
+    data-notes="{{.Notes}}"
+    data-text="{{.Text}}"
+    data-category="{{.Category}}">
+    <div class="event-card-open" role="button" tabindex="0" aria-label="Edit {{.TypeLabel}} event at {{.Time}}">
+      <div class="event-card-header">
+        <span class="event-icon event-type-icon" aria-hidden="true">{{template "event-type-icon" .EventType}}</span>
+        <span class="event-type">{{.TypeLabel}}{{if .Kind}} <span class="event-kind">· {{.Kind}}</span>{{end}}{{if .InlineDetail}} <span class="event-inline-detail">· {{.InlineDetail}}</span>{{end}}</span>
+        <span class="event-time">{{.Time}}</span>
+      </div>
+      {{if or .Detail .StatusLabel (eq .EventType "nappy")}}
+      <div class="event-detail">
+        {{if eq .EventType "nappy"}}<span class="nappy-detail-icons" aria-hidden="true">{{template "nappy-timeline-detail-icons" (dict "Kind" .KindValue "PooSize" .PooSizeValue)}}</span>{{end}}
+        {{if .Detail}}<span>{{.Detail}}</span>{{end}}
+        {{if .StatusLabel}}<span class="event-status-pill">{{.StatusLabel}}</span>{{end}}
+      </div>
+      {{end}}
     </div>
-    {{if or .Detail .StatusLabel (eq .EventType "nappy")}}
-    <div class="event-detail">
-      {{if eq .EventType "nappy"}}<span class="nappy-detail-icons" aria-hidden="true">{{template "nappy-timeline-detail-icons" (dict "Kind" .KindValue "PooSize" .PooSizeValue)}}</span>{{end}}
-      {{if .Detail}}<span>{{.Detail}}</span>{{end}}
-      {{if .StatusLabel}}<span class="event-status-pill">{{.StatusLabel}}</span>{{end}}
-    </div>
-    {{end}}
     {{if .CanFinishSleep}}
     <form class="event-quick-action" hx-post="/events/{{.ID}}/finish-sleep?selected_date={{$.SelectedDate}}" hx-target="#timeline-workspace" hx-swap="outerHTML">
       <input type="hidden" name="date" value="{{.DateValue}}">
@@ -100,13 +97,6 @@
 {{else}}
 <p class="empty">{{.EmptyMessage}}</p>
 {{end}}
-{{end}}
-
-{{define "edit-icon"}}
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
-  <path d="M12 20h9"/>
-  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-</svg>
 {{end}}
 
 {{define "report-icon"}}

@@ -195,6 +195,73 @@ func TestNappyTimelineRendersSpecificLabelAndKindIconOnlyInDetailRow(t *testing.
 	}
 }
 
+func TestTimelineEventCardOpensEditorWithoutActionIcons(t *testing.T) {
+	templates := parseFrontendTemplates(t)
+	data := handlers.TimelineViewData{
+		SelectedDate: "2026-07-15",
+		Events: []handlers.TimelineEvent{
+			{
+				ID:        "event-1",
+				EventType: "feed",
+				CSSClass:  "feed",
+				TypeLabel: "Bottle",
+				Time:      "10:15 AM",
+			},
+		},
+	}
+
+	var rendered bytes.Buffer
+	if err := templates.ExecuteTemplate(&rendered, "timeline", data); err != nil {
+		t.Fatalf("render timeline: %v", err)
+	}
+	html := rendered.String()
+	for _, marker := range []string{
+		`class="event-card-open" role="button" tabindex="0" aria-label="Edit Bottle event at 10:15 AM"`,
+		`data-event-id="event-1"`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("timeline event card missing %q: %s", marker, html)
+		}
+	}
+	for _, unwanted := range []string{`class="event-edit"`, `class="event-delete"`, `hx-confirm`} {
+		if strings.Contains(html, unwanted) {
+			t.Fatalf("timeline event card contains removed action %q: %s", unwanted, html)
+		}
+	}
+}
+
+func TestIndexEditDialogHasImmediateDeleteAndDisabledSave(t *testing.T) {
+	templates := parseFrontendTemplates(t)
+	data := map[string]any{
+		"Baby":        backendclient.Baby{Name: "YauYau"},
+		"Account":     map[string]string{"Label": "Parent", "Email": "parent@example.com"},
+		"Timeline":    handlers.TimelineViewData{SelectedDate: "2026-07-18"},
+		"DailyReport": (*backendclient.DailyReport)(nil),
+		"NowDate":     "2026-07-18",
+		"NowTime":     "09:30",
+	}
+
+	var rendered bytes.Buffer
+	if err := templates.ExecuteTemplate(&rendered, "index", data); err != nil {
+		t.Fatalf("render index: %v", err)
+	}
+	html := rendered.String()
+	for _, marker := range []string{
+		`id="edit-event-delete"`,
+		`hx-delete="/events/__event_id__"`,
+		`id="edit-event-save" disabled`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("edit dialog missing %q: %s", marker, html)
+		}
+	}
+	for _, unwanted := range []string{`hx-confirm`, `id="confirm-dialog"`} {
+		if strings.Contains(html, unwanted) {
+			t.Fatalf("edit dialog contains removed confirmation UI %q: %s", unwanted, html)
+		}
+	}
+}
+
 func parseFrontendTemplates(t *testing.T) *template.Template {
 	t.Helper()
 	templates, err := template.New("").Funcs(template.FuncMap{"dict": dict}).ParseGlob("../../templates/*.html")
