@@ -214,10 +214,13 @@ func writeHTMLCard(b *strings.Builder, report Report) {
                                 <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:30px; font-weight:bold; color:#3A332C; mso-line-height-rule:exactly; line-height:32px;">%d</p>
                                 <p style="margin:6px 0 0; font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:bold; letter-spacing:0.05em; text-transform:uppercase; color:%s;">%s</p>`,
 			columnWidth, padding, metric.Count, color, htmlEscape(metric.Label)))
-		if metric.Detail != "" {
+		for _, detail := range strings.Split(metric.Detail, " · ") {
+			if detail == "" {
+				continue
+			}
 			b.WriteString(`
                                 <p style="margin:2px 0 0; font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#6B7280;">`)
-			b.WriteString(htmlEscape(metric.Detail))
+			b.WriteString(htmlEscape(detail))
 			b.WriteString(`</p>`)
 		}
 		b.WriteString(`

@@ -137,7 +137,7 @@ and existing consumers:
         "key": "pump",
         "count": 4,
         "label": "Pump",
-        "detail": "480 ml"
+        "detail": "480 ml · 1 hr 20 min"
       },
       {
         "key": "nappy",

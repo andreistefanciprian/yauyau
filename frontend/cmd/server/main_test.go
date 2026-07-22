@@ -100,9 +100,9 @@ func TestDailyReportRendersFourKPIs(t *testing.T) {
 		Title: "Yau Yau today",
 		Card: &backendclient.DailyReportCard{
 			Metrics: []backendclient.DailyReportMetric{
-				{Key: "feed", Count: 3, Label: "Feeds", Detail: "530 ml · 1 h 27 m"},
-				{Key: "sleep", Count: 3, Label: "Sleep", Detail: "5 h 57 m"},
-				{Key: "pump", Count: 1, Label: "Pump", Detail: "150 ml · 1 h"},
+				{Key: "feed", Count: 3, Label: "Feeds", Detail: "530 ml · 1 hr 27 min"},
+				{Key: "sleep", Count: 3, Label: "Sleep", Detail: "5 hr 57 min"},
+				{Key: "pump", Count: 1, Label: "Pump", Detail: "150 ml · 1 hr"},
 				{Key: "nappy", Count: 4, Label: "Nappies"},
 			},
 		},
@@ -118,11 +118,13 @@ func TestDailyReportRendersFourKPIs(t *testing.T) {
 		`daily-report-metric-feed`,
 		`daily-report-metric-count">3</strong>`,
 		`daily-report-metric-label">Feeds</span>`,
-		`daily-report-metric-detail">530 ml · 1 h 27 m</span>`,
+		`daily-report-metric-detail">530 ml</span>`,
+		`daily-report-metric-detail">1 hr 27 min</span>`,
 		`daily-report-metric-sleep`,
-		`5 h 57 m`,
+		`daily-report-metric-detail">5 hr 57 min</span>`,
 		`daily-report-metric-pump`,
-		`150 ml · 1 h`,
+		`daily-report-metric-detail">150 ml</span>`,
+		`daily-report-metric-detail">1 hr</span>`,
 		`daily-report-metric-nappy`,
 	} {
 		if !strings.Contains(html, want) {
@@ -137,8 +139,8 @@ func TestDailyReportRendersFourKPIs(t *testing.T) {
 	if got := strings.Count(html, `class="daily-report-metric `); got != 4 {
 		t.Fatalf("daily report contains %d metrics, want 4: %s", got, html)
 	}
-	if got := strings.Count(html, `class="daily-report-metric-detail"`); got != 3 {
-		t.Fatalf("daily report contains %d metric details, want 3: %s", got, html)
+	if got := strings.Count(html, `class="daily-report-metric-detail"`); got != 5 {
+		t.Fatalf("daily report contains %d metric detail rows, want 5: %s", got, html)
 	}
 }
 
@@ -450,10 +452,11 @@ func cssRuleBody(t *testing.T, css, selector string) string {
 func parseFrontendTemplates(t *testing.T) *template.Template {
 	t.Helper()
 	templates, err := template.New("").Funcs(template.FuncMap{
-		"assetURL":  func(name string) string { return "/static/" + name + "?v=test" },
-		"dict":      dict,
-		"splitTime": splitEventTime,
-		"initial":   initial,
+		"assetURL":          func(name string) string { return "/static/" + name + "?v=test" },
+		"dict":              dict,
+		"splitTime":         splitEventTime,
+		"splitMetricDetail": splitMetricDetail,
+		"initial":           initial,
 	}).ParseGlob("../../templates/*.html")
 	if err != nil {
 		t.Fatalf("parse templates: %v", err)

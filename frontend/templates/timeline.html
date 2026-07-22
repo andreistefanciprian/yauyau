@@ -19,7 +19,9 @@
       <strong class="daily-report-metric-count">{{.Count}}</strong>
       <span class="daily-report-metric-label">{{.Label}}</span>
       {{if .Detail}}
-      <span class="daily-report-metric-detail">{{.Detail}}</span>
+      {{range splitMetricDetail .Detail}}
+      <span class="daily-report-metric-detail">{{.}}</span>
+      {{end}}
       {{end}}
     </li>
     {{end}}
