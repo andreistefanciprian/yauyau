@@ -105,6 +105,7 @@ func (h *Handlers) sendDailyReportEmail(ctx context.Context, job store.DailyRepo
 		Output:         output,
 		Card:           h.dailyReportEmailCard(ctx, job),
 		Trend:          h.dailyReportEmailTrend(ctx, job),
+		UnsubscribeURL: unsubscribeURL(h.FrontendURL, h.UnsubscribeSecret, job.FamilyID, job.RecipientUserID),
 	})
 	if err != nil {
 		return h.markDailyReportEmailFailed(ctx, delivery.ID, err, now)

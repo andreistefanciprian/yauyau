@@ -305,6 +305,15 @@ type Handlers struct {
 	Auth              AuthClient
 	AI                AIReportGenerator
 	ReportEmailSender ReportEmailSender
+	// FrontendURL is the public frontend's base URL (e.g.
+	// "https://getyauli.com"), used to build links embedded in emails —
+	// backend-api itself isn't reachable from the public internet. Mirrors
+	// auth-service's identically-named FrontendURL field/env var.
+	FrontendURL string
+	// UnsubscribeSecret signs/verifies the one-click unsubscribe links sent
+	// with report emails (see internal/handlers/unsubscribe.go). Empty
+	// disables the List-Unsubscribe header rather than erroring.
+	UnsubscribeSecret string
 }
 
 // New wires up Handlers from a single concrete store that satisfies both

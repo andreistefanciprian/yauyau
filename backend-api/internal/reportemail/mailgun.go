@@ -38,16 +38,23 @@ func NewMailgun(apiKey, domain, from, baseURL string) *Mailgun {
 }
 
 func (m *Mailgun) SendReportEmail(ctx context.Context, report Report) (string, error) {
-	return m.send(ctx, report.RecipientEmail, subject(report), textBody(report), htmlBody(report))
+	return m.send(ctx, report.RecipientEmail, subject(report), textBody(report), htmlBody(report), report.UnsubscribeURL)
 }
 
-func (m *Mailgun) send(ctx context.Context, recipient, subject, textBody, htmlBody string) (string, error) {
+func (m *Mailgun) send(ctx context.Context, recipient, subject, textBody, htmlBody, unsubscribeURL string) (string, error) {
 	form := url.Values{}
 	form.Set("from", m.from)
 	form.Set("to", recipient)
 	form.Set("subject", subject)
 	form.Set("text", textBody)
 	form.Set("html", htmlBody)
+	if unsubscribeURL != "" {
+		// RFC 8058: both headers together make Gmail/Yahoo/Outlook show a
+		// native one-click "Unsubscribe" link that POSTs here directly,
+		// with no page load and no session.
+		form.Set("h:List-Unsubscribe", "<"+unsubscribeURL+">")
+		form.Set("h:List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
+	}
 
 	endpoint := fmt.Sprintf("%s/v3/%s/messages", m.baseURL, url.PathEscape(m.domain))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))

@@ -54,6 +54,7 @@ type Backend interface {
 	UpdateTimelineMemberRelationship(ctx context.Context, userID, relationship string) error
 	UpdateTimelineMemberReportPreferences(ctx context.Context, userID string, dailyReportEmailEnabled bool) error
 	RemoveTimelineMember(ctx context.Context, userID string) error
+	Unsubscribe(ctx context.Context, family, user, sig string) error
 }
 
 // AuthClient is the auth-service boundary this package needs. Kept separate

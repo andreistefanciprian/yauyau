@@ -205,6 +205,11 @@ func main() {
 	r.Get("/auth/verify", h.ShowVerify)
 	r.Post("/auth/verify", h.ConfirmVerify)
 
+	// Public one-click unsubscribe target for report emails' List-Unsubscribe
+	// header (RFC 8058) — mailbox providers POST here with no session.
+	r.Get("/unsubscribe", h.Unsubscribe)
+	r.Post("/unsubscribe", h.Unsubscribe)
+
 	slog.Info("server listening", "port", port, "secure_cookies", secureCookies)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatalf("server error: %v", err)

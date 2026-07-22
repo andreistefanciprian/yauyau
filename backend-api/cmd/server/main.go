@@ -70,6 +70,8 @@ func runSendDailyReportEmailsCommand() error {
 	h := handlers.New(appStore, nil)
 	configureAI(h)
 	h.ReportEmailSender = configureReportEmailSender()
+	h.FrontendURL = os.Getenv("FRONTEND_URL")
+	h.UnsubscribeSecret = os.Getenv("UNSUBSCRIBE_SIGNING_SECRET")
 
 	result, err := h.SendDueDailyReportEmails(ctx, time.Now())
 	if err != nil {
@@ -125,6 +127,8 @@ func runHTTPServer() error {
 	h := handlers.New(appStore, authclient.New(authServiceURL, frontendAuthSecret))
 	configureAI(h)
 	h.ReportEmailSender = configureReportEmailSender()
+	h.FrontendURL = os.Getenv("FRONTEND_URL")
+	h.UnsubscribeSecret = os.Getenv("UNSUBSCRIBE_SIGNING_SECRET")
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -132,6 +136,11 @@ func runHTTPServer() error {
 	r.Use(middleware.Recoverer)
 
 	r.Get("/healthz", h.Healthz)
+	// UnsubscribeReportEmail is deliberately outside every authenticated
+	// route group: it's reached via frontend's public /unsubscribe
+	// pass-through (backend-api itself isn't public), with no user session
+	// to check. Its own signature verification is the only gate.
+	r.Post("/email-preferences/unsubscribe", h.UnsubscribeReportEmail)
 	r.Route("/api/v1/users", func(r chi.Router) {
 		r.Use(authctx.Middleware(jwtSecret))
 		r.Get("/me", h.GetCurrentUser)

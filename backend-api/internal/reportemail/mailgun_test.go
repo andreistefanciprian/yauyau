@@ -119,6 +119,55 @@ func TestMailgunSendReportEmailIncludesCard(t *testing.T) {
 	}
 }
 
+func TestMailgunSendReportEmailIncludesUnsubscribeHeadersWhenURLSet(t *testing.T) {
+	var gotForm url.Values
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		gotForm = r.PostForm
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id":"test-id"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	report := testReport()
+	report.UnsubscribeURL = "https://getyauli.com/unsubscribe?family=f&user=u&sig=s"
+	m := NewMailgun("secret-key", "mg.example.com", "Yauli <reports@example.com>", server.URL)
+	if _, err := m.SendReportEmail(context.Background(), report); err != nil {
+		t.Fatalf("send report email: %v", err)
+	}
+
+	if got := gotForm.Get("h:List-Unsubscribe"); got != "<https://getyauli.com/unsubscribe?family=f&user=u&sig=s>" {
+		t.Fatalf("h:List-Unsubscribe = %q", got)
+	}
+	if got := gotForm.Get("h:List-Unsubscribe-Post"); got != "List-Unsubscribe=One-Click" {
+		t.Fatalf("h:List-Unsubscribe-Post = %q", got)
+	}
+}
+
+func TestMailgunSendReportEmailOmitsUnsubscribeHeadersWhenURLUnset(t *testing.T) {
+	var gotForm url.Values
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		gotForm = r.PostForm
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id":"test-id"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	m := NewMailgun("secret-key", "mg.example.com", "Yauli <reports@example.com>", server.URL)
+	if _, err := m.SendReportEmail(context.Background(), testReport()); err != nil {
+		t.Fatalf("send report email: %v", err)
+	}
+
+	if gotForm.Has("h:List-Unsubscribe") || gotForm.Has("h:List-Unsubscribe-Post") {
+		t.Fatalf("unsubscribe headers present without a Report.UnsubscribeURL: %v", gotForm)
+	}
+}
+
 func TestMailgunSendReportEmailIncludesTrendInHTMLAndText(t *testing.T) {
 	var gotForm url.Values
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

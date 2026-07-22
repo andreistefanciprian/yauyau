@@ -179,6 +179,18 @@ func (c *HTTPClient) RemoveTimelineMember(ctx context.Context, userID string) er
 	return nil
 }
 
+// Unsubscribe forwards a one-click unsubscribe request (the family/user/sig
+// query params from a report email's List-Unsubscribe link) to backend-api.
+// Deliberately called with no Authorization header — there's no user
+// session on this path, only backend-api's own signature check.
+func (c *HTTPClient) Unsubscribe(ctx context.Context, family, user, sig string) error {
+	return c.postJSON(ctx, "/email-preferences/unsubscribe", map[string]string{
+		"family_id": family,
+		"user_id":   user,
+		"sig":       sig,
+	})
+}
+
 // do builds and executes an HTTP request against backend-api, returning an
 // error for any transport failure or non-2xx response. Callers own closing
 // resp.Body on success.

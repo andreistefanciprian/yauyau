@@ -29,6 +29,12 @@ type Report struct {
 	// Optional: nil/empty when unavailable, in which case the email simply
 	// omits that section.
 	Trend []TrendDay
+	// UnsubscribeURL, when set, is sent as the mailbox provider's
+	// List-Unsubscribe / List-Unsubscribe-Post headers (RFC 8058) so Gmail
+	// etc. can show a native one-click "Unsubscribe" link. Optional:
+	// empty when the caller couldn't build one, in which case those headers
+	// are simply omitted.
+	UnsubscribeURL string
 }
 
 // CardMetric is one KPI column in the report email's summary card, e.g.
