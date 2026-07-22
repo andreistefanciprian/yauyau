@@ -161,6 +161,11 @@ func TestIndexOmitsDailyReportToggle(t *testing.T) {
 	if !strings.Contains(html, `id="type-filter"`) {
 		t.Fatalf("event type filter missing: %s", html)
 	}
+	for _, want := range []string{`data-filter-type="observation" title="Observations"`, `type-filter-chip-label">Observations</span>`} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("observation filter does not contain %q: %s", want, html)
+		}
+	}
 	for _, asset := range []string{"style.css", "htmx.min.js", "number-stepper.js", "app.js"} {
 		if !strings.Contains(html, `/static/`+asset+`?v=test`) {
 			t.Fatalf("index does not contain fingerprinted %s URL: %s", asset, html)

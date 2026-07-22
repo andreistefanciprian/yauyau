@@ -37,7 +37,7 @@ Examples:
 * Nappy
 * Sleep
 * Pump
-* Note
+* Observation
 * Growth measurement
 * Temperature
 * Medication
