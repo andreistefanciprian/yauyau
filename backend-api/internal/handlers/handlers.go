@@ -423,6 +423,9 @@ func normalizeEventAttributesForTime(w http.ResponseWriter, eventType string, ra
 			return nil, false
 		}
 		attributes := map[string]any{"amount_ml": amountMl}
+		if durationMinutes, ok := attributeOptionalInt(raw, "duration_minutes"); ok {
+			attributes["duration_minutes"] = durationMinutes
+		}
 		if notes := strings.TrimSpace(attributeString(raw, "notes")); notes != "" {
 			attributes["notes"] = notes
 		}

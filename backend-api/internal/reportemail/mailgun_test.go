@@ -69,8 +69,44 @@ func TestMailgunSendReportEmail(t *testing.T) {
 	if !strings.Contains(gotForm.Get("html"), "parent@example.com") {
 		t.Fatalf("html body did not contain recipient email: %q", gotForm.Get("html"))
 	}
-	if !strings.Contains(gotForm.Get("html"), "#74C7C3") {
+	if !strings.Contains(gotForm.Get("html"), "#5FBCB0") {
 		t.Fatalf("html body did not contain Yauli accent color: %q", gotForm.Get("html"))
+	}
+}
+
+func TestMailgunSendReportEmailIncludesCard(t *testing.T) {
+	var gotForm url.Values
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		gotForm = r.PostForm
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id":"test-id"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	report := testReport()
+	report.Card = []CardMetric{
+		{Label: "Feeds", Count: 9, Detail: "660 ml"},
+		{Label: "Sleep", Count: 9, Detail: "15h 44m"},
+		{Label: "Pump", Count: 2, Detail: "150 ml"},
+		{Label: "Nappies", Count: 11},
+	}
+	m := NewMailgun("secret-key", "mg.example.com", "Yauli <reports@example.com>", server.URL)
+	if _, err := m.SendReportEmail(context.Background(), report); err != nil {
+		t.Fatalf("send report email: %v", err)
+	}
+
+	html := gotForm.Get("html")
+	if !strings.Contains(html, ">9</p>") || !strings.Contains(html, ">Feeds<") {
+		t.Fatalf("html body did not contain feeds KPI: %q", html)
+	}
+	if !strings.Contains(html, "660 ml") {
+		t.Fatalf("html body did not contain feeds detail: %q", html)
+	}
+	if !strings.Contains(html, ">Nappies<") {
+		t.Fatalf("html body did not contain nappies KPI label: %q", html)
 	}
 }
 

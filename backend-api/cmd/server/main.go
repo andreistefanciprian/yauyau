@@ -136,7 +136,6 @@ func runHTTPServer() error {
 		r.Use(authctx.Middleware(jwtSecret))
 		r.Get("/me", h.GetCurrentUser)
 		r.Patch("/me", h.UpdateCurrentUser)
-		r.Patch("/me/report-preferences", h.UpdateReportPreferences)
 	})
 	r.Route("/api/v1/babies", func(r chi.Router) {
 		r.Use(authctx.Middleware(jwtSecret))

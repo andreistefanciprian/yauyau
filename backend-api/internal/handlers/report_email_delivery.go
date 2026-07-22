@@ -103,6 +103,7 @@ func (h *Handlers) sendDailyReportEmail(ctx context.Context, job store.DailyRepo
 		StartDate:      job.StartDate,
 		EndDate:        job.EndDate,
 		Output:         output,
+		Card:           h.dailyReportEmailCard(ctx, job),
 	})
 	if err != nil {
 		return h.markDailyReportEmailFailed(ctx, delivery.ID, err, now)
@@ -143,6 +144,30 @@ func (h *Handlers) dailyReportEmailContent(ctx context.Context, job store.DailyR
 	}
 
 	return result.Cache, output, nil
+}
+
+// dailyReportEmailCard computes the same deterministic KPI counts the web
+// app's daily report card shows (feeds/sleep/pump/nappies), for the email's
+// summary card. It fails soft: if events cannot be loaded, the email still
+// sends with its AI-generated content, just without the KPI card.
+func (h *Handlers) dailyReportEmailCard(ctx context.Context, job store.DailyReportEmailJob) []reportemail.CardMetric {
+	events, err := h.Store.ListAllEvents(ctx, job.FamilyID, job.BabyID, job.RangeStart, job.RangeEnd, reportEventsLimit)
+	if err != nil {
+		slog.Warn("daily report email: failed to load events for KPI card", "error", err)
+		return nil
+	}
+
+	stats := dailyReportStats{}
+	for _, ev := range events {
+		stats.add(ev)
+	}
+
+	return []reportemail.CardMetric{
+		{Label: "Feeds", Count: stats.FeedCount, Detail: dailyReportFeedDetail(stats)},
+		{Label: "Sleep", Count: stats.SleepCount, Detail: formatCompactDurationMinutes(stats.SleepMinutes)},
+		{Label: "Pump", Count: stats.PumpCount, Detail: fmt.Sprintf("%d ml", stats.PumpMl)},
+		{Label: "Nappies", Count: stats.NappyCount},
+	}
 }
 
 // markDailyReportEmailFailed records recoverable per-recipient failures so a

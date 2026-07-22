@@ -19,6 +19,19 @@ type Report struct {
 	StartDate      string
 	EndDate        string
 	Output         aireport.Output
+	// Card holds the deterministic KPI counts (feeds, sleep, pump, nappies)
+	// shown at the top of the email, the same numbers the web app's daily
+	// report card shows. Optional: nil/empty when unavailable, in which case
+	// the email simply omits that section.
+	Card []CardMetric
+}
+
+// CardMetric is one KPI column in the report email's summary card, e.g.
+// "9 Feeds, 660 ml".
+type CardMetric struct {
+	Label  string
+	Count  int
+	Detail string
 }
 
 // Sender delivers rendered AI report emails and returns the provider message

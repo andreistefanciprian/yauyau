@@ -14,19 +14,21 @@ import (
 const eventTypePump = "pump"
 
 type createPumpRequest struct {
-	AmountMl   int    `json:"amount_ml"`
-	Notes      string `json:"notes"`
-	OccurredAt string `json:"occurred_at"`
+	AmountMl        int    `json:"amount_ml"`
+	DurationMinutes *int   `json:"duration_minutes"`
+	Notes           string `json:"notes"`
+	OccurredAt      string `json:"occurred_at"`
 }
 
 // pumpResponse is a pump event as returned to API consumers.
 type pumpResponse struct {
-	ID         uuid.UUID `json:"id"`
-	BabyID     uuid.UUID `json:"baby_id"`
-	AmountMl   int       `json:"amount_ml"`
-	Notes      string    `json:"notes,omitempty"`
-	OccurredAt time.Time `json:"occurred_at"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID              uuid.UUID `json:"id"`
+	BabyID          uuid.UUID `json:"baby_id"`
+	AmountMl        int       `json:"amount_ml"`
+	DurationMinutes *int      `json:"duration_minutes,omitempty"`
+	Notes           string    `json:"notes,omitempty"`
+	OccurredAt      time.Time `json:"occurred_at"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 func (h *Handlers) CreatePump(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +49,9 @@ func (h *Handlers) CreatePump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	attributes := map[string]any{"amount_ml": req.AmountMl}
+	if req.DurationMinutes != nil {
+		attributes["duration_minutes"] = *req.DurationMinutes
+	}
 	if notes := strings.TrimSpace(req.Notes); notes != "" {
 		attributes["notes"] = notes
 	}
@@ -58,6 +63,9 @@ func pumpFromEvent(ev store.Event) pumpResponse {
 	resp := pumpResponse{ID: ev.ID, BabyID: ev.BabyID, OccurredAt: ev.OccurredAt, CreatedAt: ev.CreatedAt}
 	if v, ok := attributeInt(ev.Attributes, "amount_ml"); ok {
 		resp.AmountMl = v
+	}
+	if v, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+		resp.DurationMinutes = &v
 	}
 	if notes, ok := ev.Attributes["notes"].(string); ok {
 		resp.Notes = notes
