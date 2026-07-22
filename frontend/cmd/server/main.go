@@ -48,6 +48,12 @@ func splitEventTime(s string) map[string]string {
 	return map[string]string{"Date": "", "Clock": s}
 }
 
+// splitMetricDetail turns the backend's compact "volume · duration" detail
+// into rows while leaving single-part details, such as sleep duration, alone.
+func splitMetricDetail(detail string) []string {
+	return strings.Split(detail, " · ")
+}
+
 // initial returns the uppercased first rune of s, for the navbar's
 // initial-letter account avatar. Empty input yields an empty string rather
 // than panicking, since a signed-out or still-loading account view can pass
@@ -127,10 +133,11 @@ func main() {
 	}
 
 	templates, err := template.New("").Funcs(template.FuncMap{
-		"assetURL":  func(name string) (string, error) { return staticAssetURL(staticURLs, name) },
-		"dict":      dict,
-		"splitTime": splitEventTime,
-		"initial":   initial,
+		"assetURL":          func(name string) (string, error) { return staticAssetURL(staticURLs, name) },
+		"dict":              dict,
+		"splitTime":         splitEventTime,
+		"splitMetricDetail": splitMetricDetail,
+		"initial":           initial,
 	}).ParseGlob("templates/*.html")
 	if err != nil {
 		log.Fatalf("parse templates: %v", err)

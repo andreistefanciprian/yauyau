@@ -68,7 +68,7 @@ signature/expiry and decodes the caller's identity into context — see
   `highlights`, deterministic `card`, `generated_at`, `range_start`, and
   `range_end`). `card.metrics` always contains feed count, total recorded feed
   volume, and total recorded feed duration; sleep count and duration; pump
-  count and recorded volume; and nappy count.
+  count, recorded volume, and recorded duration; and nappy count.
   The title uses the baby's name and selected day. The card contains no AI
   prose or model-dependent fields.
 * `GET /api/v1/babies/current/reports/data` → `GetReportData`, the canonical

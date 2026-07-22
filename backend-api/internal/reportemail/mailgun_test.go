@@ -88,9 +88,9 @@ func TestMailgunSendReportEmailIncludesCard(t *testing.T) {
 
 	report := testReport()
 	report.Card = []CardMetric{
-		{Label: "Feeds", Count: 9, Detail: "660 ml"},
-		{Label: "Sleep", Count: 9, Detail: "15h 44m"},
-		{Label: "Pump", Count: 2, Detail: "150 ml"},
+		{Label: "Feeds", Count: 9, Detail: "660 ml · 1 hr 27 min"},
+		{Label: "Sleep", Count: 9, Detail: "15 hr 44 min"},
+		{Label: "Pump", Count: 2, Detail: "150 ml · 1 hr"},
 		{Label: "Nappies", Count: 11},
 	}
 	m := NewMailgun("secret-key", "mg.example.com", "Yauli <reports@example.com>", server.URL)
@@ -102,8 +102,11 @@ func TestMailgunSendReportEmailIncludesCard(t *testing.T) {
 	if !strings.Contains(html, ">9</p>") || !strings.Contains(html, ">Feeds<") {
 		t.Fatalf("html body did not contain feeds KPI: %q", html)
 	}
-	if !strings.Contains(html, "660 ml") {
+	if !strings.Contains(html, "660 ml</p>") || !strings.Contains(html, "1 hr 27 min</p>") {
 		t.Fatalf("html body did not contain feeds detail: %q", html)
+	}
+	if strings.Contains(html, "660 ml · 1 hr 27 min") {
+		t.Fatalf("html body did not split feeds volume and duration onto separate rows: %q", html)
 	}
 	if !strings.Contains(html, ">Nappies<") {
 		t.Fatalf("html body did not contain nappies KPI label: %q", html)

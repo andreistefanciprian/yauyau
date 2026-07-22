@@ -75,9 +75,9 @@ func TestBuildDailyReportCardReturnsFourKPIs(t *testing.T) {
 
 	card := buildDailyReportCard(events)
 	want := []dailyReportMetric{
-		{Key: "feed", Count: 4, Label: "Feeds", Detail: "240 ml · 42 m"},
-		{Key: "sleep", Count: 4, Label: "Sleep", Detail: "9 h 39 m"},
-		{Key: "pump", Count: 2, Label: "Pump", Detail: "325 ml · 1 h 35 m"},
+		{Key: "feed", Count: 4, Label: "Feeds", Detail: "240 ml · 42 min"},
+		{Key: "sleep", Count: 4, Label: "Sleep", Detail: "9 hr 39 min"},
+		{Key: "pump", Count: 2, Label: "Pump", Detail: "325 ml · 1 hr 35 min"},
 		{Key: "nappy", Count: 4, Label: "Nappies"},
 	}
 	if len(card.Metrics) != len(want) {
@@ -93,9 +93,9 @@ func TestBuildDailyReportCardReturnsFourKPIs(t *testing.T) {
 func TestBuildDailyReportCardReturnsZeroTotalsForEmptyDay(t *testing.T) {
 	card := buildDailyReportCard(nil)
 	want := []dailyReportMetric{
-		{Key: "feed", Count: 0, Label: "Feeds", Detail: "0 ml · 0 m"},
-		{Key: "sleep", Count: 0, Label: "Sleep", Detail: "0 m"},
-		{Key: "pump", Count: 0, Label: "Pump", Detail: "0 ml · 0 m"},
+		{Key: "feed", Count: 0, Label: "Feeds", Detail: "0 ml · 0 min"},
+		{Key: "sleep", Count: 0, Label: "Sleep", Detail: "0 min"},
+		{Key: "pump", Count: 0, Label: "Pump", Detail: "0 ml · 0 min"},
 		{Key: "nappy", Count: 0, Label: "Nappies"},
 	}
 	for i := range want {
@@ -116,14 +116,14 @@ func TestBuildDailyReportCardTotalsFeedVolumeAndDurationAcrossTypes(t *testing.T
 			events: []store.Event{
 				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "formula", "amount_ml": float64(80), "duration_minutes": float64(15)}},
 			},
-			want: "80 ml · 15 m",
+			want: "80 ml · 15 min",
 		},
 		{
 			name: "breast feed",
 			events: []store.Event{
 				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast", "duration_minutes": float64(35)}},
 			},
-			want: "0 ml · 35 m",
+			want: "0 ml · 35 min",
 		},
 		{
 			name: "mixed feed types",
@@ -132,14 +132,14 @@ func TestBuildDailyReportCardTotalsFeedVolumeAndDurationAcrossTypes(t *testing.T
 				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "expressed", "amount_ml": float64(70), "duration_minutes": float64(10)}},
 				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast", "duration_minutes": float64(35)}},
 			},
-			want: "150 ml · 1 h 5 m",
+			want: "150 ml · 1 hr 5 min",
 		},
 		{
 			name: "feed without volume or duration",
 			events: []store.Event{
 				{EventType: eventTypeFeed, Attributes: map[string]any{"type": "breast"}},
 			},
-			want: "0 ml · 0 m",
+			want: "0 ml · 0 min",
 		},
 	}
 
@@ -158,10 +158,10 @@ func TestFormatCompactDurationMinutes(t *testing.T) {
 		minutes int
 		want    string
 	}{
-		{minutes: 0, want: "0 m"},
-		{minutes: 42, want: "42 m"},
-		{minutes: 60, want: "1 h"},
-		{minutes: 87, want: "1 h 27 m"},
+		{minutes: 0, want: "0 min"},
+		{minutes: 42, want: "42 min"},
+		{minutes: 60, want: "1 hr"},
+		{minutes: 87, want: "1 hr 27 min"},
 	}
 
 	for _, tt := range tests {

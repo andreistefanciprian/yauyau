@@ -17,7 +17,7 @@ four metrics in a stable order:
 
 1. feed count, total recorded volume, and total recorded duration;
 2. completed sleep count and duration;
-3. pump count and recorded volume;
+3. pump count, recorded volume, and recorded duration;
 4. nappy count.
 
 The frontend only renders those values. It makes no secondary AI request and
@@ -51,8 +51,9 @@ control the KPI card.
 Feed volume and duration sum the recorded `amount_ml` and `duration_minutes`
 across all feed types. Missing values are not estimated. Sleep duration
 represents recorded completed duration, matching the existing deterministic
-report calculations. Zero-value metrics are still displayed so the layout
-never shifts.
+report calculations. Pump volume and duration likewise sum recorded values
+without estimating missing duration. Zero-value metrics are still displayed so
+the layout never shifts.
 
 The UI no longer gives a generated narrative interpretation. Scheduled email
 reports continue to provide AI-generated summaries through the separate generic
