@@ -162,7 +162,7 @@ func htmlBody(report Report) string {
 
 	b.WriteString(`
                 <tr>
-                  <td style="background-color:#DCEEEC; border-radius:14px; padding:20px 22px;" bgcolor="#DCEEEC">
+                  <td align="center" style="padding-top:8px;">
                     <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; font-weight:bold; color:#2C6E80; mso-line-height-rule:exactly; line-height:22px;">`)
 	b.WriteString(htmlEscape(reportEncouragement))
 	b.WriteString(`</p>
