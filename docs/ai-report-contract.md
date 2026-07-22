@@ -589,12 +589,12 @@ timeline days use the same contract.
 
 Scheduled daily email also renders deterministic last-seven-days charts ending
 on the report day. They show daily feed count, recorded bottle volume and feed
-duration; sleep duration; pump volume and duration; and nappy count. Generated
-daily prose complements these visual facts rather than restating KPI totals,
-reciting the daily chart series, or describing an obvious chart shape. It
-should focus on useful information the visuals do not show, such as event
-relationships, chronology, intervals, meaningful breakdowns, attributed notes,
-and concise interpretation of backend comparisons.
+duration; sleep duration; pump volume and duration; and nappy count. The same
+generated report JSON is also returned by `/reports/ai` and may later be exposed
+through MCP, so generated prose remains channel-neutral and independently
+useful. It must not assume that the email's KPI card or charts are present.
+Renderers may place the prose alongside deterministic visuals, while the model
+still curates exact values and avoids cataloguing every supplied total.
 
 The AI report developer prompt permits an occasional,
 one-expression Australian English flavour for every report type and locale,
@@ -628,14 +628,14 @@ AI should:
 * prefer fewer, stronger items over maximum-length arrays;
 * for a daily report, use 1 summary insight and usually 0-2 highlights, 0-2
   patterns, and 0-2 comparisons;
-* avoid repeating headline KPI values or metric-by-day values already shown in
-  deterministic daily charts;
-* avoid narrating obvious chart shapes when no additional backend-supported
-  interpretation is available;
+* remain independently useful without assuming a KPI card, chart, or other
+  renderer-specific presentation is present;
+* avoid narrating day-by-day values when a concise interpretation is more
+  useful;
 * avoid repeating the same insight across summary, highlights, patterns, and
   comparison unless the later section adds new parent-facing value;
-* use exact values only when they support information the daily visuals do not
-  show, or when a baseline value materially clarifies a comparison;
+* use exact values selectively when they support a useful takeaway or
+  materially clarify a comparison;
 * restate supplied minute values as parent-friendly durations such as "about 2
   hours 20 minutes", without deriving new durations;
 * prioritise the most meaningful comparison differences rather than listing
@@ -656,10 +656,9 @@ AI should not:
 
 Additional rules:
 
-* Daily baseline wording should be natural without repeating the selected-day
-  KPI, for example "Feeding frequency was above its recent daily average of
-  8.9." Avoid robotic phrasing such as
-  "versus a 8.9 average daily feeds".
+* Daily baseline wording should be natural, for example "Nine feeds were
+  logged, close to the recent daily average of 8.9." Avoid robotic phrasing
+  such as "versus a 8.9 average daily feeds".
 * If `range.is_partial` is true, use wording such as "so far today", "at this
   point in the day", or "based on the logs so far".
 * If `range.is_partial` is true, do not present comparison deltas as final

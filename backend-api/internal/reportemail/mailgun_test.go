@@ -116,6 +116,65 @@ func TestMailgunSendReportEmailIncludesCard(t *testing.T) {
 	}
 }
 
+func TestMailgunSendReportEmailIncludesTrendInHTMLAndText(t *testing.T) {
+	var gotForm url.Values
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		gotForm = r.PostForm
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id":"test-id"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	report := testReport()
+	report.Trend = []TrendDay{
+		{
+			Label:               "Mon",
+			SleepHours:          12.5,
+			FeedCount:           7,
+			FeedDurationMinutes: 75,
+			FeedBottleMl:        420,
+			NappyCount:          8,
+			PumpMl:              90,
+			PumpDurationMinutes: 25,
+		},
+		{
+			Label:               "Tue",
+			SleepHours:          10,
+			FeedCount:           6,
+			FeedDurationMinutes: 60,
+			FeedBottleMl:        360,
+			NappyCount:          7,
+			PumpMl:              0,
+			PumpDurationMinutes: 0,
+		},
+	}
+
+	m := NewMailgun("secret-key", "mg.example.com", "Yauli <reports@example.com>", server.URL)
+	if _, err := m.SendReportEmail(context.Background(), report); err != nil {
+		t.Fatalf("send report email: %v", err)
+	}
+
+	text := gotForm.Get("text")
+	if !strings.Contains(text, "Last 7 days:") {
+		t.Fatalf("text body did not contain trend heading: %q", text)
+	}
+	wantDay := "Mon: Sleep 12.5h · Feeds 7 (1h 15m, 420 mL bottle) · Pump 90 mL (25 min) · Nappies 8"
+	if !strings.Contains(text, wantDay) {
+		t.Fatalf("text body did not contain trend day %q: %q", wantDay, text)
+	}
+	if !strings.Contains(text, "Tue: Sleep 10.0h · Feeds 6 (1h, 360 mL bottle) · Pump 0 mL (0 min) · Nappies 7") {
+		t.Fatalf("text body did not contain zero-value trend data: %q", text)
+	}
+
+	html := gotForm.Get("html")
+	if !strings.Contains(html, "Last 7 days") || !strings.Contains(html, "Bottle mL") {
+		t.Fatalf("html body did not contain trend charts: %q", html)
+	}
+}
+
 func TestMailgunSendReportEmailEscapesHTML(t *testing.T) {
 	var gotForm url.Values
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

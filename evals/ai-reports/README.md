@@ -36,10 +36,10 @@ A future eval runner should:
 * enforce array limits from the contract;
 * verify `summary` is 1-2 short sentences and does more than enumerate event
   types;
-* verify daily summaries and highlights do not repeat headline values already
-  shown in the deterministic KPI card or last-seven-days charts;
-* verify daily prose does not narrate day-by-day chart values or obvious chart
-  shapes;
+* verify daily summaries and highlights remain useful without assuming a KPI
+  card or last-seven-days chart accompanies the JSON;
+* verify daily prose curates exact values rather than cataloguing every total or
+  narrating a day-by-day series;
 * verify outputs do not fill every section to its maximum length by default;
 * verify the same insight is not repeated across summary, highlights, patterns,
   and comparison unless the repeated section adds new parent-facing value;
@@ -47,9 +47,8 @@ A future eval runner should:
   parent-facing takeaway;
 * verify durations are parent-friendly, such as "about 2 hours 20 minutes",
   rather than raw minute recaps;
-* verify daily baseline grammar is natural without repeating the selected-day
-  KPI, for example "Feeding frequency was above its recent daily average of
-  8.9";
+* verify daily baseline grammar is natural, for example "Nine feeds were
+  logged, close to the recent daily average of 8.9";
 * check required facts and forbidden terms without requiring stock prose;
 * verify partial reports use partial wording;
 * verify partial reports use "so far" wording for comparisons and do not

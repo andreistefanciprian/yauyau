@@ -89,14 +89,17 @@ func TestGenerateAIReportUsesResponsesStructuredOutput(t *testing.T) {
 		t.Fatalf("developer message role = %#v, want developer", developerMessage["role"])
 	}
 	developerContent := developerMessage["content"].(string)
-	if !strings.Contains(developerContent, "Prompt version: ai_report_prompt.v4.") {
+	if !strings.Contains(developerContent, "Prompt version: ai_report_prompt.v5.") {
 		t.Fatalf("developer prompt = %q, want prompt version", developerContent)
 	}
 	if !strings.Contains(developerContent, "Do not diagnose") {
 		t.Fatalf("developer prompt = %q, want embedded product rules", developerContent)
 	}
-	if !strings.Contains(developerContent, "KPI card and last-7-days charts") || !strings.Contains(developerContent, "Do not repeat exact KPI values") {
-		t.Fatalf("developer prompt = %q, want deterministic presentation rules", developerContent)
+	if !strings.Contains(developerContent, "Keep the generated report channel-neutral") || !strings.Contains(developerContent, "Do not assume a KPI card, chart, or other interface element") {
+		t.Fatalf("developer prompt = %q, want channel-neutral presentation rules", developerContent)
+	}
+	if strings.Contains(developerContent, "A daily report is rendered with a KPI card") {
+		t.Fatalf("developer prompt = %q, should not assume an email presentation", developerContent)
 	}
 	if !strings.Contains(developerContent, "Australian English flavour") || !strings.Contains(developerContent, "at most one such expression") {
 		t.Fatalf("developer prompt = %q, want restrained Australian English rules", developerContent)
