@@ -5,7 +5,7 @@ import "encoding/json"
 const (
 	InputSchemaVersion  = "ai_report_input.v1"
 	OutputSchemaVersion = "ai_report_output.v1"
-	PromptVersion       = "ai_report_prompt.v3"
+	PromptVersion       = "ai_report_prompt.v4"
 )
 
 // GenerationInput is the model-facing envelope. It deliberately contains

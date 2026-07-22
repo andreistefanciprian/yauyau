@@ -125,10 +125,8 @@
   "golden_output": {
     "schema_version": "ai_report_output.v1",
     "title": "YauYau's noted day",
-    "summary": "YauYau's logged day came together with four feeds, four nappies, and two completed sleeps, with several parent notes adding useful context.",
+    "summary": "Parent notes provided the most useful context for YauYau's logged day.",
     "highlights": [
-      "Four feeds were logged, with 250 ml recorded across bottle feeds.",
-      "Two completed sleeps totalled 130 minutes.",
       "The notes mention a small top-up after waking and a pram sleep."
     ],
     "patterns": [
@@ -148,6 +146,10 @@
       "You noted"
     ],
     "forbidden_substrings": [
+      "Four feeds",
+      "250 ml",
+      "Two completed sleeps",
+      "130 minutes",
       "compared with baseline",
       "recent average",
       "diagnose",

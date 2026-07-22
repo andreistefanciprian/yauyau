@@ -97,17 +97,13 @@
   "golden_output": {
     "schema_version": "ai_report_output.v1",
     "title": "YauYau's day",
-    "summary": "YauYau's logged day ticked along with regular feeds, several nappies, and four completed sleeps.",
+    "summary": "Several nappies appeared soon after feeds, the clearest logged sequence in YauYau's day.",
     "highlights": [
-      "7 feeds were logged, with 560 ml recorded across bottle feeds.",
-      "4 completed sleeps totalled 285 minutes.",
-      "The longest recorded sleep was 120 minutes."
+      "The longest recorded sleep was about 2 hours."
     ],
-    "patterns": [
-      "Several nappies were logged within 30 minutes after feeds."
-    ],
+    "patterns": [],
     "comparison": [
-      "Feed count and sleep time were close to the recent daily average."
+      "Feeding frequency and sleep time were both close to their recent daily averages."
     ],
     "caveats": [],
     "questions_for_parent": [
@@ -116,9 +112,13 @@
   },
   "checks": {
     "required_substrings": [
-      "7 feeds"
+      "nappies appeared soon after feeds"
     ],
     "forbidden_substrings": [
+      "7 feeds",
+      "560 ml",
+      "4 completed sleeps",
+      "285 minutes",
       "so far",
       "diagnose",
       "unsafe",

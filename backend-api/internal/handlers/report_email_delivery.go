@@ -104,6 +104,7 @@ func (h *Handlers) sendDailyReportEmail(ctx context.Context, job store.DailyRepo
 		EndDate:        job.EndDate,
 		Output:         output,
 		Card:           h.dailyReportEmailCard(ctx, job),
+		Trend:          h.dailyReportEmailTrend(ctx, job),
 	})
 	if err != nil {
 		return h.markDailyReportEmailFailed(ctx, delivery.ID, err, now)

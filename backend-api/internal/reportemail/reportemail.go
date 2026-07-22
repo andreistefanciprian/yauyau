@@ -24,6 +24,11 @@ type Report struct {
 	// report card shows. Optional: nil/empty when unavailable, in which case
 	// the email simply omits that section.
 	Card []CardMetric
+	// Trend holds the last 7 calendar days of daily totals (oldest first,
+	// ending with the report day) for the email's "Last 7 days" bar charts.
+	// Optional: nil/empty when unavailable, in which case the email simply
+	// omits that section.
+	Trend []TrendDay
 }
 
 // CardMetric is one KPI column in the report email's summary card, e.g.
@@ -32,6 +37,19 @@ type CardMetric struct {
 	Label  string
 	Count  int
 	Detail string
+}
+
+// TrendDay is one calendar day's daily totals in the email's "Last 7 days"
+// trend charts.
+type TrendDay struct {
+	Label               string
+	SleepHours          float64
+	FeedCount           int
+	FeedDurationMinutes int
+	FeedBottleMl        int
+	NappyCount          int
+	PumpMl              int
+	PumpDurationMinutes int
 }
 
 // Sender delivers rendered AI report emails and returns the provider message

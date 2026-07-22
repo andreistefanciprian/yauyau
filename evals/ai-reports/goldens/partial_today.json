@@ -86,12 +86,8 @@
   "golden_output": {
     "schema_version": "ai_report_output.v1",
     "title": "YauYau's day so far",
-    "summary": "Based on the logs so far today, YauYau's day has been ticking along with three feeds, four nappies, and one completed sleep, with another sleep currently ongoing.",
-    "highlights": [
-      "Three feeds have been logged so far today.",
-      "Four nappies have been logged, including three mixed nappies.",
-      "One completed sleep lasted 75 minutes."
-    ],
+    "summary": "Based on the logs so far today, YauYau's day is still taking shape, with one sleep currently ongoing.",
+    "highlights": [],
     "patterns": [],
     "comparison": [
       "Today's feed count is still below the recent daily average, but the day is not complete yet."
@@ -111,6 +107,9 @@
       "ongoing"
     ],
     "forbidden_substrings": [
+      "Three feeds",
+      "Four nappies",
+      "75 minutes",
       "finished the day",
       "final",
       "diagnose",

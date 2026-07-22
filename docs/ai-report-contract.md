@@ -578,7 +578,7 @@ Field rules:
   them.
 * `questions_for_parent`: 0-3 items; optional, practical follow-up questions.
 
-## UI Daily KPI Card
+## Deterministic Daily Presentation
 
 The web timeline uses no generated prose. Backend API calculates feed count,
 total recorded feed volume and duration, completed sleep count and duration,
@@ -586,6 +586,15 @@ pump count and volume, and nappy count for the selected local day. The card
 always renders those four metrics in the same order, including zero values,
 and uses the baby name in a deterministic title. Today, yesterday, and earlier
 timeline days use the same contract.
+
+Scheduled daily email also renders deterministic last-seven-days charts ending
+on the report day. They show daily feed count, recorded bottle volume and feed
+duration; sleep duration; pump volume and duration; and nappy count. Generated
+daily prose complements these visual facts rather than restating KPI totals,
+reciting the daily chart series, or describing an obvious chart shape. It
+should focus on useful information the visuals do not show, such as event
+relationships, chronology, intervals, meaningful breakdowns, attributed notes,
+and concise interpretation of backend comparisons.
 
 The AI report developer prompt permits an occasional,
 one-expression Australian English flavour for every report type and locale,
@@ -617,12 +626,16 @@ AI should:
 * omit low-value facts;
 * leave arrays empty when there is nothing useful to say;
 * prefer fewer, stronger items over maximum-length arrays;
-* for a daily report, usually choose 1 summary insight, 2-3 highlights, 0-2
-  patterns, and 1-2 comparisons;
-* avoid repeating obvious totals or deterministic daily-summary wording;
+* for a daily report, use 1 summary insight and usually 0-2 highlights, 0-2
+  patterns, and 0-2 comparisons;
+* avoid repeating headline KPI values or metric-by-day values already shown in
+  deterministic daily charts;
+* avoid narrating obvious chart shapes when no additional backend-supported
+  interpretation is available;
 * avoid repeating the same insight across summary, highlights, patterns, and
   comparison unless the later section adds new parent-facing value;
-* use only totals needed to support useful observations;
+* use exact values only when they support information the daily visuals do not
+  show, or when a baseline value materially clarifies a comparison;
 * restate supplied minute values as parent-friendly durations such as "about 2
   hours 20 minutes", without deriving new durations;
 * prioritise the most meaningful comparison differences rather than listing
@@ -643,8 +656,9 @@ AI should not:
 
 Additional rules:
 
-* Baseline wording should be natural, for example "Seven feeds were logged,
-  compared with a recent daily average of 8.9." Avoid robotic phrasing such as
+* Daily baseline wording should be natural without repeating the selected-day
+  KPI, for example "Feeding frequency was above its recent daily average of
+  8.9." Avoid robotic phrasing such as
   "versus a 8.9 average daily feeds".
 * If `range.is_partial` is true, use wording such as "so far today", "at this
   point in the day", or "based on the logs so far".
@@ -695,7 +709,8 @@ Email output should be calm and compact:
 
 * one title;
 * one summary paragraph;
-* up to four highlights;
+* usually no more than two highlights for daily reports and four for weekly
+  reports;
 * one caveat only when needed;
 * optional follow-up questions.
 

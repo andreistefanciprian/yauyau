@@ -4,8 +4,8 @@ Status: **golden fixtures only**.
 
 These cases document representative inputs and good `ai_report_output.v1`
 responses for Yauli range and scheduled-email reports. They do not call OpenAI
-and are not wired into CI yet. The web timeline card is deterministic and is
-covered by Go tests rather than model evals.
+and are not wired into CI yet. The daily KPI card and last-seven-days email
+charts are deterministic and are covered by Go tests rather than model evals.
 
 The goal is to make expected behavior reviewable before building a fuller eval
 runner.
@@ -36,8 +36,10 @@ A future eval runner should:
 * enforce array limits from the contract;
 * verify `summary` is 1-2 short sentences and does more than enumerate event
   types;
-* verify highlights do not duplicate every deterministic total or simply repeat
-  the daily summary;
+* verify daily summaries and highlights do not repeat headline values already
+  shown in the deterministic KPI card or last-seven-days charts;
+* verify daily prose does not narrate day-by-day chart values or obvious chart
+  shapes;
 * verify outputs do not fill every section to its maximum length by default;
 * verify the same insight is not repeated across summary, highlights, patterns,
   and comparison unless the repeated section adds new parent-facing value;
@@ -45,8 +47,9 @@ A future eval runner should:
   parent-facing takeaway;
 * verify durations are parent-friendly, such as "about 2 hours 20 minutes",
   rather than raw minute recaps;
-* verify baseline grammar is natural, for example "Seven feeds were logged,
-  compared with a recent daily average of 8.9";
+* verify daily baseline grammar is natural without repeating the selected-day
+  KPI, for example "Feeding frequency was above its recent daily average of
+  8.9";
 * check required facts and forbidden terms without requiring stock prose;
 * verify partial reports use partial wording;
 * verify partial reports use "so far" wording for comparisons and do not

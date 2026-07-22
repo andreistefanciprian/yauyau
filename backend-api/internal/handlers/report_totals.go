@@ -43,8 +43,9 @@ type reportSleepTotals struct {
 }
 
 type reportPumpTotals struct {
-	Count   int `json:"count"`
-	TotalMl int `json:"total_ml"`
+	Count                int `json:"count"`
+	TotalMl              int `json:"total_ml"`
+	TotalDurationMinutes int `json:"total_duration_minutes"`
 }
 
 type reportBathTotals struct {
@@ -173,6 +174,9 @@ func (t *reportTotalsResponse) addPump(ev store.Event) {
 	t.Pumps.Count++
 	if amountMl, ok := attributeOptionalInt(ev.Attributes, "amount_ml"); ok {
 		t.Pumps.TotalMl += amountMl
+	}
+	if durationMinutes, ok := attributeOptionalInt(ev.Attributes, "duration_minutes"); ok {
+		t.Pumps.TotalDurationMinutes += durationMinutes
 	}
 }
 
