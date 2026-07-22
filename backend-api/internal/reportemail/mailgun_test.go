@@ -69,8 +69,11 @@ func TestMailgunSendReportEmail(t *testing.T) {
 	if !strings.Contains(gotForm.Get("html"), "parent@example.com") {
 		t.Fatalf("html body did not contain recipient email: %q", gotForm.Get("html"))
 	}
-	if !strings.Contains(gotForm.Get("html"), "#5FBCB0") {
-		t.Fatalf("html body did not contain Yauli accent color: %q", gotForm.Get("html"))
+	if !strings.Contains(gotForm.Get("html"), "Wednesday, July 15") {
+		t.Fatalf("html body did not contain the date heading: %q", gotForm.Get("html"))
+	}
+	if !strings.Contains(gotForm.Get("html"), "summarised") {
+		t.Fatalf("html body did not contain the subtitle: %q", gotForm.Get("html"))
 	}
 }
 
@@ -188,7 +191,7 @@ func TestMailgunSendReportEmailEscapesHTML(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	report := testReport()
-	report.Output.Title = `<script>alert("x")</script>`
+	report.Output.Summary = `<script>alert("x")</script>`
 	report.Output.Highlights = []string{`<b>not bold</b>`}
 	m := NewMailgun("secret-key", "mg.example.com", "Yauli <reports@example.com>", server.URL)
 	if _, err := m.SendReportEmail(context.Background(), report); err != nil {
@@ -200,7 +203,7 @@ func TestMailgunSendReportEmailEscapesHTML(t *testing.T) {
 		t.Fatalf("html body contains unescaped user/model content: %q", html)
 	}
 	if !strings.Contains(html, "&lt;script&gt;alert(&#34;x&#34;)&lt;/script&gt;") {
-		t.Fatalf("html body did not contain escaped title: %q", html)
+		t.Fatalf("html body did not contain escaped summary: %q", html)
 	}
 }
 

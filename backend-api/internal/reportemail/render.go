@@ -128,16 +128,16 @@ func htmlBody(report Report) string {
             <td style="background-color:#FFFDFA; border:1px solid #EDE2D6; border-radius:20px; padding:40px 36px;" bgcolor="#FFFDFA">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td style="padding-bottom:6px;">
-                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; font-weight:bold; letter-spacing:0.06em; color:#5FBCB0; text-transform:uppercase; mso-line-height-rule:exactly; line-height:18px;">`)
-	b.WriteString(htmlEscape(report.ReportType))
-	b.WriteString(` report</p>
+                  <td style="padding-bottom:4px;">
+                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:19px; font-weight:bold; color:#2C5C77; mso-line-height-rule:exactly; line-height:26px;">`)
+	b.WriteString(htmlEscape(reportDateHeading(report)))
+	b.WriteString(`</p>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding-bottom:20px;">
-                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:19px; font-weight:bold; color:#2C5C77; mso-line-height-rule:exactly; line-height:26px;">`)
-	b.WriteString(htmlEscape(report.Output.Title))
+                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#9C9184; mso-line-height-rule:exactly; line-height:18px;">`)
+	b.WriteString(htmlEscape(reportSubtitle(report)))
 	b.WriteString(`</p>
                   </td>
                 </tr>`)
@@ -217,14 +217,7 @@ func writeHTMLCard(b *strings.Builder, report Report) {
                   <td style="padding-bottom:28px;">
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#E4EEF6" style="background-color:#E4EEF6; border-radius:18px;">
                       <tr>
-                        <td style="padding:24px 26px 4px;">
-                          <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:17px; font-weight:bold; color:#2C5C77; mso-line-height-rule:exactly; line-height:22px;">`)
-	b.WriteString(htmlEscape(reportDateHeading(report)))
-	b.WriteString(`</p>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:12px 26px 24px;">
+                        <td style="padding:22px 24px;">
                           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                             <tr>`)
 
@@ -519,6 +512,31 @@ func reportDateHeading(report Report) string {
 		return report.StartDate
 	}
 	return parsed.Format("Monday, January 2")
+}
+
+// reportSubtitle renders the small muted line under the date heading, the
+// same "{baby}'s day, summarised" pattern the Reports page uses, adapted to
+// whatever period the report covers (daily, weekly, ...).
+func reportSubtitle(report Report) string {
+	period := reportPeriodNoun(report.ReportType)
+	name := strings.TrimSpace(report.BabyName)
+	if name == "" {
+		return fmt.Sprintf("%s, summarised", period)
+	}
+	return fmt.Sprintf("%s's %s, summarised", name, period)
+}
+
+func reportPeriodNoun(reportType string) string {
+	switch strings.ToLower(strings.TrimSpace(reportType)) {
+	case "daily":
+		return "day"
+	case "weekly":
+		return "week"
+	case "":
+		return "report"
+	default:
+		return reportType
+	}
 }
 
 func writeHTMLList(b *strings.Builder, heading string, items []string) {
