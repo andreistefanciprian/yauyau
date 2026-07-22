@@ -102,7 +102,7 @@ func TestDailyReportRendersFourKPIs(t *testing.T) {
 			Metrics: []backendclient.DailyReportMetric{
 				{Key: "feed", Count: 3, Label: "Feeds", Detail: "530 ml · 1 h 27 m"},
 				{Key: "sleep", Count: 3, Label: "Sleep", Detail: "5 h 57 m"},
-				{Key: "pump", Count: 1, Label: "Pump", Detail: "150 ml"},
+				{Key: "pump", Count: 1, Label: "Pump", Detail: "150 ml · 1 h"},
 				{Key: "nappy", Count: 4, Label: "Nappies"},
 			},
 		},
@@ -122,7 +122,7 @@ func TestDailyReportRendersFourKPIs(t *testing.T) {
 		`daily-report-metric-sleep`,
 		`5 h 57 m`,
 		`daily-report-metric-pump`,
-		`150 ml`,
+		`150 ml · 1 h`,
 		`daily-report-metric-nappy`,
 	} {
 		if !strings.Contains(html, want) {
