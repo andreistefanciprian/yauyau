@@ -83,48 +83,80 @@ func textInviteMagicLink(babyName, link string) string {
 func htmlMagicLink(email, link string) string {
 	escapedEmail := htmlEscape(email)
 	escaped := htmlEscape(link)
-	return `<!DOCTYPE html>
+	return `<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign in to Yauli</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Sign in to Yauli</title>
+<style>
+  body, table, td { font-family: Arial, Helvetica, sans-serif; }
+  a { text-decoration: none; }
+</style>
 </head>
-<body style="margin:0;padding:0;background:#FCFBF8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#334155;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FCFBF8;">
+<body style="margin:0; padding:0; background-color:#FAF6F1;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FAF6F1;">
     <tr>
-      <td align="center" style="padding:48px 24px;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
-
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; width:100%;">
           <tr>
-            <td style="background:#FFFFFF;border:1px solid #E6EEF0;border-radius:14px;padding:40px 36px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-              <p style="margin:0 0 8px;font-size:1.35rem;font-weight:700;color:#56789D;">Yauli</p>
-              <p style="margin:0 0 24px;font-size:0.96rem;font-weight:600;color:#56789D;line-height:1.55;">
-                Your parenting companion, from day one.
-              </p>
-              <p style="margin:0 0 30px;font-size:0.92rem;color:#64748B;line-height:1.65;">
-                Click the button below to sign in securely. This link expires in 15 minutes and can only be used once.
-              </p>
-              <a href="` + escaped + `"
-                 style="display:inline-block;padding:14px 32px;background:#74C7C3;color:#ffffff;font-size:0.95rem;font-weight:700;border-radius:999px;text-decoration:none;box-shadow:0 4px 14px rgba(116,199,195,0.32);">
-                Open Yauli
-              </a>
-              <p style="margin:28px 0 0;font-size:0.8rem;color:#94A3B8;line-height:1.6;">
-                If the button does not work, copy and paste this link into your browser:<br>
-                <a href="` + escaped + `" style="color:#F28B72;text-decoration:none;word-break:break-all;">` + escaped + `</a>
-              </p>
+            <td align="center" style="padding-bottom:24px;">
+              <span style="font-family:Arial, Helvetica, sans-serif; font-size:26px; font-weight:bold; color:#3D7A9C;">Yau<span style="color:#E2694A;">li</span></span>
             </td>
           </tr>
 
           <tr>
-            <td align="center" style="padding-top:24px;">
-              <p style="margin:0;font-size:0.78rem;color:#94A3B8;line-height:1.6;">
-                If you did not request this email, you can safely ignore it.<br>
-                This link was requested for <strong style="color:#64748B;">` + escapedEmail + `</strong>.
-              </p>
+            <td style="background-color:#FFFDFA; border:1px solid #EDE2D6; border-radius:20px; padding:44px 40px;" bgcolor="#FFFDFA">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="padding-bottom:12px;">
+                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; font-weight:bold; color:#3D6D91; mso-line-height-rule:exactly; line-height:22px;">Your parenting companion, from day one.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:32px;">
+                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#5C6B7A; mso-line-height-rule:exactly; line-height:24px;">Click the button below to sign in securely.<br>This link expires in 15 minutes and can only be used once.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:32px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td align="center" bgcolor="#5FBCB0" style="border-radius:999px;">
+                          <a href="` + escaped + `" target="_blank" style="display:block; padding:16px 40px; font-family:Arial, Helvetica, sans-serif; font-size:16px; font-weight:bold; color:#FFFFFF; border-radius:999px;">Open Yauli</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:6px;">
+                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#9C9184; mso-line-height-rule:exactly; line-height:20px;">If the button does not work, copy and paste this link into your browser:</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center">
+                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:13px; word-break:break-all;"><a href="` + escaped + `" style="color:#B5652F;">` + escaped + `</a></p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
+          <tr>
+            <td align="center" style="padding-top:28px;">
+              <p style="margin:0 0 6px; font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#9C9184; mso-line-height-rule:exactly; line-height:20px;">If you did not request this email, you can safely ignore it.</p>
+              <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#9C9184; mso-line-height-rule:exactly; line-height:20px;">This link was requested for <a href="mailto:` + escapedEmail + `" style="color:#3D7A9C; font-weight:bold;">` + escapedEmail + `</a>.</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding-top:32px;">
+              <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#B7AC9C;">Yauli &middot; getyauli.com</p>
+            </td>
+          </tr>
         </table>
       </td>
     </tr>
@@ -137,54 +169,96 @@ func htmlInviteMagicLink(email, babyName, link string) string {
 	escapedEmail := htmlEscape(email)
 	escapedBabyName := htmlEscape(babyName)
 	escaped := htmlEscape(link)
-	return `<!DOCTYPE html>
+	return `<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>You're invited to join Yauli</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>You're invited to join Yauli</title>
+<style>
+  body, table, td { font-family: Arial, Helvetica, sans-serif; }
+  a { text-decoration: none; }
+</style>
 </head>
-<body style="margin:0;padding:0;background:#FCFBF8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#334155;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#FCFBF8;">
+<body style="margin:0; padding:0; background-color:#FAF6F1;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#FAF6F1;">
     <tr>
-      <td align="center" style="padding:48px 24px;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
-
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; width:100%;">
           <tr>
-            <td style="background:#FFFFFF;border:1px solid #E6EEF0;border-radius:14px;padding:40px 36px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-              <p style="margin:0 0 8px;font-size:1.35rem;font-weight:700;color:#56789D;">Yauli</p>
-              <p style="margin:0 0 24px;font-size:0.96rem;font-weight:600;color:#56789D;line-height:1.55;">
-                Your parenting companion, from day one.
-              </p>
-              <p style="margin:0 0 12px;font-size:1.05rem;font-weight:700;color:#334155;line-height:1.45;">
-                You've been invited to help care for ` + escapedBabyName + `.
-              </p>
-              <p style="margin:0 0 30px;font-size:0.92rem;color:#64748B;line-height:1.65;">
-                Open Yauli with the secure link below to join ` + escapedBabyName + `'s timeline. This link expires in 15 minutes and can only be used once.
-              </p>
-              <p style="margin:0 0 26px;padding:14px 16px;background:#FCFBF8;border:1px solid #E6EEF0;border-radius:12px;font-size:0.86rem;color:#64748B;line-height:1.6;">
-                Already created a baby in Yauli? Delete that timeline from Baby settings first, then use this invite to join ` + escapedBabyName + `'s timeline.
-              </p>
-              <a href="` + escaped + `"
-                 style="display:inline-block;padding:14px 32px;background:#74C7C3;color:#ffffff;font-size:0.95rem;font-weight:700;border-radius:999px;text-decoration:none;box-shadow:0 4px 14px rgba(116,199,195,0.32);">
-                Join on Yauli
-              </a>
-              <p style="margin:28px 0 0;font-size:0.8rem;color:#94A3B8;line-height:1.6;">
-                If the button does not work, copy and paste this link into your browser:<br>
-                <a href="` + escaped + `" style="color:#F28B72;text-decoration:none;word-break:break-all;">` + escaped + `</a>
-              </p>
+            <td align="center" style="padding-bottom:24px;">
+              <span style="font-family:Arial, Helvetica, sans-serif; font-size:26px; font-weight:bold; color:#3D7A9C;">Yau<span style="color:#E2694A;">li</span></span>
             </td>
           </tr>
 
           <tr>
-            <td align="center" style="padding-top:24px;">
-              <p style="margin:0;font-size:0.78rem;color:#94A3B8;line-height:1.6;">
-                If you did not expect this invitation, you can safely ignore it.<br>
-                This invitation was sent to <strong style="color:#64748B;">` + escapedEmail + `</strong>.
-              </p>
+            <td style="background-color:#FFFDFA; border:1px solid #EDE2D6; border-radius:20px; padding:44px 40px;" bgcolor="#FFFDFA">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="padding-bottom:12px;">
+                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; font-weight:bold; color:#3D6D91; mso-line-height-rule:exactly; line-height:22px;">Your parenting companion, from day one.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:12px;">
+                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:17px; font-weight:bold; color:#3A332C; mso-line-height-rule:exactly; line-height:24px;">You've been invited to help care for ` + escapedBabyName + `.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:24px;">
+                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:15px; color:#5C6B7A; mso-line-height-rule:exactly; line-height:24px;">Open Yauli with the secure link below to join ` + escapedBabyName + `'s timeline.<br>This link expires in 15 minutes and can only be used once.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:28px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F3ECE1" style="background-color:#F3ECE1; border-radius:12px;">
+                      <tr>
+                        <td style="padding:14px 16px;">
+                          <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#6B7280; mso-line-height-rule:exactly; line-height:20px;">Already created a baby in Yauli? Delete that timeline from Baby settings first, then use this invite to join ` + escapedBabyName + `'s timeline.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:32px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td align="center" bgcolor="#5FBCB0" style="border-radius:999px;">
+                          <a href="` + escaped + `" target="_blank" style="display:block; padding:16px 40px; font-family:Arial, Helvetica, sans-serif; font-size:16px; font-weight:bold; color:#FFFFFF; border-radius:999px;">Join on Yauli</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom:6px;">
+                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#9C9184; mso-line-height-rule:exactly; line-height:20px;">If the button does not work, copy and paste this link into your browser:</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center">
+                    <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:13px; word-break:break-all;"><a href="` + escaped + `" style="color:#B5652F;">` + escaped + `</a></p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
+          <tr>
+            <td align="center" style="padding-top:28px;">
+              <p style="margin:0 0 6px; font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#9C9184; mso-line-height-rule:exactly; line-height:20px;">If you did not expect this invitation, you can safely ignore it.</p>
+              <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#9C9184; mso-line-height-rule:exactly; line-height:20px;">This invitation was sent to <a href="mailto:` + escapedEmail + `" style="color:#3D7A9C; font-weight:bold;">` + escapedEmail + `</a>.</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding-top:32px;">
+              <p style="margin:0; font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#B7AC9C;">Yauli &middot; getyauli.com</p>
+            </td>
+          </tr>
         </table>
       </td>
     </tr>

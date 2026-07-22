@@ -57,7 +57,7 @@ func TestMailgunSendMagicLink(t *testing.T) {
 	if !strings.Contains(gotForm.Get("html"), "Your parenting companion, from day one.") {
 		t.Fatalf("html body did not contain tagline: %q", gotForm.Get("html"))
 	}
-	if !strings.Contains(gotForm.Get("html"), "#74C7C3") {
+	if !strings.Contains(gotForm.Get("html"), "#5FBCB0") {
 		t.Fatalf("html body did not contain Yauli teal button color: %q", gotForm.Get("html"))
 	}
 	if !strings.Contains(gotForm.Get("html"), "user@example.com") {
