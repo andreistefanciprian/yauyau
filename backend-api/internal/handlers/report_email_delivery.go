@@ -165,7 +165,7 @@ func (h *Handlers) dailyReportEmailCard(ctx context.Context, job store.DailyRepo
 	return []reportemail.CardMetric{
 		{Label: "Feeds", Count: stats.FeedCount, Detail: dailyReportFeedDetail(stats)},
 		{Label: "Sleep", Count: stats.SleepCount, Detail: formatCompactDurationMinutes(stats.SleepMinutes)},
-		{Label: "Pump", Count: stats.PumpCount, Detail: fmt.Sprintf("%d ml", stats.PumpMl)},
+		{Label: "Pump", Count: stats.PumpCount, Detail: dailyReportPumpDetail(stats)},
 		{Label: "Nappies", Count: stats.NappyCount},
 	}
 }

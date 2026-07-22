@@ -67,8 +67,8 @@ func TestBuildDailyReportCardReturnsFourKPIs(t *testing.T) {
 		{EventType: eventTypeNappy, Attributes: map[string]any{"kind": "wet"}},
 		{EventType: eventTypeNappy, Attributes: map[string]any{"kind": "both"}},
 		{EventType: eventTypeNappy, Attributes: map[string]any{"kind": "both"}},
-		{EventType: eventTypePump, Attributes: map[string]any{"amount_ml": float64(150)}},
-		{EventType: eventTypePump, Attributes: map[string]any{"amount_ml": float64(175)}},
+		{EventType: eventTypePump, Attributes: map[string]any{"amount_ml": float64(150), "duration_minutes": float64(60)}},
+		{EventType: eventTypePump, Attributes: map[string]any{"amount_ml": float64(175), "duration_minutes": float64(35)}},
 		{EventType: eventTypeBath, Attributes: map[string]any{}},
 		{EventType: eventTypeTemperature, Attributes: map[string]any{}},
 	}
@@ -77,7 +77,7 @@ func TestBuildDailyReportCardReturnsFourKPIs(t *testing.T) {
 	want := []dailyReportMetric{
 		{Key: "feed", Count: 4, Label: "Feeds", Detail: "240 ml · 42 m"},
 		{Key: "sleep", Count: 4, Label: "Sleep", Detail: "9 h 39 m"},
-		{Key: "pump", Count: 2, Label: "Pump", Detail: "325 ml"},
+		{Key: "pump", Count: 2, Label: "Pump", Detail: "325 ml · 1 h 35 m"},
 		{Key: "nappy", Count: 4, Label: "Nappies"},
 	}
 	if len(card.Metrics) != len(want) {
@@ -95,7 +95,7 @@ func TestBuildDailyReportCardReturnsZeroTotalsForEmptyDay(t *testing.T) {
 	want := []dailyReportMetric{
 		{Key: "feed", Count: 0, Label: "Feeds", Detail: "0 ml · 0 m"},
 		{Key: "sleep", Count: 0, Label: "Sleep", Detail: "0 m"},
-		{Key: "pump", Count: 0, Label: "Pump", Detail: "0 ml"},
+		{Key: "pump", Count: 0, Label: "Pump", Detail: "0 ml · 0 m"},
 		{Key: "nappy", Count: 0, Label: "Nappies"},
 	}
 	for i := range want {

@@ -48,6 +48,7 @@ type dailyReportStats struct {
 	SleepMinutes     int
 	PumpCount        int
 	PumpMl           int
+	PumpMinutes      int
 	BathCount        int
 	ObservationCount int
 	TemperatureCount int
@@ -172,7 +173,7 @@ func buildDailyReportCard(events []store.Event) *dailyReportCardResponse {
 		Metrics: []dailyReportMetric{
 			{Key: "feed", Count: stats.FeedCount, Label: "Feeds", Detail: dailyReportFeedDetail(stats)},
 			{Key: "sleep", Count: stats.SleepCount, Label: "Sleep", Detail: formatCompactDurationMinutes(stats.SleepMinutes)},
-			{Key: "pump", Count: stats.PumpCount, Label: "Pump", Detail: fmt.Sprintf("%d ml", stats.PumpMl)},
+			{Key: "pump", Count: stats.PumpCount, Label: "Pump", Detail: dailyReportPumpDetail(stats)},
 			{Key: "nappy", Count: stats.NappyCount, Label: "Nappies"},
 		},
 	}
@@ -180,6 +181,10 @@ func buildDailyReportCard(events []store.Event) *dailyReportCardResponse {
 
 func dailyReportFeedDetail(stats dailyReportStats) string {
 	return fmt.Sprintf("%d ml · %s", stats.FeedMl, formatCompactDurationMinutes(stats.FeedMinutes))
+}
+
+func dailyReportPumpDetail(stats dailyReportStats) string {
+	return fmt.Sprintf("%d ml · %s", stats.PumpMl, formatCompactDurationMinutes(stats.PumpMinutes))
 }
 
 func dailyReportCardTitle(babyName string, period dailyReportPeriod) string {
@@ -246,6 +251,9 @@ func (s *dailyReportStats) add(ev store.Event) {
 		s.PumpCount++
 		if amount, ok := attributeInt(ev.Attributes, "amount_ml"); ok {
 			s.PumpMl += amount
+		}
+		if duration, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+			s.PumpMinutes += duration
 		}
 	case eventTypeBath:
 		s.BathCount++
