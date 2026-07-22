@@ -389,6 +389,37 @@ func TestEventOccurredAtFieldsShowDateBeforeTime(t *testing.T) {
 	}
 }
 
+func TestIntroLandingHandlesNarrowAndDarkScreens(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "static", "style.css"))
+	if err != nil {
+		t.Fatalf("read style.css: %v", err)
+	}
+	css := string(data)
+
+	tests := []struct {
+		selector string
+		want     []string
+	}{
+		{selector: ".intro-hero-copy", want: []string{"min-width: min(300px, 100%)"}},
+		{selector: ".intro-hero-visual", want: []string{"min-width: min(280px, 100%)"}},
+		{selector: ".intro-phone", want: []string{"box-sizing: border-box", "width: min(280px, 100%)"}},
+		{selector: ".intro-features-copy", want: []string{"min-width: min(300px, 100%)"}},
+		{selector: ".intro-features-copy > p", want: []string{"color: var(--color-text-secondary)"}},
+		{selector: ".intro-growth-card", want: []string{"box-sizing: border-box", "min-width: min(300px, 100%)"}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.selector, func(t *testing.T) {
+			body := cssRuleBody(t, css, test.selector)
+			for _, want := range test.want {
+				if !strings.Contains(body, want) {
+					t.Fatalf("%s rule does not contain %q:\n%s", test.selector, want, body)
+				}
+			}
+		})
+	}
+}
+
 // cssRuleBody returns the `{ ... }` body of the first CSS rule whose
 // selector list contains selector, ignoring how the rest of the selector
 // list is formatted (e.g. a comma-separated sibling selector on its own

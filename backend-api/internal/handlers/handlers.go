@@ -167,7 +167,7 @@ func orderTimelineEvents(events []store.Event) {
 }
 
 func isOngoingTimelineEvent(ev store.Event) bool {
-	return isOngoingFeed(ev) || isOngoingSleep(ev)
+	return isOngoingFeed(ev) || isOngoingPump(ev) || isOngoingSleep(ev)
 }
 
 func isOngoingFeed(ev store.Event) bool {
@@ -184,6 +184,10 @@ func isOngoingSleep(ev store.Event) bool {
 	}
 	_, ok := attributeOptionalInt(ev.Attributes, "duration_minutes")
 	return !ok
+}
+
+func isOngoingPump(ev store.Event) bool {
+	return ev.EventType == eventTypePump && attributeBool(ev.Attributes, "ongoing")
 }
 
 func timelineDayWindowFor(rawDate, timezone string) (timelineDayWindow, error) {
@@ -423,8 +427,16 @@ func normalizeEventAttributesForTime(w http.ResponseWriter, eventType string, ra
 			return nil, false
 		}
 		attributes := map[string]any{"amount_ml": amountMl}
-		if durationMinutes, ok := attributeOptionalInt(raw, "duration_minutes"); ok {
+		durationMinutes, hasDuration := attributeOptionalInt(raw, "duration_minutes")
+		ongoing := attributeBool(raw, "ongoing")
+		if ongoing && hasDuration {
+			writeError(w, http.StatusBadRequest, "ongoing pumps cannot include duration_minutes")
+			return nil, false
+		}
+		if hasDuration {
 			attributes["duration_minutes"] = durationMinutes
+		} else if ongoing {
+			attributes["ongoing"] = true
 		}
 		if notes := strings.TrimSpace(attributeString(raw, "notes")); notes != "" {
 			attributes["notes"] = notes
@@ -542,6 +554,14 @@ func attributeFloat(attributes map[string]any, key string) (float64, bool) {
 	default:
 		return 0, false
 	}
+}
+
+func attributeBool(attributes map[string]any, key string) bool {
+	if attributes == nil {
+		return false
+	}
+	value, _ := attributes[key].(bool)
+	return value
 }
 
 func attributeRequiredPositiveInt(attributes map[string]any, key string) (int, bool) {

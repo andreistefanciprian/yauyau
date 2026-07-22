@@ -82,6 +82,64 @@ func TestBathUpdatePayloadUsesEditedSettings(t *testing.T) {
 	}
 }
 
+func TestPumpUpdatePayloadPreservesDuration(t *testing.T) {
+	loc := time.FixedZone("ACST", 9*60*60+30*60)
+	form := url.Values{
+		"event_type":       {"pump"},
+		"amount_ml":        {"80"},
+		"duration_minutes": {"15"},
+		"ongoing":          {"false"},
+		"date":             {"2026-07-20"},
+		"time":             {"08:15"},
+	}
+	req := httptest.NewRequest(http.MethodPatch, "/events/pump-id", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := req.ParseForm(); err != nil {
+		t.Fatalf("ParseForm returned error: %v", err)
+	}
+
+	payload, err := (&Handlers{}).eventUpdatePayloadFromForm(loc, req)
+	if err != nil {
+		t.Fatalf("eventUpdatePayloadFromForm returned error: %v", err)
+	}
+	attributes := payload["attributes"].(map[string]any)
+	duration, ok := attributes["duration_minutes"].(*int)
+	if !ok || *duration != 15 {
+		t.Fatalf("duration_minutes = %#v, want 15", attributes["duration_minutes"])
+	}
+	if _, exists := attributes["ongoing"]; exists {
+		t.Fatalf("completed pump gained ongoing marker: %#v", attributes)
+	}
+}
+
+func TestPumpUpdatePayloadPreservesExplicitOngoingState(t *testing.T) {
+	loc := time.FixedZone("ACST", 9*60*60+30*60)
+	form := url.Values{
+		"event_type": {"pump"},
+		"amount_ml":  {"80"},
+		"ongoing":    {"true"},
+		"date":       {"2026-07-20"},
+		"time":       {"08:15"},
+	}
+	req := httptest.NewRequest(http.MethodPatch, "/events/pump-id", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := req.ParseForm(); err != nil {
+		t.Fatalf("ParseForm returned error: %v", err)
+	}
+
+	payload, err := (&Handlers{}).eventUpdatePayloadFromForm(loc, req)
+	if err != nil {
+		t.Fatalf("eventUpdatePayloadFromForm returned error: %v", err)
+	}
+	attributes := payload["attributes"].(map[string]any)
+	if ongoing, _ := attributes["ongoing"].(bool); !ongoing {
+		t.Fatalf("ongoing = %#v, want true", attributes["ongoing"])
+	}
+	if _, exists := attributes["duration_minutes"]; exists {
+		t.Fatalf("ongoing pump gained duration: %#v", attributes)
+	}
+}
+
 func TestFeedTimelineEventMarksMissingDurationOngoing(t *testing.T) {
 	loc := time.FixedZone("ACST", 9*60*60+30*60)
 	occurredAt := time.Date(2026, 7, 14, 9, 15, 0, 0, loc)
@@ -107,6 +165,29 @@ func TestFeedTimelineEventMarksMissingDurationOngoing(t *testing.T) {
 	}
 	if timelineEvent.AmountMl != "80" {
 		t.Fatalf("AmountMl = %q, want 80", timelineEvent.AmountMl)
+	}
+}
+
+func TestPumpTimelineEventRequiresExplicitOngoingMarker(t *testing.T) {
+	loc := time.FixedZone("ACST", 9*60*60+30*60)
+	occurredAt := time.Date(2026, 7, 14, 9, 15, 0, 0, loc)
+
+	legacy := pumpTimelineEvent(backendclient.Event{
+		EventType:  "pump",
+		OccurredAt: occurredAt,
+		Attributes: map[string]any{"amount_ml": float64(80)},
+	}, loc, occurredAt.Add(15*time.Minute))
+	if legacy.StatusLabel != "" || legacy.CanFinishPump || legacy.Ongoing {
+		t.Fatalf("legacy pump marked ongoing: %#v", legacy)
+	}
+
+	ongoing := pumpTimelineEvent(backendclient.Event{
+		EventType:  "pump",
+		OccurredAt: occurredAt,
+		Attributes: map[string]any{"amount_ml": float64(80), "ongoing": true},
+	}, loc, occurredAt.Add(15*time.Minute))
+	if ongoing.StatusLabel != "Ongoing" || !ongoing.CanFinishPump || !ongoing.Ongoing {
+		t.Fatalf("explicit ongoing pump not marked ongoing: %#v", ongoing)
 	}
 }
 

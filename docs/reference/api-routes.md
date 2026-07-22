@@ -16,15 +16,9 @@ signature/expiry and decodes the caller's identity into context — see
 
 * `GET /healthz` — unauthenticated.
 * `GET /api/v1/users/me` → `GetCurrentUser`; returns the authenticated
-  user's id, email, display name, and current report-email preference flags
-  for account/settings UI.
+  user's id, email, and display name for account/settings UI.
 * `PATCH /api/v1/users/me` → `UpdateCurrentUser`; updates optional account
   profile fields such as `display_name`.
-* `PATCH /api/v1/users/me/report-preferences` →
-  `UpdateReportPreferences`, owner-only; updates whether the current owner
-  should receive scheduled daily report emails once the scheduler exists.
-  Non-owners cannot update or receive daily report emails in the current
-  product slice.
 * `POST /api/v1/babies` → `CreateBaby`. A caller with no existing family
   membership gets a family created implicitly (auto-named, never shown to
   the user) and becomes its owner in the same call; a caller who already
@@ -101,6 +95,9 @@ signature/expiry and decodes the caller's identity into context — see
   `/feeds`, `/pumps`, `/baths`, `/observations`,
   `/growth-measurements`, ...):
   * `POST /api/v1/babies/current/<resource>` → `Create<Type>`
+  * Pump requests use `ongoing: true` to identify a pump session without a
+    duration. Omitting both `ongoing` and `duration_minutes` keeps legacy pump
+    events as completed point-in-time records.
   * Sleep `type` may be omitted on create or generic update. The backend then
     classifies the sleep from its start time: starts from 18:00 through 05:59
     are `night`, and starts from 06:00 through 17:59 are `nap`. Explicit
@@ -210,10 +207,11 @@ type) fed by a single "Add Event" dialog (not one form per event type).
   selected date is carried in each form/delete request so HTMX refreshes
   preserve the parent's current view.
 * `UpdateEvent` uses the same `renderTimeline` tail after patching the
-  combined `/events/{id}` route. Timeline quick actions for ongoing feeds
-  and sleeps post to frontend-only finish routes (`/events/{id}/finish-feed`
-  and `/events/{id}/finish-sleep`), which preserve the original event start
-  time and call the same backend update route with a calculated duration.
+  combined `/events/{id}` route. Timeline quick actions for ongoing feeds,
+  pumps, and sleeps post to frontend-only finish routes
+  (`/events/{id}/finish-feed`, `/events/{id}/finish-pump`, and
+  `/events/{id}/finish-sleep`), which preserve the original event start time
+  and call the same backend update route with a calculated duration.
 
 On the client, `frontend/static/app.js` drives the "Add Event" dialog: a
 type-picker step (one button per event type) followed by a
