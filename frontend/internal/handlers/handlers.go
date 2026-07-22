@@ -40,7 +40,6 @@ const (
 type Backend interface {
 	GetCurrentUser(ctx context.Context) (backendclient.User, error)
 	UpdateCurrentUser(ctx context.Context, displayName string) (backendclient.User, error)
-	UpdateReportPreferences(ctx context.Context, dailyReportEmailEnabled bool) (backendclient.User, error)
 	GetCurrentBaby(ctx context.Context) (backendclient.Baby, error)
 	CreateBaby(ctx context.Context, name string) (backendclient.Baby, error)
 	UpdateCurrentBaby(ctx context.Context, baby backendclient.Baby) (backendclient.Baby, error)
@@ -97,6 +96,7 @@ type TimelineEvent struct {
 	StatusLabel         string
 	CanFinishFeed       bool
 	CanFinishSleep      bool
+	CanFinishPump       bool
 	Time                string // pre-formatted for display, e.g. "11:15 AM" or "Jan 2, 11:15 AM"
 	DateValue           string
 	TimeValue           string
@@ -138,11 +138,9 @@ type inviteStatus struct {
 }
 
 type accountViewData struct {
-	Label                     string
-	Email                     string
-	DisplayName               string
-	CanManageDailyReportEmail bool
-	DailyReportEmailEnabled   bool
+	Label       string
+	Email       string
+	DisplayName string
 }
 
 type indexPageData struct {
@@ -211,6 +209,17 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The day-range links fetch this same route via htmx, so switching days
+	// re-renders just the report + timeline in place — no full-page
+	// reload/flash, matching how the (client-side) type filter already
+	// feels instant.
+	if r.Header.Get("HX-Request") == "true" {
+		h.renderTimelineWorkspace(w, timeline, dailyReport)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
 	now := time.Now().In(loc)
 	data := indexPageData{
 		Baby:        baby,
@@ -221,7 +230,6 @@ func (h *Handlers) renderIndex(w http.ResponseWriter, r *http.Request) {
 		NowTime:     now.Format(timeFieldLayout),
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.Templates.ExecuteTemplate(w, "index", data); err != nil {
 		log.Printf("render index template: %v", err)
 	}
@@ -243,11 +251,9 @@ func accountFromUser(user backendclient.User) accountViewData {
 		label = user.Email
 	}
 	return accountViewData{
-		Label:                     label,
-		Email:                     user.Email,
-		DisplayName:               user.DisplayName,
-		CanManageDailyReportEmail: user.CanManageDailyReportEmail,
-		DailyReportEmailEnabled:   user.DailyReportEmailEnabled,
+		Label:       label,
+		Email:       user.Email,
+		DisplayName: user.DisplayName,
 	}
 }
 
@@ -351,7 +357,13 @@ func (h *Handlers) CreatePump(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	occurredAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
+	durationMinutes, err := parseOptionalInt(r.FormValue("duration_minutes"))
+	if err != nil {
+		http.Error(w, "invalid duration", http.StatusBadRequest)
+		return
+	}
+
+	occurredAt, err := resolveDurationBasedOccurredAt(loc, r.FormValue("date"), r.FormValue("time"), r.FormValue("pump_time_basis"), durationMinutes)
 	if err != nil {
 		log.Printf("parse pump time: %v", err)
 		http.Error(w, "invalid date/time", http.StatusBadRequest)
@@ -365,9 +377,10 @@ func (h *Handlers) CreatePump(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := map[string]any{
-		"amount_ml":   amountMl,
-		"notes":       r.FormValue("notes"),
-		"occurred_at": occurredAt.Format(time.RFC3339),
+		"amount_ml":        amountMl,
+		"duration_minutes": durationMinutes,
+		"notes":            r.FormValue("notes"),
+		"occurred_at":      occurredAt.Format(time.RFC3339),
 	}
 	if err := h.Backend.CreateEvent(r.Context(), "pumps", payload); err != nil {
 		log.Printf("create pump: %v", err)
@@ -757,10 +770,14 @@ func (h *Handlers) renderTimeline(w http.ResponseWriter, r *http.Request, loc *t
 		return
 	}
 
-	data := timelineWorkspaceData{
-		Timeline:    timeline,
-		DailyReport: h.loadDailyReport(r.Context(), selectedDate),
-	}
+	h.renderTimelineWorkspace(w, timeline, h.loadDailyReport(r.Context(), selectedDate))
+}
+
+// renderTimelineWorkspace writes the "timeline-workspace" partial (daily
+// report + event list) directly, for callers that already have both pieces
+// in hand and would otherwise re-fetch them redundantly.
+func (h *Handlers) renderTimelineWorkspace(w http.ResponseWriter, timeline TimelineViewData, dailyReport *backendclient.DailyReport) {
+	data := timelineWorkspaceData{Timeline: timeline, DailyReport: dailyReport}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.Templates.ExecuteTemplate(w, "timeline-workspace", data); err != nil {
@@ -873,6 +890,59 @@ func (h *Handlers) FinishFeedNow(w http.ResponseWriter, r *http.Request) {
 	if err := h.Backend.UpdateEvent(r.Context(), id, payload); err != nil {
 		log.Printf("finish feed: %v", err)
 		writeBackendEventError(w, err, "failed to finish feed")
+		return
+	}
+
+	h.renderTimeline(w, r, loc)
+}
+
+// FinishPumpNow completes an ongoing pump from its existing start time to the
+// current time.
+func (h *Handlers) FinishPumpNow(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	_, loc, err := h.currentBabyLocation(r.Context())
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, "failed to load baby", http.StatusBadGateway)
+		return
+	}
+
+	startedAt, err := parseEventTime(loc, r.FormValue("date"), r.FormValue("time"))
+	if err != nil {
+		log.Printf("parse pump start: %v", err)
+		http.Error(w, "invalid pump start", http.StatusBadRequest)
+		return
+	}
+
+	durationMinutes := int(time.Since(startedAt).Minutes())
+	if durationMinutes < 1 {
+		durationMinutes = 1
+	}
+
+	amountMl, err := parseRequiredPositiveInt(r.FormValue("amount_ml"))
+	if err != nil {
+		http.Error(w, "invalid amount", http.StatusBadRequest)
+		return
+	}
+
+	attributes := map[string]any{
+		"amount_ml":        amountMl,
+		"duration_minutes": durationMinutes,
+	}
+	if notes := r.FormValue("notes"); notes != "" {
+		attributes["notes"] = notes
+	}
+
+	payload := map[string]any{
+		"event_type":  "pump",
+		"attributes":  attributes,
+		"occurred_at": startedAt.Format(time.RFC3339),
+	}
+
+	if err := h.Backend.UpdateEvent(r.Context(), id, payload); err != nil {
+		log.Printf("finish pump: %v", err)
+		writeBackendEventError(w, err, "failed to finish pump")
 		return
 	}
 
@@ -1201,14 +1271,37 @@ func pumpTimelineEvent(ev backendclient.Event, loc *time.Location, now time.Time
 		inlineDetail = fmt.Sprintf("%dml", amount)
 	}
 
+	detail := amountAndDuration(ev.Attributes, "amount_ml", "ml")
+	statusLabel := ""
+	if _, ok := attributeInt(ev.Attributes, "duration_minutes"); !ok {
+		if detail != "" {
+			detail += " · "
+		}
+		detail += "Pumping in progress"
+		statusLabel = "Ongoing"
+	}
+	if notes != "" {
+		if detail != "" {
+			detail += " · "
+		}
+		detail += notes
+	}
+	durationMinutes := ""
+	if duration, ok := attributeInt(ev.Attributes, "duration_minutes"); ok {
+		durationMinutes = strconv.Itoa(duration)
+	}
+
 	return TimelineEvent{
-		CSSClass:     "pump",
-		TypeLabel:    "Pump",
-		InlineDetail: inlineDetail,
-		Detail:       notes,
-		Time:         formatEventTime(occurredAt, now),
-		AmountMl:     amountMl,
-		Notes:        notes,
+		CSSClass:        "pump",
+		TypeLabel:       "Pump",
+		InlineDetail:    inlineDetail,
+		Detail:          detail,
+		StatusLabel:     statusLabel,
+		CanFinishPump:   statusLabel != "",
+		Time:            formatEventTime(occurredAt, now),
+		AmountMl:        amountMl,
+		DurationMinutes: durationMinutes,
+		Notes:           notes,
 	}
 }
 

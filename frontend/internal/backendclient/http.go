@@ -63,17 +63,6 @@ func (c *HTTPClient) UpdateCurrentUser(ctx context.Context, displayName string) 
 	return user, nil
 }
 
-// UpdateReportPreferences calls a dedicated endpoint rather than piggybacking
-// on account profile updates because report delivery is membership-scoped and
-// owner-only, not a global user profile field like display name.
-func (c *HTTPClient) UpdateReportPreferences(ctx context.Context, dailyReportEmailEnabled bool) (User, error) {
-	var user User
-	if err := c.patchJSONDecode(ctx, "/api/v1/users/me/report-preferences", map[string]bool{"daily_report_email_enabled": dailyReportEmailEnabled}, &user); err != nil {
-		return User{}, err
-	}
-	return user, nil
-}
-
 // CreateBaby adds name as the caller's first baby. backend-api creates
 // their family implicitly in the same call (see backend-api's CreateBaby)
 // and returns it as the baby's family_id.

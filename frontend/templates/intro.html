@@ -10,40 +10,163 @@
 </head>
 <body class="intro-body">
   <nav class="intro-nav" aria-label="Primary">
-    <a class="intro-brand" href="/" aria-label="Yauli home">
-      <img src="/static/logo.png" alt="Yauli" class="intro-logo">
-    </a>
-    <a class="intro-sign-in" href="/login">Sign in</a>
+    <div class="intro-nav-inner">
+      <a class="intro-brand" href="/" aria-label="Yauli home">
+        <img src="/static/yauli_logo_267_264px.png" alt="" class="intro-logo">
+        <span class="intro-wordmark" aria-hidden="true"><span class="navbar-wordmark-yau">Yau</span><span class="navbar-wordmark-li">li</span></span>
+      </a>
+      <a class="intro-sign-in" href="/login">Sign in</a>
+    </div>
   </nav>
 
   <main class="intro-main">
     <section class="intro-hero">
-      <p class="intro-kicker">Free to get started</p>
-      <h1>Your parenting companion, from day one.</h1>
-      <p class="intro-copy">
-        Keep feeds, pumping, nappies, sleep, baths, and tiny observations in one calm timeline.
-        Invite the people helping care for your baby, so everyone stays gently in sync.
-      </p>
-      <div class="intro-actions">
-        <a class="intro-primary" href="/login">Get started</a>
+      <div class="intro-hero-copy">
+        <p class="intro-kicker">Free to get started</p>
+        <h1>Your parenting companion, from day one.</h1>
+        <p class="intro-copy">One calm timeline for your baby's day, shared gently with everyone who helps care for them.</p>
+        <div class="intro-actions">
+          <a class="intro-primary" href="/login">Get started</a>
+          <!-- No link yet: waiting on a demo account to send people to. -->
+          <span class="intro-secondary">See how it works</span>
+        </div>
+      </div>
+
+      <div class="intro-hero-visual" aria-hidden="true">
+        <div class="intro-phone">
+          <div class="intro-phone-screen">
+            <div class="intro-phone-header">Your baby &middot; Today</div>
+            <div class="intro-phone-kpis">
+              <div class="intro-phone-kpi intro-phone-kpi-feed"><strong>5</strong><span>Feeds</span></div>
+              <div class="intro-phone-kpi intro-phone-kpi-sleep"><strong>3</strong><span>Sleep</span></div>
+              <div class="intro-phone-kpi intro-phone-kpi-pump"><strong>1</strong><span>Pump</span></div>
+              <div class="intro-phone-kpi intro-phone-kpi-nappy"><strong>4</strong><span>Nappies</span></div>
+            </div>
+            <div class="intro-phone-events">
+              <div class="intro-phone-event">
+                <span class="intro-phone-marker intro-phone-marker-feed">{{template "feed-icon"}}</span>
+                <div class="intro-phone-event-body">
+                  <p class="intro-phone-event-title">Feed <span>&middot; Expressed</span></p>
+                  <p class="intro-phone-event-time">9:32 AM &middot; 80 ml</p>
+                </div>
+              </div>
+              <div class="intro-phone-event">
+                <span class="intro-phone-marker intro-phone-marker-sleep">{{template "sleep-icon"}}</span>
+                <div class="intro-phone-event-body">
+                  <p class="intro-phone-event-title">Nap</p>
+                  <p class="intro-phone-event-time">9:15 AM &middot; Ongoing</p>
+                </div>
+              </div>
+              <div class="intro-phone-event">
+                <span class="intro-phone-marker intro-phone-marker-nappy">{{template "nappy-icon"}}</span>
+                <div class="intro-phone-event-body">
+                  <p class="intro-phone-event-title">Wee</p>
+                  <p class="intro-phone-event-time">8:58 AM</p>
+                </div>
+              </div>
+              <div class="intro-phone-event intro-phone-event-last">
+                <span class="intro-phone-marker intro-phone-marker-growth">{{template "growth-icon"}}</span>
+                <div class="intro-phone-event-body">
+                  <p class="intro-phone-event-title">Growth</p>
+                  <p class="intro-phone-event-time">7:15 AM &middot; 3.5 kg</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section class="intro-points" aria-label="What Yauli helps with">
-      <div>
-        <span>Feeds</span>
-        <p>Record what happened in seconds, without rummaging through forms.</p>
+    <section class="intro-features" id="features" aria-label="What Yauli helps with">
+     <div class="intro-features-inner">
+      <div class="intro-features-copy">
+        <h2>Daily reports, and the bigger picture.</h2>
+        <p>Every day, Yauli quietly writes up how things went. Zoom out and you'll see growth milestones, doctor visits, and vaccines charted alongside it, so you always know where your baby stands.</p>
+        <ul class="intro-feature-list">
+          <li>
+            <span class="intro-feature-icon intro-feature-icon-blue">{{template "report-icon"}}</span>
+            <div>
+              <h3>Daily AI reports</h3>
+              <p>A short written summary of feeds, sleep, and patterns, delivered each morning.</p>
+            </div>
+          </li>
+          <li>
+            <span class="intro-feature-icon intro-feature-icon-green">{{template "growth-icon"}}</span>
+            <div>
+              <h3>Growth milestones</h3>
+              <p>Track weight and length over time and see how they trend against expected ranges.</p>
+            </div>
+          </li>
+          <li>
+            <span class="intro-feature-icon intro-feature-icon-coral">{{template "temperature-icon"}}</span>
+            <div>
+              <h3>Doctor visits &amp; vaccines</h3>
+              <p>Keep appointments and vaccination dates on the same timeline as everything else.</p>
+            </div>
+          </li>
+          <li>
+            <span class="intro-feature-icon intro-feature-icon-teal">{{template "send-icon"}}</span>
+            <div>
+              <h3>Share with your doctor</h3>
+              <p>Send the last 7 days as a clear report before an appointment, no digging through notes.</p>
+            </div>
+          </li>
+        </ul>
       </div>
-      <div>
-        <span>Timeline</span>
-        <p>See your baby's day at a glance, newest moments first.</p>
+
+      <div class="intro-growth-card" aria-hidden="true">
+        <div class="intro-growth-card-header">
+          <span class="intro-growth-card-title">Weight</span>
+          <span class="intro-growth-card-range">0&ndash;6 months</span>
+        </div>
+        <p class="intro-growth-card-value">7.2 kg <span>On track</span></p>
+        <svg class="intro-growth-chart" viewBox="0 0 320 140" preserveAspectRatio="none">
+          <line x1="0" y1="20" x2="320" y2="20"/>
+          <line x1="0" y1="60" x2="320" y2="60"/>
+          <line x1="0" y1="100" x2="320" y2="100"/>
+          <polygon class="intro-growth-chart-fill" points="0,128 40,116 80,104 120,94 160,84 200,74 240,62 280,50 320,40 320,140 0,140"/>
+          <polyline class="intro-growth-chart-line" points="0,128 40,116 80,104 120,94 160,84 200,74 240,62 280,50 320,40"/>
+          <circle class="intro-growth-chart-dot" cx="160" cy="84" r="4.5"/>
+          <circle class="intro-growth-chart-dot-filled" cx="320" cy="40" r="4.5"/>
+        </svg>
+        <div class="intro-growth-chart-axis">
+          <span>Birth</span>
+          <span>3 months</span>
+          <span>6 months</span>
+        </div>
+        <div class="intro-growth-card-divider"></div>
+        <div class="intro-growth-milestone">
+          <span class="intro-growth-milestone-dot intro-growth-milestone-dot-done"></span>
+          <span>4-month checkup &middot; completed</span>
+        </div>
+        <div class="intro-growth-milestone">
+          <span class="intro-growth-milestone-dot intro-growth-milestone-dot-due"></span>
+          <span>DTaP vaccine &middot; due in 3 weeks</span>
+        </div>
       </div>
+     </div>
+    </section>
+
+    <section class="intro-cta-banner">
       <div>
-        <span>Together</span>
-        <p>Share the timeline with trusted helpers when care is a team effort.</p>
+        <h2>Start your baby's timeline today.</h2>
+        <p>Free to get started. No credit card needed.</p>
       </div>
+      <a class="intro-primary" href="/login">Get started free</a>
     </section>
   </main>
+
+  <footer class="intro-footer">
+    <a class="intro-brand" href="/" aria-label="Yauli home">
+      <img src="/static/yauli_logo_267_264px.png" alt="" class="intro-footer-logo">
+      <span class="intro-footer-wordmark"><span class="navbar-wordmark-yau">Yau</span><span class="navbar-wordmark-li">li</span></span>
+    </a>
+    <a class="intro-instagram" href="https://instagram.com/yauli" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="0.5" fill="currentColor" stroke="none"/></svg>
+      @yauli
+    </a>
+    <p class="intro-copyright">&copy; 2026 Yauli. Made for tired, loving parents.</p>
+  </footer>
 </body>
 </html>
 {{end}}

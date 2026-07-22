@@ -21,6 +21,10 @@ const sessionCookieTTL = 30 * 24 * time.Hour
 // parameter, so every call site is guaranteed to agree on its shape.
 type loginPageData struct {
 	Email, Error string
+	// SignedOut swaps the tagline/subtitle for a "Welcome back" greeting
+	// when arriving here right after signing out, rather than the
+	// first-time-visitor pitch.
+	SignedOut bool
 }
 
 // verifyPageData is the verify page's template data, named for the same
@@ -30,7 +34,7 @@ type verifyPageData struct {
 }
 
 func (h *Handlers) ShowLogin(w http.ResponseWriter, r *http.Request) {
-	h.renderLogin(w, loginPageData{})
+	h.renderLogin(w, loginPageData{SignedOut: r.URL.Query().Get("signed_out") == "1"})
 }
 
 // RequestMagicLink asks auth-service to send a magic link, then always
@@ -43,14 +47,15 @@ func (h *Handlers) RequestMagicLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := r.FormValue("email")
+	signedOut := r.FormValue("signed_out") == "1"
 	if email == "" {
-		h.renderLogin(w, loginPageData{Error: "Email is required."})
+		h.renderLogin(w, loginPageData{Error: "Email is required.", SignedOut: signedOut})
 		return
 	}
 
 	if err := h.Auth.RequestMagicLink(r.Context(), email); err != nil {
 		log.Printf("request magic link: %v", err)
-		h.renderLogin(w, loginPageData{Email: email, Error: "Something went wrong. Please try again."})
+		h.renderLogin(w, loginPageData{Email: email, Error: "Something went wrong. Please try again.", SignedOut: signedOut})
 		return
 	}
 
@@ -133,7 +138,7 @@ func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, h.sessionCookie("", -1))
 
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	http.Redirect(w, r, "/login?signed_out=1", http.StatusSeeOther)
 }
 
 // sessionCookie builds the yauli_session cookie, the single point of truth

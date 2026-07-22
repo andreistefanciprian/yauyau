@@ -11,8 +11,19 @@
 </head>
 <body>
   <main class="auth-main">
-    <div class="auth-card" id="login-card">
-      {{template "login-form" .}}
+    <div class="auth-card">
+      <div class="auth-brand">
+        <img src="/static/yauli_logo_267_264px.png" alt="" class="auth-brand-mark">
+        <span class="auth-brand-wordmark"><span class="navbar-wordmark-yau">Yau</span><span class="navbar-wordmark-li">li</span></span>
+      </div>
+      <div id="login-card">
+        {{template "login-form" .}}
+      </div>
+      <div class="auth-trust-row">
+        <span>No password</span>
+        <span class="auth-trust-dot" aria-hidden="true"></span>
+        <span>Private by default</span>
+      </div>
     </div>
   </main>
 </body>
@@ -20,11 +31,16 @@
 {{end}}
 
 {{define "login-form"}}
-<img src="/static/logo.png" alt="Yauli" class="auth-logo login-logo">
+{{if .SignedOut}}
+<p class="login-tagline">Welcome back</p>
+<p class="auth-subtitle">Sign in to keep your timeline going.</p>
+{{else}}
 <p class="login-tagline">Your parenting companion, from day one.</p>
-<p class="auth-subtitle">Enter your email to receive a secure sign in link.</p>
+<p class="auth-subtitle">Enter your email and we'll send a secure sign in link.</p>
+{{end}}
 {{if .Error}}<p class="auth-error">{{.Error}}</p>{{end}}
 <form class="auth-form" hx-post="/login" hx-target="#login-card" hx-swap="innerHTML">
+  <input type="hidden" name="signed_out" value="{{if .SignedOut}}1{{end}}">
   <label class="field-label">
     <span class="sr-only">Email</span>
     <input type="email" name="email" value="{{.Email}}" required autofocus placeholder="you@example.com">

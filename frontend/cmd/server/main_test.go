@@ -331,7 +331,7 @@ func TestIndexGroupsEventDateAndTimeFields(t *testing.T) {
 	}
 	html := rendered.String()
 
-	for _, eventType := range []string{"nappy", "pump", "bath", "observation", "temperature", "growth_measurement"} {
+	for _, eventType := range []string{"nappy", "bath", "observation", "temperature", "growth_measurement"} {
 		form := createEventFormMarkup(t, html, eventType)
 		if got := strings.Count(form, `class="event-occurred-at-fields"`); got != 1 {
 			t.Errorf("%s create form has %d Time/Date groups, want 1", eventType, got)
@@ -341,9 +341,11 @@ func TestIndexGroupsEventDateAndTimeFields(t *testing.T) {
 		}
 	}
 
-	feedForm := createEventFormMarkup(t, html, "feed")
-	if !strings.Contains(feedForm, `Started`) || strings.Count(feedForm, `class="sleep-time-pair"`) != 2 {
-		t.Errorf("feed create form does not group Started and Finished Date/Time fields")
+	for _, eventType := range []string{"feed", "pump"} {
+		form := createEventFormMarkup(t, html, eventType)
+		if !strings.Contains(form, `Started`) || strings.Count(form, `class="sleep-time-pair"`) != 2 {
+			t.Errorf("%s create form does not group Started and Finished Date/Time fields", eventType)
+		}
 	}
 
 	if got := strings.Count(html, `class="edit-occurred-at-fields"`); got != 1 {
@@ -354,8 +356,10 @@ func TestIndexGroupsEventDateAndTimeFields(t *testing.T) {
 func parseFrontendTemplates(t *testing.T) *template.Template {
 	t.Helper()
 	templates, err := template.New("").Funcs(template.FuncMap{
-		"assetURL": func(name string) string { return "/static/" + name + "?v=test" },
-		"dict":     dict,
+		"assetURL":  func(name string) string { return "/static/" + name + "?v=test" },
+		"dict":      dict,
+		"splitTime": splitEventTime,
+		"initial":   initial,
 	}).ParseGlob("../../templates/*.html")
 	if err != nil {
 		t.Fatalf("parse templates: %v", err)
