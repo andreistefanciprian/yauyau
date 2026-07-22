@@ -13,11 +13,8 @@ import (
 )
 
 type settingsPageData struct {
-	Baby    backendclient.Baby
-	Account accountViewData
-	// ReportEmails is separated from Account because the checkbox is about
-	// this user's membership in the current family, not their global account.
-	ReportEmails    reportEmailSettings
+	Baby            backendclient.Baby
+	Account         accountViewData
 	SexOptions      []babySexOption
 	Members         []backendclient.TimelineMember
 	CanManageBaby   bool
@@ -31,15 +28,6 @@ type settingsPageData struct {
 	UpdateError    string
 	DeleteError    string
 	TimelineNotice string
-}
-
-type reportEmailSettings struct {
-	// CanManage controls whether the section renders. Backend-api still
-	// enforces owner-only updates; this only keeps non-owner settings tidy.
-	CanManage          bool
-	DailyReportEnabled bool
-	Notice             string
-	Error              string
 }
 
 type babySexOption struct {
@@ -69,37 +57,6 @@ func (h *Handlers) UpdateAccountSettings(w http.ResponseWriter, r *http.Request)
 	h.renderSettings(w, r, settingsPageData{
 		Account:       accountFromUser(user),
 		AccountNotice: "Account settings updated.",
-	})
-}
-
-// UpdateReportEmailSettings saves the owner's opt-in for future scheduled
-// daily emails. The scheduler/delivery work is intentionally separate; this
-// handler only records whether this owner wants the email when that exists.
-func (h *Handlers) UpdateReportEmailSettings(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
-		return
-	}
-
-	enabled := r.FormValue("daily_report_email_enabled") == "on"
-	user, err := h.Backend.UpdateReportPreferences(r.Context(), enabled)
-	if err != nil {
-		if errors.Is(err, backendclient.ErrForbidden) {
-			h.renderSettings(w, r, settingsPageData{SettingsNotice: "Only the timeline owner can update report emails."})
-			return
-		}
-		log.Printf("update report email settings: %v", err)
-		h.renderSettings(w, r, settingsPageData{ReportEmails: reportEmailSettings{Error: "Could not save report email settings. Please try again."}})
-		return
-	}
-
-	h.renderSettings(w, r, settingsPageData{
-		Account: accountFromUser(user),
-		ReportEmails: reportEmailSettings{
-			CanManage:          user.CanManageDailyReportEmail,
-			DailyReportEnabled: user.DailyReportEmailEnabled,
-			Notice:             "Report email settings updated.",
-		},
 	})
 }
 
@@ -344,10 +301,6 @@ func (h *Handlers) renderSettings(w http.ResponseWriter, r *http.Request, data s
 	}
 	if data.Account.Email == "" {
 		data.Account = h.loadAccount(r.Context())
-	}
-	if !data.ReportEmails.CanManage && data.Account.CanManageDailyReportEmail {
-		data.ReportEmails.CanManage = true
-		data.ReportEmails.DailyReportEnabled = data.Account.DailyReportEmailEnabled
 	}
 	data.CanManageBaby = data.Baby.CanInvite
 	data.SexOptions = sexOptions(data.Baby.Sex)

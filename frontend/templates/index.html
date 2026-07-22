@@ -22,40 +22,52 @@
     </section>
     {{end}}
 
-    <div class="timeline-filters">
-      <button type="button" class="timeline-filters-toggle" id="timeline-filters-toggle" aria-expanded="false" aria-controls="timeline-filters-body">
-        <span id="timeline-filters-summary">Today · All events</span>
-        <span class="chevron" aria-hidden="true">&#9662;</span>
-      </button>
+    <div class="app-layout">
+      <aside class="app-sidebar">
+        <div class="timeline-filters">
+          <button type="button" class="timeline-filters-toggle" id="timeline-filters-toggle" aria-expanded="false" aria-controls="timeline-filters-body">
+            <span>Filters</span>
+            <span class="chevron" aria-hidden="true">&#9662;</span>
+          </button>
 
-      <div class="timeline-filters-body" id="timeline-filters-body" hidden>
-        <nav class="range-nav" aria-label="Timeline range">
-          {{range .Timeline.Ranges}}
-          <a href="{{.Href}}" class="range-pill{{if .Active}} active{{end}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}}</a>
-          {{end}}
-        </nav>
+          <div class="timeline-filters-body" id="timeline-filters-body" hidden>
+            <div class="filter-group">
+              <span class="filter-section-label">Day</span>
+              <nav class="range-nav" aria-label="Timeline range">
+                {{range .Timeline.Ranges}}
+                <a href="{{.Href}}" class="range-pill{{if .Active}} active{{end}}" {{if .Active}}aria-current="page"{{end}}
+                  hx-get="{{.Href}}" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-push-url="true">{{.Label}}</a>
+                {{end}}
+              </nav>
+            </div>
 
-        <div class="type-filter" id="type-filter" role="group" aria-label="Filter by event type">
-          <button type="button" class="type-filter-chip type-filter-chip-all active" data-filter-type="all" title="All events">All</button>
-          <button type="button" class="type-filter-chip" data-filter-type="nappy" title="Nappy" aria-label="Filter to nappy events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "nappy"}}</span></button>
-          <button type="button" class="type-filter-chip" data-filter-type="feed" title="Feed" aria-label="Filter to feed events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "feed"}}</span></button>
-          <button type="button" class="type-filter-chip" data-filter-type="pump" title="Pump" aria-label="Filter to pump events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "pump"}}</span></button>
-          <button type="button" class="type-filter-chip" data-filter-type="bath" title="Bath" aria-label="Filter to bath events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "bath"}}</span></button>
-          <button type="button" class="type-filter-chip" data-filter-type="sleep" title="Sleep" aria-label="Filter to sleep events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "sleep"}}</span></button>
-          <button type="button" class="type-filter-chip" data-filter-type="observation" title="Notes" aria-label="Filter to observation events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "observation"}}</span></button>
-          <button type="button" class="type-filter-chip" data-filter-type="temperature" title="Temperature" aria-label="Filter to temperature events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "temperature"}}</span></button>
-          <button type="button" class="type-filter-chip" data-filter-type="growth_measurement" title="Growth" aria-label="Filter to growth events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "growth_measurement"}}</span></button>
+            <div class="filter-group">
+              <span class="filter-section-label">Filter</span>
+              <div class="type-filter" id="type-filter" role="group" aria-label="Filter by event type">
+                <button type="button" class="type-filter-chip type-filter-chip-all active" data-filter-type="all" title="All events"><span class="type-filter-swatch" aria-hidden="true"></span><span class="type-filter-chip-label">All</span></button>
+                <button type="button" class="type-filter-chip" data-filter-type="nappy" title="Nappy" aria-label="Filter to nappy events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "nappy"}}</span><span class="type-filter-chip-label">Nappy</span></button>
+                <button type="button" class="type-filter-chip" data-filter-type="feed" title="Feed" aria-label="Filter to feed events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "feed"}}</span><span class="type-filter-chip-label">Feed</span></button>
+                <button type="button" class="type-filter-chip" data-filter-type="pump" title="Pump" aria-label="Filter to pump events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "pump"}}</span><span class="type-filter-chip-label">Pump</span></button>
+                <button type="button" class="type-filter-chip" data-filter-type="bath" title="Bath" aria-label="Filter to bath events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "bath"}}</span><span class="type-filter-chip-label">Bath</span></button>
+                <button type="button" class="type-filter-chip" data-filter-type="sleep" title="Sleep" aria-label="Filter to sleep events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "sleep"}}</span><span class="type-filter-chip-label">Sleep</span></button>
+                <button type="button" class="type-filter-chip" data-filter-type="observation" title="Notes" aria-label="Filter to observation events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "observation"}}</span><span class="type-filter-chip-label">Notes</span></button>
+                <button type="button" class="type-filter-chip" data-filter-type="temperature" title="Temperature" aria-label="Filter to temperature events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "temperature"}}</span><span class="type-filter-chip-label">Temperature</span></button>
+                <button type="button" class="type-filter-chip" data-filter-type="growth_measurement" title="Growth" aria-label="Filter to growth events"><span class="event-type-icon" aria-hidden="true">{{template "event-type-icon" "growth_measurement"}}</span><span class="type-filter-chip-label">Growth</span></button>
+              </div>
+            </div>
+          </div>
         </div>
+      </aside>
 
+      <div class="app-content">
+        {{template "timeline-workspace" (dict "Timeline" .Timeline "DailyReport" .DailyReport)}}
+
+        <button type="button" class="fab" id="add-event-button" aria-haspopup="dialog" aria-controls="add-event-dialog">
+          <span class="fab-plus" aria-hidden="true">+</span>
+          <span>Add Event</span>
+        </button>
       </div>
     </div>
-
-    {{template "timeline-workspace" (dict "Timeline" .Timeline "DailyReport" .DailyReport)}}
-
-    <button type="button" class="fab" id="add-event-button" aria-haspopup="dialog" aria-controls="add-event-dialog">
-      <span class="fab-plus" aria-hidden="true">+</span>
-      <span>Add Event</span>
-    </button>
 
     <dialog id="add-event-dialog" aria-labelledby="add-event-title">
       <div class="dialog-content">
@@ -222,19 +234,34 @@
           <input type="text" name="notes" placeholder="e.g. left side">
         </label>
 
-        <div class="event-occurred-at-fields">
+        <label class="field-label">
+          Duration (minutes, optional)
+          {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "30" "SliderStep" "5" "Label" "pump duration" "Value" "15" "PumpDuration" true)}}
+        </label>
+
+        <input type="hidden" name="pump_time_basis" value="start">
+
+        <div class="feed-time-fields" data-pump-time-fields>
           <label class="field-label">
-            Time
-            <input type="time" name="time" value="{{.NowTime}}" required>
+            Started
+            <span class="sleep-time-pair">
+              <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required data-pump-start-date>
+              <input type="time" name="time" value="{{.NowTime}}" required data-pump-start-time>
+            </span>
           </label>
 
           <label class="field-label">
-            Date
-            <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required>
+            Finished
+            <span class="sleep-time-pair">
+              <input type="date" name="pump_end_date" max="{{.NowDate}}" data-pump-end-date>
+              <input type="time" name="pump_end_time" data-pump-end-time>
+            </span>
           </label>
+
+          <p class="sleep-duration-preview" data-pump-duration-preview>Add finish time to calculate duration.</p>
         </div>
 
-        <button type="submit">Save</button>
+        <button type="submit" data-pump-submit-label>Start</button>
       </form>
 
       <form class="event-form" data-type="bath" hx-post="/baths" hx-target="#timeline-workspace" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful) onEventSaved()" hidden>
@@ -287,6 +314,14 @@
 
         <div class="sleep-time-fields" data-sleep-time-fields>
           <label class="field-label">
+            Duration (optional)
+            <span class="number-slider">
+              <input type="range" class="number-slider-range" min="10" max="720" step="10" aria-label="sleep duration slider">
+              <input type="number" name="duration_minutes" class="number-slider-input" min="0" max="9999" step="1" inputmode="numeric" placeholder="e.g. 90" data-sleep-duration-minutes>
+            </span>
+          </label>
+
+          <label class="field-label">
             Fell asleep
             <span class="sleep-time-pair">
               <input type="date" name="date" value="{{.NowDate}}" max="{{.NowDate}}" required data-sleep-start-date>
@@ -299,14 +334,6 @@
             <span class="sleep-time-pair">
               <input type="date" name="sleep_end_date" max="{{.NowDate}}" data-sleep-end-date>
               <input type="time" name="sleep_end_time" data-sleep-end-time>
-            </span>
-          </label>
-
-          <label class="field-label">
-            Duration (optional)
-            <span class="number-slider">
-              <input type="range" class="number-slider-range" min="10" max="720" step="10" aria-label="sleep duration slider">
-              <input type="number" name="duration_minutes" class="number-slider-input" min="0" max="9999" step="1" inputmode="numeric" placeholder="e.g. 90" data-sleep-duration-minutes>
             </span>
           </label>
 
@@ -525,6 +552,22 @@
             Notes (optional)
             <input type="text" name="notes" placeholder="e.g. left side">
           </label>
+          <label class="field-label">
+            Duration (minutes, optional)
+            {{template "number-slider" (dict "Name" "duration_minutes" "Min" "0" "Max" "9999" "SliderMin" "0" "SliderMax" "30" "SliderStep" "5" "Label" "pump duration" "PumpDuration" true)}}
+          </label>
+          <input type="hidden" name="pump_time_basis" value="start">
+
+          <div class="feed-time-fields" data-pump-time-fields>
+            <label class="field-label">
+              Finished
+              <span class="sleep-time-pair">
+                <input type="date" name="pump_end_date" data-pump-end-date>
+                <input type="time" name="pump_end_time" data-pump-end-time>
+              </span>
+            </label>
+            <p class="sleep-duration-preview" data-pump-duration-preview>Add finish time to calculate duration.</p>
+          </div>
         </div>
 
         <div class="edit-event-fields" data-edit-type="bath">
@@ -562,17 +605,17 @@
 
           <div class="sleep-time-fields" data-sleep-time-fields>
             <label class="field-label">
-              Woke up
-              <span class="sleep-time-pair">
-                <input type="date" name="sleep_end_date" data-sleep-end-date>
-                <input type="time" name="sleep_end_time" data-sleep-end-time>
-              </span>
-            </label>
-            <label class="field-label">
               Duration (optional)
               <span class="number-slider">
                 <input type="range" class="number-slider-range" min="10" max="720" step="10" aria-label="sleep duration slider">
                 <input type="number" name="duration_minutes" class="number-slider-input" min="0" max="9999" step="1" inputmode="numeric" placeholder="e.g. 90" data-sleep-duration-minutes>
+              </span>
+            </label>
+            <label class="field-label">
+              Woke up
+              <span class="sleep-time-pair">
+                <input type="date" name="sleep_end_date" data-sleep-end-date>
+                <input type="time" name="sleep_end_time" data-sleep-end-time>
               </span>
             </label>
             <p class="sleep-duration-preview" data-sleep-duration-preview>Add wake-up time to calculate duration.</p>
@@ -651,6 +694,25 @@
             hx-on::after-request="if(event.detail.successful) onEventDeleted()">Delete event</button>
         </div>
       </form>
+      </div>
+    </dialog>
+
+    <dialog id="event-quickview-dialog" aria-labelledby="quickview-title">
+      <div class="dialog-content quickview-content">
+        <div class="quickview-header">
+          <span id="quickview-marker-wrap" aria-hidden="true"></span>
+          <div class="quickview-heading">
+            <div class="quickview-title" id="quickview-title"></div>
+            <div class="quickview-time" id="quickview-time"></div>
+          </div>
+        </div>
+        <div class="quickview-detail" id="quickview-detail" hidden></div>
+        <div class="quickview-actions">
+          <button type="button" class="quickview-edit-button" id="quickview-edit-button">Edit</button>
+          <button type="button" class="quickview-delete-button" id="quickview-delete-button"
+            hx-delete="/events/__event_id__" hx-target="#timeline-workspace" hx-swap="outerHTML"
+            hx-on::after-request="if(event.detail.successful) onEventDeleted()">Delete</button>
+        </div>
       </div>
     </dialog>
   </main>

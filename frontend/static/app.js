@@ -1,3 +1,19 @@
+// Disable htmx's history snapshot/restore. By default htmx caches a
+// full-page HTML snapshot on every hx-push-url and, on browser back/forward,
+// either replaces the whole document with that stale snapshot (orphaning
+// every top-level DOM reference below - dialog, filtersToggle, typeFilter -
+// and breaking the add-event dialog, filters, everything) or, on a cache
+// miss, re-requests the current URL itself and dumps the (deliberately
+// partial, #timeline-workspace-only) response straight into <body> -
+// wiping out the navbar and sidebar, since that recovery path swaps into
+// <body> rather than the original click's hx-target. historyCacheSize: 0
+// guarantees every back/forward is a "miss"; refreshOnHistoryMiss routes
+// that miss to a real full-page reload instead of htmx's own broken
+// recovery - i.e. back/forward behaves exactly like it did before this
+// file added instant day-switching, while a direct pill click still is.
+htmx.config.historyCacheSize = 0;
+htmx.config.refreshOnHistoryMiss = true;
+
 // Drives the single "Add Event" dialog: step 1 picks an event type, step 2
 // shows only that type's form. Each form posts straight to its existing
 // endpoint (/nappies, /feeds, /pumps, /baths, /sleeps, /observations, /temperatures, /growth-measurements) via htmx and swaps in
@@ -158,8 +174,16 @@ function setFormToNow(form) {
   form.querySelectorAll("[data-feed-end-time]").forEach((input) => {
     input.value = "";
   });
+  form.querySelectorAll("[data-pump-end-date]").forEach((input) => {
+    input.value = "";
+    input.max = localDateValue(now);
+  });
+  form.querySelectorAll("[data-pump-end-time]").forEach((input) => {
+    input.value = "";
+  });
   updateSleepDuration(form);
   updateFeedDuration(form);
+  updatePumpDuration(form);
   updatePooSizeFields(form);
   updateFeedAmountFields(form);
 }
@@ -287,6 +311,27 @@ function setFeedEndFromStart(form, durationMinutes) {
   endTime.value = "";
 }
 
+function setPumpEndFromStart(form, durationMinutes) {
+  const minutes = Number.parseInt(durationMinutes, 10);
+  const startDate = form.querySelector('input[name="date"]');
+  const startTime = form.querySelector('input[name="time"]');
+  const endDate = form.querySelector("[data-pump-end-date]");
+  const endTime = form.querySelector("[data-pump-end-time]");
+  const start = parseLocalDateTime(startDate?.value, startTime?.value);
+  if (!start || !endDate || !endTime) return;
+
+  if (Number.isFinite(minutes) && minutes > 0) {
+    const end = new Date(start);
+    end.setMinutes(end.getMinutes() + minutes);
+    endDate.value = localDateValue(end);
+    endTime.value = localTimeValue(end);
+    return;
+  }
+
+  endDate.value = "";
+  endTime.value = "";
+}
+
 function syncNumberSliderThumb(input) {
   const slider = input.closest(".number-slider");
   const range = slider?.querySelector(".number-slider-range");
@@ -313,6 +358,13 @@ function setFeedDurationValue(form, value) {
   syncNumberSliderThumb(durationInput);
 }
 
+function setPumpDurationValue(form, value) {
+  const durationInput = form.querySelector("[data-pump-duration-minutes]");
+  if (!durationInput) return;
+  durationInput.value = value;
+  syncNumberSliderThumb(durationInput);
+}
+
 function updateSleepSubmitLabel(form, hasCompletedSleep) {
   const submitButton = form.querySelector("[data-sleep-submit-label]");
   if (!submitButton) return;
@@ -323,6 +375,12 @@ function updateFeedSubmitLabel(form, hasCompletedFeed) {
   const submitButton = form.querySelector("[data-feed-submit-label]");
   if (!submitButton) return;
   submitButton.textContent = hasCompletedFeed ? "Save" : "Start";
+}
+
+function updatePumpSubmitLabel(form, hasCompletedPump) {
+  const submitButton = form.querySelector("[data-pump-submit-label]");
+  if (!submitButton) return;
+  submitButton.textContent = hasCompletedPump ? "Save" : "Start";
 }
 
 function updateSleepDuration(scope) {
@@ -405,6 +463,46 @@ function updateFeedDuration(scope) {
   });
 }
 
+function updatePumpDuration(scope) {
+  const fields = scope.querySelectorAll("[data-pump-time-fields]");
+  fields.forEach((container) => {
+    const form = container.closest("form");
+    if (!form) return;
+
+    const startDate = form.querySelector('input[name="date"]');
+    const startTime = form.querySelector('input[name="time"]');
+    const endDate = container.querySelector("[data-pump-end-date]");
+    const endTime = container.querySelector("[data-pump-end-time]");
+    const preview = container.querySelector("[data-pump-duration-preview]");
+    const start = parseLocalDateTime(startDate?.value, startTime?.value);
+    const end = parseLocalDateTime(endDate?.value, endTime?.value);
+
+    endDate.setCustomValidity("");
+    endTime.setCustomValidity("");
+
+    if (!start || !end) {
+      setPumpDurationValue(form, "");
+      updatePumpSubmitLabel(form, false);
+      if (preview) preview.textContent = "Add finish time to calculate duration.";
+      return;
+    }
+
+    if (end <= start) {
+      const message = "Finish time must be after pump start.";
+      endTime.setCustomValidity(message);
+      setPumpDurationValue(form, "");
+      updatePumpSubmitLabel(form, false);
+      if (preview) preview.textContent = message;
+      return;
+    }
+
+    const minutes = Math.round((end - start) / 60000);
+    setPumpDurationValue(form, String(minutes));
+    updatePumpSubmitLabel(form, true);
+    if (preview) preview.textContent = `Duration: ${formatDuration(minutes)}`;
+  });
+}
+
 function updateSleepEndFromDuration(form) {
   const durationInput = form.querySelector("[data-sleep-duration-minutes]");
   if (!durationInput) return;
@@ -419,6 +517,14 @@ function updateFeedEndFromDuration(form) {
 
   setFeedEndFromStart(form, durationInput.value);
   updateFeedDuration(form);
+}
+
+function updatePumpEndFromDuration(form) {
+  const durationInput = form.querySelector("[data-pump-duration-minutes]");
+  if (!durationInput) return;
+
+  setPumpEndFromStart(form, durationInput.value);
+  updatePumpDuration(form);
 }
 
 function editSectionForType(type) {
@@ -451,7 +557,7 @@ function openEditDialog(card) {
   editDeleteButton.dataset.deleteUrl = deleteURL;
   editTypeInput.value = type;
   editTitle.textContent = typeLabels[type] ? typeLabels[type].replace("Log", "Edit") : "Edit event";
-  const groupedStartFields = type === "sleep" || type === "feed";
+  const groupedStartFields = type === "sleep" || type === "feed" || type === "pump";
   if (editOccurredAtFields) editOccurredAtFields.classList.toggle("grouped-edit-time-fields", groupedStartFields);
   if (editOccurredAtLabel) {
     editOccurredAtLabel.hidden = !groupedStartFields;
@@ -493,6 +599,9 @@ function openEditDialog(card) {
     case "pump":
       setFieldValue(activeSection, "amount_ml", card.dataset.amountMl);
       setFieldValue(activeSection, "notes", card.dataset.notes);
+      setFieldValue(activeSection, "duration_minutes", card.dataset.durationMinutes);
+      setPumpEndFromStart(editForm, card.dataset.durationMinutes);
+      updatePumpDuration(editForm);
       break;
     case "bath":
       setRadioValue(activeSection, "type", card.dataset.type, "bottom_part");
@@ -534,10 +643,80 @@ function selectedTimelineDate() {
   return dateInput ? dateInput.value : "";
 }
 
+// A quick-view popup shown on row click, ahead of the full edit form: icon,
+// title, time, detail, and Edit/Delete actions. Its content is cloned
+// straight from the clicked row's own already-rendered markup rather than
+// rebuilt from data-* attributes, so it can never drift out of sync with
+// how the row itself formats a title/detail/time.
+const quickViewDialog = document.getElementById("event-quickview-dialog");
+const quickViewMarkerWrap = document.getElementById("quickview-marker-wrap");
+const quickViewTitle = document.getElementById("quickview-title");
+const quickViewTime = document.getElementById("quickview-time");
+const quickViewDetail = document.getElementById("quickview-detail");
+const quickViewEditButton = document.getElementById("quickview-edit-button");
+const quickViewDeleteButton = document.getElementById("quickview-delete-button");
+let quickViewCard = null;
+
+function eventTimeText(card) {
+  const clock = card.querySelector(".event-time-clock");
+  const date = card.querySelector(".event-time-date");
+  const clockText = clock ? clock.textContent.trim() : card.querySelector(".event-time")?.textContent.trim() ?? "";
+  return date ? `${date.textContent.trim()}, ${clockText}` : clockText;
+}
+
+function openQuickView(card) {
+  const eventID = card.dataset.eventId;
+  if (!eventID) return;
+
+  quickViewCard = card;
+
+  const cssClass = card.dataset.cssClass;
+  const icon = card.querySelector(".event-marker .event-type-icon");
+  quickViewMarkerWrap.className = "quickview-marker-wrap" + (cssClass ? ` event-${cssClass}` : "");
+  quickViewMarkerWrap.innerHTML = `<span class="event-marker">${icon ? icon.outerHTML : ""}</span>`;
+
+  quickViewTitle.innerHTML = card.querySelector(".event-type")?.innerHTML ?? "";
+  quickViewTime.textContent = eventTimeText(card);
+
+  const detail = card.querySelector(".event-detail");
+  if (detail) {
+    quickViewDetail.innerHTML = detail.innerHTML;
+    quickViewDetail.hidden = false;
+  } else {
+    quickViewDetail.innerHTML = "";
+    quickViewDetail.hidden = true;
+  }
+
+  const deleteURL = `/events/${eventID}?selected_date=${encodeURIComponent(selectedTimelineDate())}`;
+  quickViewDeleteButton.setAttribute("hx-delete", deleteURL);
+  quickViewDeleteButton.dataset.deleteUrl = deleteURL;
+
+  quickViewDialog.showModal();
+}
+
+quickViewEditButton.addEventListener("click", () => {
+  const card = quickViewCard;
+  quickViewDialog.close();
+  if (card) openEditDialog(card);
+});
+
+quickViewDialog.addEventListener("click", (event) => {
+  if (event.target === quickViewDialog) quickViewDialog.close();
+});
+
+quickViewDialog.addEventListener("close", () => {
+  quickViewCard = null;
+  delete quickViewDeleteButton.dataset.deleteUrl;
+});
+
+quickViewDeleteButton.addEventListener("htmx:configRequest", (event) => {
+  if (quickViewDeleteButton.dataset.deleteUrl) event.detail.path = quickViewDeleteButton.dataset.deleteUrl;
+});
+
 document.body.addEventListener("click", (event) => {
   if (event.target.closest("button, a, input, select, textarea, .event-quick-action")) return;
   const card = event.target.closest(".event-card");
-  if (card) openEditDialog(card);
+  if (card) openQuickView(card);
 });
 
 document.body.addEventListener("keydown", (event) => {
@@ -545,7 +724,7 @@ document.body.addEventListener("keydown", (event) => {
   const trigger = event.target.closest(".event-card-open");
   if (!trigger || event.target !== trigger) return;
   event.preventDefault();
-  openEditDialog(trigger.closest(".event-card"));
+  openQuickView(trigger.closest(".event-card"));
 });
 
 editCloseButton.addEventListener("click", () => editDialog.close());
@@ -583,6 +762,7 @@ window.onEventEdited = onEventEdited;
 
 function onEventDeleted() {
   editDialog.close();
+  quickViewDialog.close();
 }
 
 window.onEventDeleted = onEventDeleted;
@@ -601,12 +781,21 @@ document.body.addEventListener("input", (event) => {
     return;
   }
 
+  if (event.target.matches("[data-pump-duration-minutes]")) {
+    updatePumpEndFromDuration(form);
+    return;
+  }
+
   if (event.target.closest("[data-sleep-time-fields]") || event.target.matches('input[name="date"], input[name="time"]')) {
     updateSleepDuration(form);
   }
 
   if (event.target.closest("[data-feed-time-fields]") || event.target.matches('input[name="date"], input[name="time"]')) {
     updateFeedDuration(form);
+  }
+
+  if (event.target.closest("[data-pump-time-fields]") || event.target.matches('input[name="date"], input[name="time"]')) {
+    updatePumpDuration(form);
   }
 });
 
@@ -619,6 +808,53 @@ document.body.addEventListener("change", (event) => {
   }
 });
 
+// The day-range links swap #timeline-workspace via htmx instead of a full
+// page reload, so the day pills themselves are never re-rendered by the
+// server on click — move the active/current state here instead, the same
+// way the type filter chips already update themselves client-side. Browser
+// back/forward is a real page reload (see htmx.config above), so the
+// server-rendered active state already covers that path and needs no
+// client-side sync here.
+document.body.addEventListener("click", (event) => {
+  const pill = event.target.closest(".range-pill");
+  if (!pill) return;
+  const rangeNav = pill.closest(".range-nav");
+  if (!rangeNav) return;
+
+  rangeNav.querySelectorAll(".range-pill").forEach((candidate) => {
+    const isSelected = candidate === pill;
+    candidate.classList.toggle("active", isSelected);
+    if (isSelected) {
+      candidate.setAttribute("aria-current", "page");
+    } else {
+      candidate.removeAttribute("aria-current");
+    }
+  });
+});
+
+// The add-event and edit-event dialogs sit outside #timeline-workspace (they
+// need to survive being open across a day switch), so each of their hidden
+// selected_date fields was only ever set once, from whatever day was active
+// on the original full page load. Switching days now just swaps
+// #timeline-workspace via htmx rather than reloading the page, so without
+// this those fields go stale: create/edit/delete an event after switching
+// days and it silently re-targets the day you *started* the session on,
+// while the day pill correctly shows the day you actually switched to. The
+// URL's own date param is kept current by hx-push-url on every day-pill
+// click, so it's the reliable source of truth here — re-synced on every
+// #timeline-workspace swap, which also covers plain event mutations (where
+// the URL doesn't change, so this is a harmless no-op reaffirming the same
+// value).
+document.body.addEventListener("htmx:afterSwap", (event) => {
+  if (event.target.id !== "timeline-workspace") return;
+  const selectedDate = new URLSearchParams(window.location.search).get("date");
+  if (!selectedDate) return;
+
+  document.querySelectorAll('input[name="selected_date"]').forEach((input) => {
+    if (!input.closest("#timeline-workspace")) input.value = selectedDate;
+  });
+});
+
 // Timeline navigation and display filters live inside a collapsible section
 // so they don't take up screen space when the timeline itself is what's
 // wanted. Collapsed is the default; the expand/collapse state is remembered
@@ -626,23 +862,12 @@ document.body.addEventListener("change", (event) => {
 
 const filtersToggle = document.getElementById("timeline-filters-toggle");
 const filtersBody = document.getElementById("timeline-filters-body");
-const filtersSummary = document.getElementById("timeline-filters-summary");
 const FILTERS_EXPANDED_STORAGE_KEY = "yauli-filters-expanded";
-
-const typeFilterChipLabels = {
-  nappy: "Nappy",
-  feed: "Feed",
-  pump: "Pump",
-  bath: "Bath",
-  sleep: "Sleep",
-  observation: "Notes",
-  temperature: "Temperature",
-  growth_measurement: "Growth",
-};
 
 function setFiltersExpanded(expanded) {
   filtersBody.hidden = !expanded;
   filtersToggle.setAttribute("aria-expanded", String(expanded));
+  filtersToggle.setAttribute("aria-label", expanded ? "Hide timeline filters" : "Show timeline filters");
   try {
     localStorage.setItem(FILTERS_EXPANDED_STORAGE_KEY, expanded ? "1" : "0");
   } catch {
@@ -657,18 +882,6 @@ function loadFiltersExpanded() {
   } catch {
     return false;
   }
-}
-
-function updateFiltersSummary() {
-  const activeRange = document.querySelector(".range-pill.active");
-  const rangeLabel = activeRange ? activeRange.textContent.trim() : "Today";
-
-  const activeTypes = activeEventFilterTypes();
-  const typeLabel = activeTypes.length === 0
-    ? "All events"
-    : activeTypes.map((type) => typeFilterChipLabels[type] || type).join(", ");
-
-  filtersSummary.textContent = `${rangeLabel} · ${typeLabel}`;
 }
 
 if (filtersToggle && filtersBody) {
@@ -735,7 +948,6 @@ function applyEventFilter() {
 if (typeFilter) {
   setActiveEventFilterChips(loadStoredEventFilter());
   applyEventFilter();
-  if (filtersSummary) updateFiltersSummary();
 
   typeFilter.addEventListener("click", (event) => {
     const chip = event.target.closest(".type-filter-chip");
@@ -757,7 +969,6 @@ if (typeFilter) {
     setActiveEventFilterChips(types);
     storeEventFilter(types);
     applyEventFilter();
-    if (filtersSummary) updateFiltersSummary();
   });
 
   // Re-apply the filter every time htmx swaps in fresh timeline markup

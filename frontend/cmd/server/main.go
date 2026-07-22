@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -34,6 +35,28 @@ func dict(pairs ...any) (map[string]any, error) {
 		m[key] = pairs[i+1]
 	}
 	return m, nil
+}
+
+// splitEventTime breaks a TimelineEvent's pre-formatted display time —
+// "11:15 AM" or, for historical days, "Jan 2, 11:15 AM" — into separate
+// date/clock parts so the timeline's narrow time column can stack the date
+// above the clock instead of widening to fit the longer historical format.
+func splitEventTime(s string) map[string]string {
+	if date, clock, ok := strings.Cut(s, ", "); ok {
+		return map[string]string{"Date": date, "Clock": clock}
+	}
+	return map[string]string{"Date": "", "Clock": s}
+}
+
+// initial returns the uppercased first rune of s, for the navbar's
+// initial-letter account avatar. Empty input yields an empty string rather
+// than panicking, since a signed-out or still-loading account view can pass
+// through a zero-value label.
+func initial(s string) string {
+	for _, r := range s {
+		return strings.ToUpper(string(r))
+	}
+	return ""
 }
 
 // staticAssetURLs fingerprints each static file once at startup. The content
@@ -104,8 +127,10 @@ func main() {
 	}
 
 	templates, err := template.New("").Funcs(template.FuncMap{
-		"assetURL": func(name string) (string, error) { return staticAssetURL(staticURLs, name) },
-		"dict":     dict,
+		"assetURL":  func(name string) (string, error) { return staticAssetURL(staticURLs, name) },
+		"dict":      dict,
+		"splitTime": splitEventTime,
+		"initial":   initial,
 	}).ParseGlob("templates/*.html")
 	if err != nil {
 		log.Fatalf("parse templates: %v", err)
@@ -138,7 +163,6 @@ func main() {
 			r.Get("/timeline/events", h.TimelineEvents)
 			r.Get("/settings", h.ShowSettings)
 			r.Post("/settings/account", h.UpdateAccountSettings)
-			r.Post("/settings/report-emails", h.UpdateReportEmailSettings)
 			r.Post("/settings/baby", h.UpdateBabySettings)
 			r.Post("/settings/baby/delete", h.ArchiveCurrentBaby)
 			r.Post("/settings/timeline/invite", h.CreateTimelineInvite)
@@ -156,6 +180,7 @@ func main() {
 			r.Post("/growth-measurements", h.CreateGrowthMeasurement)
 			r.Post("/events/{id}/finish-feed", h.FinishFeedNow)
 			r.Post("/events/{id}/finish-sleep", h.FinishSleepNow)
+			r.Post("/events/{id}/finish-pump", h.FinishPumpNow)
 			r.Patch("/events/{id}", h.UpdateEvent)
 			r.Delete("/events/{id}", h.DeleteEvent)
 		})
