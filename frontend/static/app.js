@@ -26,6 +26,16 @@ const backButton = document.getElementById("add-event-back");
 const picker = document.getElementById("event-type-picker");
 const title = document.getElementById("add-event-title");
 const addEventForms = Array.from(dialog.querySelectorAll(".event-form"));
+const babyTimezone = document.body.dataset.babyTimezone;
+const babyDateTimeFormatter = new Intl.DateTimeFormat("en-AU", {
+  timeZone: babyTimezone,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
 
 const typeLabels = {
   nappy: "Log a nappy",
@@ -95,6 +105,17 @@ function localTimeValue(date) {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function dateTimeValuesInBabyTimezone(date) {
+  const values = {};
+  babyDateTimeFormatter.formatToParts(date).forEach(({ type, value }) => {
+    values[type] = value;
+  });
+  return {
+    date: `${values.year}-${values.month}-${values.day}`,
+    time: `${values.hour}:${values.minute}`,
+  };
+}
+
 function parseLocalDateTime(dateValue, timeValue) {
   if (!dateValue || !timeValue) return null;
   const [year, month, day] = dateValue.split("-").map(Number);
@@ -143,40 +164,40 @@ function updateFeedAmountFields(scope) {
   });
 }
 
-// Set a form's date/time fields to the current local date/time. Called each
-// time a form is shown, since a value baked in at page load would go stale
-// if the dialog is opened later in the same session.
+// Set a form's date/time fields to now in the baby's configured timezone.
+// Called each time a form is shown, since a value baked in at page load would
+// go stale if the dialog is opened later in the same session.
 function setFormToNow(form) {
-  const now = new Date();
+  const now = dateTimeValuesInBabyTimezone(new Date());
 
   const dateInput = form.querySelector('input[type="date"]');
   if (dateInput) {
-    dateInput.value = localDateValue(now);
-    dateInput.max = localDateValue(now);
+    dateInput.value = now.date;
+    dateInput.max = now.date;
   }
 
   const timeInput = form.querySelector('input[type="time"]');
   if (timeInput) {
-    timeInput.value = localTimeValue(now);
+    timeInput.value = now.time;
   }
 
   form.querySelectorAll("[data-sleep-end-date]").forEach((input) => {
     input.value = "";
-    input.max = localDateValue(now);
+    input.max = now.date;
   });
   form.querySelectorAll("[data-sleep-end-time]").forEach((input) => {
     input.value = "";
   });
   form.querySelectorAll("[data-feed-end-date]").forEach((input) => {
     input.value = "";
-    input.max = localDateValue(now);
+    input.max = now.date;
   });
   form.querySelectorAll("[data-feed-end-time]").forEach((input) => {
     input.value = "";
   });
   form.querySelectorAll("[data-pump-end-date]").forEach((input) => {
     input.value = "";
-    input.max = localDateValue(now);
+    input.max = now.date;
   });
   form.querySelectorAll("[data-pump-end-time]").forEach((input) => {
     input.value = "";
@@ -573,7 +594,7 @@ function openEditDialog(card) {
   if (!activeSection) return;
 
   const editDateInput = editForm.querySelector('input[type="date"]');
-  if (editDateInput) editDateInput.max = localDateValue(new Date());
+  if (editDateInput) editDateInput.max = dateTimeValuesInBabyTimezone(new Date()).date;
 
   setFieldValue(editForm, "date", card.dataset.date);
   setFieldValue(editForm, "time", card.dataset.time);

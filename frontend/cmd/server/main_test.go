@@ -259,7 +259,7 @@ func TestDailyReportRendersFourKPIs(t *testing.T) {
 func TestIndexOmitsDailyReportToggle(t *testing.T) {
 	templates := parseFrontendTemplates(t)
 	data := map[string]any{
-		"Baby":        backendclient.Baby{Name: "YauYau"},
+		"Baby":        backendclient.Baby{Name: "YauYau", Timezone: "Australia/Perth"},
 		"Account":     map[string]string{"Label": "Parent", "Email": "parent@example.com"},
 		"Timeline":    handlers.TimelineViewData{SelectedDate: "2026-07-18"},
 		"DailyReport": (*backendclient.DailyReport)(nil),
@@ -274,6 +274,9 @@ func TestIndexOmitsDailyReportToggle(t *testing.T) {
 	html := rendered.String()
 	if !strings.Contains(html, `id="type-filter"`) {
 		t.Fatalf("event type filter missing: %s", html)
+	}
+	if !strings.Contains(html, `<body data-baby-timezone="Australia/Perth">`) {
+		t.Fatalf("index does not expose the baby timezone to event forms: %s", html)
 	}
 	for _, want := range []string{`data-filter-type="observation" title="Observations"`, `type-filter-chip-label">Observations</span>`} {
 		if !strings.Contains(html, want) {
@@ -432,6 +435,34 @@ func TestTimelineEventCardOpensEditorWithoutActionIcons(t *testing.T) {
 	for _, unwanted := range []string{`class="event-edit"`, `class="event-delete"`, `hx-confirm`} {
 		if strings.Contains(html, unwanted) {
 			t.Fatalf("timeline event card contains removed action %q: %s", unwanted, html)
+		}
+	}
+}
+
+func TestAppJSUsesBabyTimezoneForEventDefaults(t *testing.T) {
+	content, err := os.ReadFile("../../static/app.js")
+	if err != nil {
+		t.Fatalf("read app.js: %v", err)
+	}
+	js := string(content)
+	for _, want := range []string{
+		`const babyTimezone = document.body.dataset.babyTimezone`,
+		`timeZone: babyTimezone`,
+		`dateTimeValuesInBabyTimezone(new Date())`,
+		`dateInput.value = now.date`,
+		`timeInput.value = now.time`,
+	} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("app.js does not contain %q", want)
+		}
+	}
+	for _, unwanted := range []string{
+		`dateInput.value = localDateValue(now)`,
+		`timeInput.value = localTimeValue(now)`,
+		`editDateInput.max = localDateValue(new Date())`,
+	} {
+		if strings.Contains(js, unwanted) {
+			t.Fatalf("app.js still uses browser-local event defaults %q", unwanted)
 		}
 	}
 }
