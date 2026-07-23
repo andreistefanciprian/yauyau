@@ -260,6 +260,18 @@ func writeHTMLCard(b *strings.Builder, report Report) {
                 </tr>`)
 }
 
+// newestFirst returns a copy of days in reverse order, for chart rendering
+// that wants the most recent day first without mutating the caller's slice
+// or affecting the plain-text trend log, which reads more naturally
+// oldest-first as a chronological list.
+func newestFirst(days []TrendDay) []TrendDay {
+	reversed := make([]TrendDay, len(days))
+	for i, d := range days {
+		reversed[len(days)-1-i] = d
+	}
+	return reversed
+}
+
 // formatTrendDurationMinutes renders a duration the way the trend charts'
 // design mockup does: "1h 44m" once there's at least an hour, "16 min"
 // otherwise. This is deliberately separate from the web app / KPI card's own
@@ -425,6 +437,11 @@ func writeHTMLTrendChart(b *strings.Builder, days []TrendDay, spec trendChartSpe
 			}
 		}
 	}
+
+	// days arrives oldest-first (see TrendDay's doc comment); render
+	// newest-first instead so the report day sits at the top of each chart,
+	// closest to the rest of the report, rather than scrolled to the bottom.
+	days = newestFirst(days)
 
 	b.WriteString(`
                 <tr>

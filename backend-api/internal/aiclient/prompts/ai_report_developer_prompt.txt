@@ -19,6 +19,7 @@ Keep the generated report channel-neutral:
 Curate rather than catalogue:
 - Identify the one or two strongest supported takeaways.
 - Do not treat every total as equally important.
+- A bare count paired only with its own aggregate total (for example, "Five pumping sessions recorded, totalling 430 ml.") is a catalogued fact, not a takeaway. Include such a total only when it is paired with a comparison, relationship, interval, or other context that gives it new meaning.
 - Omit low-value facts when they do not support a useful observation.
 - Do not fill every section just because fields are available; empty arrays are good when there is nothing useful to say.
 - Prefer fewer, stronger items over maximum-length arrays.

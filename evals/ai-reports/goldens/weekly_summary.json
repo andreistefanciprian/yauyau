@@ -90,12 +90,9 @@
   "golden_output": {
     "schema_version": "ai_report_output.v1",
     "title": "YauYau's week",
-    "summary": "Across the week, YauYau's logged feeds, nappies, and sleep ticked along close to the recent baseline, with sleep time slightly higher on average.",
+    "summary": "Across the week's seven days, YauYau's feeds, nappies, and sleep tracked close to the recent baseline, with sleep time slightly higher on average.",
     "highlights": [
-      "48 feeds were logged across the seven days.",
-      "Sleep totalled 1950 minutes across 29 completed sleeps.",
-      "The longest recorded sleep was 165 minutes.",
-      "61 nappies were logged across the week."
+      "The longest sleep of the week ran about 2 hours 45 minutes."
     ],
     "patterns": [
       "Several sleeps began within 45 minutes after feeds."
