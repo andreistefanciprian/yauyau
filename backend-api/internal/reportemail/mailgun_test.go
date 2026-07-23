@@ -220,10 +220,16 @@ func TestMailgunSendReportEmailIncludesTrendInHTMLAndText(t *testing.T) {
 	if !strings.Contains(text, "Tue: Sleep 10.0h · Feeds 6 (1h, 360 mL bottle) · Pump 0 mL (0 min) · Nappies 7") {
 		t.Fatalf("text body did not contain zero-value trend data: %q", text)
 	}
+	if monIndex, tueIndex := strings.Index(text, "Mon: Sleep"), strings.Index(text, "Tue: Sleep"); monIndex == -1 || tueIndex == -1 || monIndex > tueIndex {
+		t.Fatalf("text trend days were not rendered oldest-first: %q", text)
+	}
 
 	html := gotForm.Get("html")
 	if !strings.Contains(html, "Last 7 days") || !strings.Contains(html, "Bottle mL") {
 		t.Fatalf("html body did not contain trend charts: %q", html)
+	}
+	if tueIndex, monIndex := strings.Index(html, ">Tue</td>"), strings.Index(html, ">Mon</td>"); tueIndex == -1 || monIndex == -1 || tueIndex > monIndex {
+		t.Fatalf("HTML trend days were not rendered newest-first: %q", html)
 	}
 }
 
