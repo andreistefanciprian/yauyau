@@ -6,6 +6,24 @@ pattern is easy to follow when adding the next event type. See
 vision (feed/nappy/sleep/pump/etc. as a generalized model) that this
 section's backend-api + frontend wiring implements.
 
+## Public discovery routes
+
+The frontend serves three static discovery files at the site root:
+
+* `GET /robots.txt` allows the public landing page, excludes private
+  family-timeline and token-bearing workflows from crawling, and points
+  crawlers to the sitemap.
+* `GET /sitemap.xml` lists only the canonical public landing page at
+  `https://getyauli.com/`.
+* `GET /llms.txt` provides a concise, factual product overview and links to
+  the public landing page and source repository. It explicitly distinguishes
+  current web-app functionality from the planned ChatGPT/MCP experience.
+
+Authenticated and authentication-related HTML pages also emit a `noindex`
+robots meta tag. The public sign-in page remains crawlable so crawlers can see
+and honour that tag. `robots.txt` is crawler guidance, not an access-control
+boundary; sessions and authorization continue to protect all private data.
+
 ## backend-api routes
 
 Authenticated app routes are mounted under `/api/v1/users` and

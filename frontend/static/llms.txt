@@ -1,0 +1,14 @@
+# Yauli
+
+> Yauli is a baby tracking and parenting companion that gives families one calm, shared timeline for their baby's day.
+
+Yauli helps parents and carers record and review feeds, pumping, nappies, sleep, baths, observations, temperature, and growth measurements. It turns those records into daily summaries and reports so families can quickly understand what happened and share the same picture of their baby's day.
+
+The public website is https://getyauli.com/. Family timelines and baby records are private and require sign-in. Yauli supports parenting organisation and record keeping; it does not provide medical diagnosis or replace professional medical advice.
+
+The web application is available today. Direct conversational tracking through ChatGPT and MCP is part of Yauli's product direction and is not yet generally available.
+
+## Official pages
+
+- [Yauli homepage](https://getyauli.com/): Product overview and access to the web application.
+- [Yauli source repository](https://github.com/andreistefanciprian/yauli): Public project overview, current features, architecture, and development status.

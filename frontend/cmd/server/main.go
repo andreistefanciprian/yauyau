@@ -151,6 +151,11 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	r.Group(func(r chi.Router) {
+		discoveryFiles := http.FileServer(http.Dir("static"))
+		r.Handle("/robots.txt", discoveryFiles)
+		r.Handle("/sitemap.xml", discoveryFiles)
+		r.Handle("/llms.txt", discoveryFiles)
+
 		r.Get("/login", h.ShowLogin)
 		r.Post("/login", h.RequestMagicLink)
 		r.Post("/logout", h.Logout)

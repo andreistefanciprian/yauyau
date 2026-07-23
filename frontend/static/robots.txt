@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# These routes are sign-in, account, or private family-timeline workflows.
+Disallow: /app
+Disallow: /auth/
+Disallow: /onboarding
+Disallow: /settings
+Disallow: /timeline/
+Disallow: /unsubscribe
+
+Sitemap: https://getyauli.com/sitemap.xml

@@ -2,7 +2,10 @@ package main
 
 import (
 	"bytes"
+	"encoding/xml"
 	"html/template"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,6 +94,115 @@ func TestStaticAssetURLsChangeWithContent(t *testing.T) {
 func TestStaticAssetURLRejectsUnknownAsset(t *testing.T) {
 	if _, err := staticAssetURL(map[string]string{}, "missing.js"); err == nil {
 		t.Fatal("staticAssetURL accepted an unknown asset")
+	}
+}
+
+func TestDiscoveryFiles(t *testing.T) {
+	handler := http.FileServer(http.Dir("../../static"))
+
+	tests := []struct {
+		path        string
+		contentType string
+		contains    []string
+	}{
+		{
+			path:        "/robots.txt",
+			contentType: "text/plain",
+			contains: []string{
+				"User-agent: *",
+				"Allow: /",
+				"Disallow: /app",
+				"Sitemap: https://getyauli.com/sitemap.xml",
+			},
+		},
+		{
+			path:        "/sitemap.xml",
+			contentType: "xml",
+			contains: []string{
+				`<loc>https://getyauli.com/</loc>`,
+			},
+		},
+		{
+			path:        "/llms.txt",
+			contentType: "text/plain",
+			contains: []string{
+				"# Yauli",
+				"> Yauli is a baby tracking and parenting companion",
+				"[Yauli homepage](https://getyauli.com/)",
+				"not yet generally available",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.path, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, test.path, nil)
+			response := httptest.NewRecorder()
+
+			handler.ServeHTTP(response, request)
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+			}
+			if got := response.Header().Get("Content-Type"); !strings.Contains(got, test.contentType) {
+				t.Fatalf("Content-Type = %q, want it to contain %q", got, test.contentType)
+			}
+			for _, want := range test.contains {
+				if !strings.Contains(response.Body.String(), want) {
+					t.Fatalf("%s does not contain %q: %s", test.path, want, response.Body.String())
+				}
+			}
+		})
+	}
+}
+
+func TestSitemapContainsOnlyCanonicalHomepage(t *testing.T) {
+	content, err := os.ReadFile("../../static/sitemap.xml")
+	if err != nil {
+		t.Fatalf("read sitemap: %v", err)
+	}
+
+	var sitemap struct {
+		URLs []struct {
+			Location string `xml:"loc"`
+		} `xml:"url"`
+	}
+	if err := xml.Unmarshal(content, &sitemap); err != nil {
+		t.Fatalf("parse sitemap XML: %v", err)
+	}
+	if len(sitemap.URLs) != 1 {
+		t.Fatalf("sitemap has %d URLs, want 1", len(sitemap.URLs))
+	}
+	if got := sitemap.URLs[0].Location; got != "https://getyauli.com/" {
+		t.Fatalf("sitemap URL = %q, want canonical homepage", got)
+	}
+}
+
+func TestTemplatesSetSearchIndexingPolicy(t *testing.T) {
+	intro, err := os.ReadFile("../../templates/intro.html")
+	if err != nil {
+		t.Fatalf("read intro template: %v", err)
+	}
+	for _, want := range []string{
+		`<title>Yauli | Baby Tracker &amp; Parenting Companion</title>`,
+		`<meta name="description"`,
+		`<meta name="robots" content="index, follow">`,
+		`<link rel="canonical" href="https://getyauli.com/">`,
+		`<meta property="og:title"`,
+	} {
+		if !strings.Contains(string(intro), want) {
+			t.Fatalf("intro template does not contain %q", want)
+		}
+	}
+
+	for _, name := range []string{"auth-verify.html", "index.html", "login.html", "onboarding.html", "settings.html"} {
+		content, err := os.ReadFile(filepath.Join("../../templates", name))
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		if !strings.Contains(string(content), `<meta name="robots" content="noindex, nofollow">`) {
+			t.Fatalf("%s does not opt out of search indexing", name)
+		}
 	}
 }
 
