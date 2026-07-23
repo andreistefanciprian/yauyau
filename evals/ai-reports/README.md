@@ -40,6 +40,10 @@ A future eval runner should:
   card or last-seven-days chart accompanies the JSON;
 * verify daily prose curates exact values rather than cataloguing every total or
   narrating a day-by-day series;
+* verify a bare count is not paired only with its own aggregate total and
+  presented as a highlight or summary insight (for example, "Five pumping
+  sessions recorded, totalling 430 ml." on its own) unless paired with a
+  comparison, relationship, interval, or other interpretation;
 * verify outputs do not fill every section to its maximum length by default;
 * verify the same insight is not repeated across summary, highlights, patterns,
   and comparison unless the repeated section adds new parent-facing value;

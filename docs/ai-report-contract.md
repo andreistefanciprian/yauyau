@@ -647,6 +647,10 @@ AI should not:
 
 * perform arithmetic;
 * catalogue every total;
+* present a bare count and its own aggregate total with no comparison,
+  relationship, interval, or other interpretation (for example, "Five
+  pumping sessions recorded, totalling 430 ml." on its own) — that catalogues
+  a fact rather than curating a takeaway;
 * use generic filler such as "feeding, nappy, and sleep activity was recorded
   throughout the day";
 * infer causation from sequences;
